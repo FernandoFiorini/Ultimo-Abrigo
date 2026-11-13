@@ -86,7 +86,7 @@ const DIFF_ORDER = Object.keys(DIFFS);
 const diffRank = k => Math.max(0, DIFF_ORDER.indexOf(k));
 const D = () => DIFFS[(S && S.diff) || 'normal'];
 const waveInterval = () => D().interval * (hasMod('rapida') ? 0.7 : 1);
-const foodPer = () => D().food * (hasMod('fome') ? 1.5 : 1) * traitMult('frugal');
+const foodPer = () => D().food * (hasMod('fome') ? 1.5 : 1) * traitMult('frugal') * (1 - Endgame.ab('food'));
 
 const RES = {
   comida:  { nome: 'Comida',   icon: '🥫' },

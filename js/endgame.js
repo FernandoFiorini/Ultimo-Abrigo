@@ -98,9 +98,41 @@ const Endgame = (() => {
     batedor:    { nome: 'Batedor',         icon: '🧭', base: 0.15, per: 0.03,  color: [70, 140, 90],  fx: p => `+${pct(p)} de recompensa em expedições e operações, -${pct(p / 2)} de risco` },
     comandante: { nome: 'Comandante',      icon: '🎖️', base: 0.08, per: 0.015, color: [60, 90, 160],  fx: p => `+${pct(p)} de toda a produção` },
   };
-  const HERO_NAMES = ['Rafa', 'Dona Cida', 'Tonhão', 'Bia', 'Zeca', 'Marcão', 'Lúcia', 'Juninho', 'Neide', 'Caio', 'Paty',
-    'Dandara', 'Kiko', 'Valéria', 'Biel', 'Tereza', 'Nando', 'Rosa', 'Seu Batista', 'Jéssica', 'Toninho', 'Mari'];
-  const HERO_MAX = 12, HERO_ACTIVE = 3, HERO_MAX_LVL = 50, WEAPON_MAX = 15;
+  // Elenco fixo de heróis. Cada um tem visual próprio, a classe (bônus que cresce com o nível e com a arma)
+  // e uma habilidade única, que vale enquanto ele estiver ativo.
+  // src: onde ele pode aparecer · look: aparência no cenário (acessórios desenhados em Scene.drawHuman)
+  const HSRC = {
+    distrito: { icon: '🏴', txt: 'Libertando distritos da cidade (o primeiro distrito libertado sempre traz um herói)' },
+    chefe:    { icon: '👹', txt: 'Derrotando a Abominação (15% de chance)' },
+    base:     { icon: '🪖', txt: 'Em expedições à Base militar (8% de chance)' },
+  };
+  const HEROES = {
+    rafa:     { nome: 'Rafa',        cls: 'atirador',   src: 'distrito', ab: { id: 'crit',    nome: 'Olho de águia',        desc: '+10% de chance de tiro crítico (dano dobrado) em todos os tiros', v: 0.10 },
+                look: { skin: [224, 176, 140], hair: [40, 30, 20], shirt: [150, 50, 45], pants: [50, 50, 62], cap: [170, 40, 40], scarf: [230, 230, 220] } },
+    valeria:  { nome: 'Valéria',     cls: 'atirador',   src: 'chefe',    ab: { id: 'boss',    nome: 'Caçadora de monstros', desc: '+50% de dano contra a Abominação', v: 0.5 },
+                look: { skin: [234, 192, 160], hair: [170, 60, 30], longHair: true, shirt: [40, 38, 42], pants: [30, 30, 34], patch: true } },
+    dandara:  { nome: 'Dandara',     cls: 'atirador',   src: 'base',     ab: { id: 'leader',  nome: 'Instrutora de tiro',   desc: '+25% de dano das armas do líder', v: 0.25 },
+                look: { skin: [110, 72, 50], hair: [25, 20, 18], afro: true, shirt: [78, 88, 48], pants: [60, 66, 40], beret: [150, 30, 30] } },
+    tonhao:   { nome: 'Tonhão',      cls: 'engenheiro', src: 'distrito', ab: { id: 'repair',  nome: 'Mãos de ferro',        desc: 'Cada reparo do muro restaura 60% a mais', v: 0.6 },
+                look: { skin: [200, 150, 110], hair: [60, 40, 30], beard: [60, 40, 30], shirt: [220, 120, 30], pants: [50, 60, 90], hardhat: [240, 200, 40] } },
+    neide:    { nome: 'Dona Neide',  cls: 'engenheiro', src: 'distrito', ab: { id: 'build',   nome: 'Gambiarra',            desc: 'Construções 15% mais baratas', v: 0.15 },
+                look: { skin: [224, 176, 140], hair: [160, 160, 165], longHair: true, glasses: true, shirt: [140, 80, 140], pants: [70, 60, 80], apron: true } },
+    batista:  { nome: 'Seu Batista', cls: 'engenheiro', src: 'base',     ab: { id: 'tower',   nome: 'Mestre de obras',      desc: 'Torres de vigia atiram 20% mais rápido', v: 0.2 },
+                look: { skin: [150, 100, 70], hair: [200, 200, 200], bald: true, beard: [210, 210, 210], shirt: [60, 80, 120], pants: [40, 50, 70], pack: [110, 80, 50] } },
+    cida:     { nome: 'Dona Cida',   cls: 'medico',     src: 'distrito', ab: { id: 'heal',    nome: 'Benzedeira',           desc: 'Feridos se recuperam 50% mais rápido', v: 0.5 },
+                look: { skin: [200, 150, 110], hair: [235, 235, 235], bun: true, glasses: true, shirt: [222, 222, 216], pants: [120, 90, 140], cross: true, scarf: [160, 110, 200] } },
+    lucia:    { nome: 'Lúcia',       cls: 'medico',     src: 'chefe',    ab: { id: 'medwave', nome: 'Farmacêutica',         desc: '+1 remédio a cada horda vencida', v: 1 },
+                look: { skin: [234, 192, 160], hair: [20, 20, 20], longHair: true, shirt: [60, 150, 140], pants: [60, 150, 140], cross: true } },
+    bia:      { nome: 'Bia',         cls: 'batedor',    src: 'distrito', ab: { id: 'speed',   nome: 'Pés de vento',         desc: 'Expedições e operações 20% mais rápidas', v: 0.2 },
+                look: { skin: [224, 176, 140], hair: [230, 90, 160], mohawk: true, shirt: [70, 140, 90], pants: [40, 40, 50], pack: [80, 110, 60] } },
+    caio:     { nome: 'Caio',        cls: 'batedor',    src: 'base',     ab: { id: 'finder',  nome: 'Olho clínico',         desc: '+15% de chance de achar sobreviventes nas expedições', v: 0.15 },
+                look: { skin: [150, 100, 70], hair: [30, 25, 20], bandana: [60, 130, 70], goggles: true, shirt: [110, 80, 50], pants: [70, 64, 50], pack: [90, 70, 40] } },
+    zeca:     { nome: 'Zeca',        cls: 'comandante', src: 'distrito', ab: { id: 'beds',    nome: 'Voz de comando',       desc: '+2 vagas para sobreviventes', v: 2 },
+                look: { skin: [200, 150, 110], hair: [50, 40, 30], mustache: [50, 40, 30], shirt: [60, 90, 160], pants: [40, 50, 80], cap: [30, 40, 80] } },
+    marcao:   { nome: 'Marcão',      cls: 'comandante', src: 'chefe',    ab: { id: 'food',    nome: 'Churrasqueiro',        desc: '−10% no consumo de comida do grupo', v: 0.1 },
+                look: { skin: [110, 72, 50], hair: [20, 20, 20], bald: true, beard: [20, 20, 20], shirt: [225, 225, 215], pants: [50, 50, 60], apron: true } },
+  };
+  const HERO_MAX = Object.keys(HEROES).length, HERO_ACTIVE = 3, HERO_MAX_LVL = 50, WEAPON_MAX = 15;
   const RARITY = [
     { nome: 'Comum',    mult: 1.0, w: 60, color: '#b8bdb5' },
     { nome: 'Rara',     mult: 1.3, w: 28, color: '#4aa3ff' },
@@ -134,6 +166,33 @@ const Endgame = (() => {
     const c = HCLASS[h.cls], w = h.weapon ? RARITY[h.weapon.rar].mult : 1;
     return (c.base + c.per * (h.lvl - 1)) * w;
   }
+  // Habilidade única: soma o valor dos heróis ativos que têm a habilidade
+  function ab(id) {
+    const m = typeof S !== 'undefined' && S && S.meta;
+    if (!m || !m.heroes) return 0;
+    let v = 0;
+    for (const h of m.heroes) { const H = HEROES[h.key]; if (H && H.ab.id === id && m.active.includes(h.id)) v += H.ab.v; }
+    return v;
+  }
+  const heroLook = key => ({ ...HEROES[key].look, cape: HCLASS[HEROES[key].cls].color });
+  // Saves antigos: cada herói aleatório vira um herói do elenco (mesmo nome e classe quando possível), mantendo nível, XP e arma
+  function migrateHeroes() {
+    const m = M();
+    if (!Array.isArray(m.heroes)) { m.heroes = []; m.active = []; return; }
+    const used = new Set(m.heroes.filter(h => HEROES[h.key]).map(h => h.key));
+    for (const h of m.heroes) {
+      if (HEROES[h.key]) continue;
+      const free = Object.keys(HEROES).filter(k => !used.has(k));
+      if (!free.length) break;
+      const k = free.find(k => HEROES[k].nome === h.nome && HEROES[k].cls === h.cls) || free.find(k => HEROES[k].cls === h.cls)
+        || free.find(k => HEROES[k].nome === h.nome) || free[0];
+      used.add(k);
+      Object.assign(h, { key: k, nome: HEROES[k].nome, cls: HEROES[k].cls });
+    }
+    m.heroes = m.heroes.filter(h => HEROES[h.key]);
+    m.active = (m.active || []).filter(id => m.heroes.some(h => h.id === id));
+  }
+
   function hb(cls) {
     let v = 0;
     for (const h of M().heroes) if (h.cls === cls && M().active.includes(h.id)) v += heroPower(h);
@@ -154,10 +213,10 @@ const Endgame = (() => {
     }
     return 1;
   }
-  const critChance = () => 0.08 * tl('pontaoca');
+  const critChance = () => 0.08 * tl('pontaoca') + ab('crit');
   const accBonus = () => 0.05 * tl('miras') + hb('atirador') / 2;
   const sciCap = () => S.build.lab * 2 + dist('sci');
-  const durMult = () => (1 - 0.1 * tl('rotas')) * traitMult('pes');
+  const durMult = () => (1 - 0.1 * tl('rotas')) * traitMult('pes') * (1 - ab('speed'));
   const riskMult = () => (1 - 0.15 * tl('rotas')) * (1 - hb('batedor') / 2);
   const scoutLoot = () => (1 + hb('batedor')) * traitMult('faro');
 
@@ -198,7 +257,7 @@ const Endgame = (() => {
     if (ev) count('evKills', 1);
     if (ZTYPES[z.type].boss) {
       count('bosses', 1);
-      if (Math.random() < 0.15) gainHero('derrotando a Abominação');
+      if (Math.random() < 0.15) gainHero('derrotando a Abominação', 'chefe');
     }
     const drops = DROPS[z.type];
     if (!drops) return;
@@ -354,7 +413,7 @@ const Endgame = (() => {
       const sk = pick(['acido', 'gas', 'tecido']);
       addSample(sk, 1 + Math.floor(d.unlock / 4));
       if (Math.random() < 0.5) gainWeapon(`no distrito ${d.nome}`);
-      if (Math.random() < 0.4 || !M().heroes.length) gainHero(`libertando ${d.nome}`);
+      if (Math.random() < 0.4 || !M().heroes.length) gainHero(`libertando ${d.nome}`, 'distrito');
     } else {
       const lost = Math.ceil(o.n / 2);
       const names = removeSurvivors(lost, `morreu tentando libertar: ${d.nome}`);
@@ -365,18 +424,21 @@ const Endgame = (() => {
     }
   }
 
-  function gainHero(where) {
+  // src: distrito, chefe ou base. Sai um herói bloqueado daquela origem (ou qualquer bloqueado, se ela já acabou).
+  function gainHero(where, src) {
     const m = M();
-    if (m.heroes.length >= HERO_MAX) return;
-    const used = new Set(m.heroes.map(h => h.nome));
-    const free = HERO_NAMES.filter(n => !used.has(n));
-    const h = { id: m.hid++, nome: pick(free.length ? free : HERO_NAMES), cls: pick(Object.keys(HCLASS)), lvl: 1, xp: 0, weapon: null };
+    const owned = new Set(m.heroes.map(h => h.key));
+    const locked = Object.keys(HEROES).filter(k => !owned.has(k));
+    if (!locked.length) return;
+    const pool = locked.filter(k => HEROES[k].src === src);
+    const key = pick(pool.length ? pool : locked), H = HEROES[key];
+    const h = { id: m.hid++, key, nome: H.nome, cls: H.cls, lvl: 1, xp: 0, weapon: null };
     m.heroes.push(h);
     if (m.active.length < HERO_ACTIVE) m.active.push(h.id);
     const C_ = HCLASS[h.cls];
-    addLog(`🦸 Um herói se juntou a você ${where}: ${C_.icon} ${h.nome}, ${C_.nome}!`, 'good');
+    addLog(`🦸 Um herói se juntou a você ${where}: ${C_.icon} ${h.nome}, ${C_.nome}! Habilidade: ✦ ${H.ab.nome}.`, 'good');
     emit('hero', { h });
-    toast({ icon: C_.icon, label: '🦸 Novo herói', name: `${h.nome}, ${C_.nome}`, desc: C_.fx(heroPower(h)),
+    toast({ icon: C_.icon, label: '🦸 Novo herói', name: `${h.nome}, ${C_.nome}`, desc: `${C_.fx(heroPower(h))} · ✦ ${H.ab.nome}: ${H.ab.desc}`,
       btn: 'Ver heróis', onBtn: () => openTab('herois') });
   }
 
@@ -404,6 +466,7 @@ const Endgame = (() => {
       if (E.bonus) for (const k in E.bonus) addSample(k, E.bonus[k]);
       addLog(`${E.icon} Você sobreviveu à ${E.nome}!`, 'good');
     }
+    if (ab('medwave')) S.res.remedio += ab('medwave');
     // XP dos heróis ativos
     for (const h of m.heroes) {
       if (!m.active.includes(h.id) || h.lvl >= HERO_MAX_LVL) continue;
@@ -446,7 +509,7 @@ const Endgame = (() => {
 
   function hit(z, base, src) {
     const crit = Math.random() < critChance();
-    const dmg = base * (crit ? 2 : 1);
+    const dmg = base * (crit ? 2 : 1) * (ZTYPES[z.type] && ZTYPES[z.type].boss ? 1 + ab('boss') : 1);
     if (crit) emit('crit', { x: z.x, y: zy(z) });
     const behind = tl('perfuracao') && src !== 'rock'
       ? S.horde.zs.filter(o => !o.dead && o !== z && o.x > z.x && o.x - z.x < 60 && Math.abs(o.y - z.y) < 12)
@@ -528,9 +591,10 @@ const Endgame = (() => {
 
   const sig = {};
   function setIfChanged(id, key, html) {
-    if (sig[id] === key) return;
+    if (sig[id] === key) return false;
     sig[id] = key;
     $(id).innerHTML = html();
+    return true;
   }
 
   function buildUI() {
@@ -634,16 +698,31 @@ const Endgame = (() => {
       : '<div class="desc">Nenhuma operação em andamento.</div>');
     for (const o of S.ops) if ($('ot-' + o.k)) $('ot-' + o.k).textContent = Math.ceil(o.t) + 's';
 
-    setIfChanged('heroes', JSON.stringify([m.heroes, m.active, m.weapons.length && m.weapons[0].rar]), () => m.heroes.length
-      ? m.heroes.map(h => {
-          const c = HCLASS[h.cls], act = m.active.includes(h.id), w = h.weapon;
+    const heroesChanged = setIfChanged('heroes', JSON.stringify([m.heroes, m.active, m.weapons.length && m.weapons[0].rar]), () =>
+      (m.heroes.length ? '' : '<p class="hint">Nenhum herói ainda. Veja abaixo quem pode se juntar a você e onde encontrar cada um.</p>') +
+      Object.keys(HEROES).map(k => {
+        const H = HEROES[k], c = HCLASS[H.cls], h = m.heroes.find(x => x.key === k);
+        if (!h) {
+          return `
+          <div class="row hero locked">
+            <canvas class="hero-face" width="48" height="48" data-hero="${k}"></canvas>
+            <div class="main">
+              <div class="title">🔒 ${H.nome} <span class="lvl">${c.icon} ${c.nome}</span></div>
+              <div class="desc">Bônus da classe: ${c.fx(c.base)} <i>(nível 1; cresce a cada nível)</i></div>
+              <div class="desc ability">✦ <b>${H.ab.nome}:</b> ${H.ab.desc}</div>
+              <div class="desc how">${HSRC[H.src].icon} Como conseguir: ${HSRC[H.src].txt}</div>
+            </div>
+          </div>`;
+        }
+        const act = m.active.includes(h.id), w = h.weapon;
           const canEquip = m.weapons.length && (!w || m.weapons[0].rar > w.rar);
           return `
           <div class="row hero ${act ? 'active' : ''}">
-            <div class="ach-icon">${c.icon}</div>
+            <canvas class="hero-face" width="48" height="48" data-hero="${k}"></canvas>
             <div class="main">
-              <div class="title">${h.nome} <span class="lvl">${c.nome} · nv. ${h.lvl}</span></div>
+              <div class="title">${h.nome} <span class="lvl">${c.icon} ${c.nome} · nv. ${h.lvl}</span></div>
               <div class="desc now">${c.fx(heroPower(h))}</div>
+              <div class="desc ability">✦ <b>${H.ab.nome}:</b> ${H.ab.desc}${act ? '' : ' <i>(só com o herói ativo)</i>'}</div>
               <div class="bar mini"><div style="width:${h.lvl >= HERO_MAX_LVL ? 100 : h.xp / xpNeed(h.lvl) * 100}%"></div></div>
               <div class="desc">${w ? `🗡️ <span style="color:${RARITY[w.rar].color}">${w.nome} (${RARITY[w.rar].nome}, ×${RARITY[w.rar].mult})</span>` : 'Sem arma'}</div>
             </div>
@@ -652,8 +731,8 @@ const Endgame = (() => {
               <button data-act="heroEquip" data-k="${h.id}" ${canEquip ? '' : 'disabled'}>Equipar melhor</button>
             </div>
           </div>`;
-        }).join('')
-      : '<p class="hint">Nenhum herói ainda. Heróis aparecem ao libertar distritos (garantido no primeiro), às vezes ao derrotar a Abominação.</p>');
+        }).join(''));
+    if (heroesChanged) for (const cv of $('heroes').querySelectorAll('canvas[data-hero]')) Scene.portrait(cv, heroLook(cv.dataset.hero));
     $('hero-count').textContent = `${m.active.length}/${HERO_ACTIVE} ativos · ${m.heroes.length}/${HERO_MAX} heróis`;
 
     setIfChanged('weapons', JSON.stringify(m.weapons.map(w => w.id)), () => m.weapons.length
@@ -693,8 +772,8 @@ const Endgame = (() => {
   }
 
   return {
-    SAMPLES, TECH, CURE, EVENTS, DISTRICTS, HCLASS,
-    newMetaExtra, mult, accBonus, sciCap, durMult, riskMult, scoutLoot, hb,
+    SAMPLES, TECH, CURE, EVENTS, DISTRICTS, HCLASS, HEROES,
+    newMetaExtra, mult, accBonus, sciCap, durMult, riskMult, scoutLoot, hb, ab, heroLook, migrateHeroes,
     rollEvent, modifyQueue, hpMultEv, speedMultEv, lootMult, range, event,
     onKill, onWaveEnd, hit, hordeTick, offlineMult, offlineTrap, tick, gainHero, gainWeapon,
     buildUI, render, count,

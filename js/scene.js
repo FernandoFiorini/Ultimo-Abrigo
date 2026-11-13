@@ -189,6 +189,7 @@ const Scene = (() => {
       R(o.pants, -2 + sw, -5, 2, 4); R(o.pants, 1 - sw, -5, 2, 4);
       R(shoe, -2 + sw, -1, 2, 1); R(shoe, 1 - sw, -1, 2, 1);
     }
+    if (o.pack) { R(o.pack, -5, -11 + dy, 2, 5); R(shade(o.pack, 0.75), -5, -11 + dy, 2, 1); }
     // corpo
     if (o.fat) {
       R(o.shirt, -4, -12 + dy, 8, 7); R(o.skin, -3, -8 + dy, 6, 2);
@@ -201,13 +202,27 @@ const Scene = (() => {
     if (o.torn) { R(o.skin, -2, -8 + dy, 2, 1); R(o.skin, 1, -10 + dy, 1, 1); R([120, 20, 20], 0, -7 + dy, 1, 1); }
     // cabeça
     const hx = -2 + (o.lean || 0);
+    if (o.afro) R(o.hair, hx - 1, -19 + dy, 7, 4);
+    if (o.bun) R(o.hair, hx - 1, -19 + dy, 3, 2);
     R(o.skin, hx, -16 + dy, 5, 5);
-    R(o.hair, hx, -17 + dy, 5, 2); R(o.hair, hx, -16 + dy, 1, 3);
+    if (o.bald || o.mohawk) R(o.hair, hx, -15 + dy, 1, 2);   // só os lados
+    else { R(o.hair, hx, -17 + dy, 5, 2); R(o.hair, hx, -16 + dy, 1, 3); }
+    if (o.mohawk) R(o.hair, hx + 1, -19 + dy, 3, 3);
     if (o.longHair) R(o.hair, hx - 1, -16 + dy, 2, 7);
+    if (o.afro) R(o.hair, hx - 1, -16 + dy, 2, 4);
     if (o.cap) { R(o.cap, hx - 1, -18 + dy, 6, 2); R(o.cap, hx + 4, -17 + dy, 2, 1); }
     if (o.helmet) R([70, 78, 50], hx - 1, -18 + dy, 7, 3);
     if (o.bandage) { R([236, 232, 220], hx, -16 + dy, 5, 1); R([180, 30, 30], hx + 1, -16 + dy, 1, 1); R([236, 232, 220], -1, -9 + dy, 4, 2); }
     R(o.eye || [20, 20, 20], hx + 3, -14 + dy, 1, 1);
+    if (o.beard) { R(o.beard, hx + 1, -12 + dy, 4, 2); R(o.beard, hx, -14 + dy, 1, 3); }
+    if (o.mustache) R(o.mustache, hx + 2, -12 + dy, 3, 1);
+    if (o.glasses) { R([30, 30, 30], hx + 2, -14 + dy, 3, 1); R([170, 210, 230], hx + 3, -14 + dy, 1, 1); }
+    if (o.goggles) { R([50, 50, 55], hx, -15 + dy, 5, 1); R([120, 200, 220], hx + 3, -15 + dy, 2, 1); }
+    if (o.patch) { R([20, 20, 20], hx, -15 + dy, 5, 1); R([20, 20, 20], hx + 3, -14 + dy, 2, 1); }
+    if (o.hardhat) { R(o.hardhat, hx - 1, -19 + dy, 6, 3); R(o.hardhat, hx + 5, -17 + dy, 1, 1); R(shade(o.hardhat, 0.8), hx - 1, -17 + dy, 7, 1); }
+    if (o.beret) { R(o.beret, hx - 1, -18 + dy, 6, 2); R(o.beret, hx + 4, -19 + dy, 2, 1); }
+    if (o.bandana) { R(o.bandana, hx, -17 + dy, 5, 2); R(o.bandana, hx - 2, -16 + dy, 2, 1); R(o.bandana, hx - 2, -15 + dy, 1, 1); }
+    if (o.scarf) { R(o.scarf, -3, -11 + dy, 6, 1); R(o.scarf, -4, -11 + dy, 1, 3); }
     if (o.mouth) R([90, 20, 20], hx + 3, -12 + dy, 2, 1);
     if (o.drool) R('#9be35a', hx + 4, -12 + dy, 1, 2 + Math.round(Math.abs(Math.sin(o.phase))));
     // braços
@@ -1165,8 +1180,7 @@ const Scene = (() => {
   function drawLook(x, y, look, o) {
     const face = o.face || 1;
     if (look.cape) rect(look.cape, x - 4 * face - (face < 0 ? 2 : 0), y - 11, 2, 7);
-    drawHuman(x, y, { skin: [220, 180, 150], ...o, shirt: look.shirt, pants: look.pants, hair: look.hair,
-      cap: look.cap, helmet: look.helmet });
+    drawHuman(x, y, { skin: [220, 180, 150], ...look, ...o });
     if (look.crown) {
       const cx = Math.round(x) + (face > 0 ? -2 : -3), cy = Math.round(y) - 19;
       rect([235, 190, 50], cx, cy, 5, 1);
@@ -1218,10 +1232,8 @@ const Scene = (() => {
   }
 
   function drawHero(h, x, y) {
-    const c = Endgame.HCLASS[h.cls];
-    rect(c.color, x - 4, y - 11, 2, 7); // capa
-    drawHuman(x, y, { pose: S.horde.active ? 'aim' : 'stand', face: 1, phase: 0, skin: SKINS[h.id % 5], hair: HAIRS[h.id % 6],
-      shirt: c.color, pants: [50, 50, 60], helmet: h.cls === 'atirador', cross: h.cls === 'medico' });
+    // capa na cor da classe + visual próprio de cada herói
+    drawLook(x, y, Endgame.heroLook(h.key), { pose: S.horde.active ? 'aim' : 'stand', face: 1, phase: 0 });
     const b = Math.sin(time * 3 + h.id) * 0.8;
     ctx.fillStyle = '#ffe066'; ctx.font = '6px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('★', x, y - 19 + b);

@@ -140,7 +140,7 @@ const Invasion = (() => {
 
   function heal(dt) {
     if (!S.injured.length) { S.injT = 0; return; }
-    const k = treating(), speed = Endgame.mult('meds');
+    const k = treating(), speed = Endgame.mult('meds') * (1 + Endgame.ab('heal'));
     for (let i = 0; i < k; i++) S.injured[i].t -= dt * speed;
     const done = S.injured.filter(w => w.t <= 0);
     if (done.length) {

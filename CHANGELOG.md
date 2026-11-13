@@ -23,6 +23,14 @@ Apocalipse, saves e vitória.
   - **skins do líder**: uma por dificuldade vencida (Escoteiro, Veterano, Caçador, Pesadelo e Lenda do Apocalipse, com coroa) e a **Personalizada**, com cores escolhidas pelo jogador. Troque em Configurações › Visual ou no menu;
   - **bandeira de troféu** no telhado, na cor da maior dificuldade vencida;
   - nome no **Hall da Fama** do menu e um **certificado de vitória** para enviar ao desenvolvedor e entrar no Hall da Fama do site (lista `HALL_OF_FAME` em `js/config.js`; confira com `Victory.verify('UAV1:...')` no console).
+- **Heróis únicos:** os heróis agora são um elenco fixo de 12, cada um com **visual próprio** no cenário (capacete de obra, boina, moicano, tapa-olho, óculos, barba, mochila...) e uma **habilidade única** que vale enquanto ele estiver ativo, além do bônus da classe:
+  - 🎯 Rafa (crítico +10%), Valéria (+50% de dano na Abominação), Dandara (+25% de dano das armas do líder);
+  - 🔧 Tonhão (reparo do muro +60%), Dona Neide (construções −15%), Seu Batista (torres 20% mais rápidas);
+  - ⚕️ Dona Cida (feridos se recuperam 50% mais rápido), Lúcia (+1 remédio por horda vencida);
+  - 🧭 Bia (expedições e operações 20% mais rápidas), Caio (+15% de chance de achar sobreviventes);
+  - 🎖️ Zeca (+2 vagas para sobreviventes), Marcão (−10% no consumo de comida).
+- **Heróis bloqueados aparecem na aba Heróis**, com o visual, o bônus da classe, a habilidade e **onde conseguir** cada um: distritos, Abominação ou Base militar (cada origem traz heróis específicos; esgotada a origem, vem qualquer um que falta).
+- Saves antigos: cada herói vira um do elenco (mesma classe, e o mesmo nome quando possível), mantendo nível, experiência e arma.
 - Conquistas novas: Fogo cruzado (onda 10 no Apocalipse), Inferno na Terra (onda 30) e Lenda do Apocalipse (vencer no Apocalipse).
 
 ## 1.06.000

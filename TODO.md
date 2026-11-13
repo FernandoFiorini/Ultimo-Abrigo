@@ -13,3 +13,4 @@ Ideias aprovadas para versões futuras, ainda não implementadas.
 
 ## Balanceamento
 - [ ] **Jogador automatizado:** recriar o bot que joga sozinho por uma hora em cada dificuldade e usá-lo para ajustar os desafios de prestígio, os dilemas, o comerciante, os talentos e a velocidade 2x.
+- [ ] **Modo normal extremamente facil:** rebalancear o jogo.

@@ -63,7 +63,7 @@ const furia = () => S.meta.boosts.furia > 0;
 const foodMult = () => (1 + 0.25 * S.build.horta) * (1 + 0.15 * perk('agricultura')) * hopeMult() * prodMult() * Endgame.mult('food') * traitMult('verde');
 const scrapMult = () => (1 + 0.25 * S.build.oficina) * (1 + 0.15 * perk('sucateiros')) * hopeMult() * prodMult() * Endgame.mult('scrap') * traitMult('jeito');
 const fireMult = () => (1 + 0.12 * perk('treino')) * (furia() ? 2 : 1) * Endgame.mult('fire');
-const maxSurv = () => 4 + S.build.beliche * 2 + perk('veteranos');
+const maxSurv = () => 4 + S.build.beliche * 2 + perk('veteranos') + Endgame.ab('beds');
 const maxWall = () => Math.round((100 + S.build.muro * 50) * (1 + 0.2 * perk('engenharia')) * Endgame.mult('wall') * (hasMod('murofraco') ? 0.6 : 1) * traitMult('forca'));
 const assigned = () => Object.values(S.jobs).reduce((a, b) => a + b, 0);
 const away = () => S.exps.reduce((a, e) => a + e.n, 0) + S.ops.reduce((a, o) => a + o.n, 0);
@@ -110,7 +110,7 @@ function scaledCost(base, mult, lvl) {
   return c;
 }
 const buildBlocked = k => k === 'torre' && hasMod('semtorres');
-const buildCost = k => scaledCost(BUILD[k].cost, BUILD[k].mult, S.build[k]);
+const buildCost = k => { const c = scaledCost(BUILD[k].cost, BUILD[k].mult, S.build[k]), f = 1 - Endgame.ab('build'); for (const r in c) c[r] = Math.ceil(c[r] * f); return c; };
 const perkCost = k => Math.ceil(PERKS[k].cost * Math.pow(PERKS[k].mult, perk(k)));
 const canAfford = c => Object.entries(c).every(([r, v]) => S.res[r] >= v);
 const pay = c => { for (const r in c) S.res[r] -= c[r]; };

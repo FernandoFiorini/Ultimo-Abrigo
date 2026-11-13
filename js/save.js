@@ -45,6 +45,7 @@ function load() {
       S.meta.minDiff = Math.max(S.meta.minDiff || 0, diffRank(S.diff));
       if (!S.meta.runId) S.meta.runId = Slots.rid();
       if (!S.meta.wins || typeof S.meta.wins !== 'object') S.meta.wins = {};
+      Endgame.migrateHeroes();
       syncPeople();
       offlineProgress();
     } else {

@@ -174,7 +174,7 @@ function updateHorde(dt) {
     if (H.tcd[i] > 0) continue;
     const z = pickTarget();
     if (!z) { H.tcd[i] = Math.random() * 0.4; continue; }
-    H.tcd[i] = TOWER_CD / fm * (0.85 + Math.random() * 0.3);
+    H.tcd[i] = TOWER_CD / fm / (1 + Endgame.ab('tower')) * (0.85 + Math.random() * 0.3);
     const hit = Math.random() < accuracy('tower');
     emit('shot', { src: 'tower', idx: i, x: z.x, y: zy(z), miss: !hit });
     if (hit) Endgame.hit(z, Endgame.mult('dmg'), 'tower');
@@ -193,7 +193,7 @@ function offlineDefense(count) {
   const armedShots = Math.min(guardShots, Math.floor(S.res.municao));
   S.res.municao -= armedShots;
   const rockHits = (guardShots - armedShots) * (GUARD_CD / ROCK_CD) * ROCK_HIT;
-  const towerShots = S.build.torre * duration / TOWER_CD * fm * OFFLINE_EFF;
+  const towerShots = S.build.torre * duration / TOWER_CD * fm * (1 + Endgame.ab('tower')) * OFFLINE_EFF;
   // mesma precisão do combate ao vivo
   return armedShots * accuracy('guard') + rockHits + towerShots * accuracy('tower');
 }

@@ -763,3 +763,12 @@ table.keys .hk { color: var(--text); }
 .diff-card { display: flex; flex-direction: column; justify-content: flex-start; }
 .mm-box.narrow { width: min(560px, 100%); }
 .mm-big .mm-diff { color: #fff; }
+
+/* ---------- heróis: elenco completo ---------- */
+.row.hero { align-items: flex-start; }
+.hero-face { width: 48px; height: 48px; flex: none; image-rendering: pixelated; background: rgba(0, 0, 0, 0.25); border-radius: 6px; }
+.row.hero.locked { opacity: 0.75; border-style: dashed; }
+.row.hero.locked .hero-face { filter: grayscale(0.85) brightness(0.8); }
+.row.hero .ability { color: #c9b6ff; }
+.row.hero .ability b { color: #e2d6ff; }
+.row.hero .how { color: var(--warn); }

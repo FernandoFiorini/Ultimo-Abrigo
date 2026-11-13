@@ -131,7 +131,7 @@ const Weapons = (() => {
     return best;
   }
 
-  const baseDmg = k => stat(k).dmg * (1 + 0.4 * perk('mira')) * (furia() ? 2 : 1) * Endgame.mult('dmg');
+  const baseDmg = k => stat(k).dmg * (1 + 0.4 * perk('mira')) * (furia() ? 2 : 1) * Endgame.mult('dmg') * (1 + Endgame.ab('leader'));
 
   function fire(x, y) {
     if (!S.horde.active || paused || S.clickCd > 0) return false;

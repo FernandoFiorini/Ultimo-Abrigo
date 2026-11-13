@@ -14,7 +14,7 @@ function expReturn(e) {
   }
   const lost = removeSurvivors(dead, `não voltou da expedição: ${L.nome}`);
   let found = '';
-  if (back > 0 && S.survivors < maxSurv() && Math.random() < Math.min(0.5, 0.12 * back)) found = addSurvivor();
+  if (back > 0 && S.survivors < maxSurv() && Math.random() < Math.min(0.65, 0.12 * back + Endgame.ab('finder'))) found = addSurvivor();
 
   let msg = `🎒 Expedição ao ${L.nome} voltou`;
   msg += back ? `: ${got.join(' ')}` : ' vazia...';
@@ -25,7 +25,7 @@ function expReturn(e) {
   S.meta.stats.exps++;
   Endgame.count('exps', 1);
   if (back > 0 && e.loc === 'base' && Math.random() < 0.25) Endgame.gainWeapon('na Base militar');
-  if (back > 0 && e.loc === 'base' && Math.random() < 0.08) Endgame.gainHero('na Base militar');
+  if (back > 0 && e.loc === 'base' && Math.random() < 0.08) Endgame.gainHero('na Base militar', 'base');
   if (S.survivors <= 0) gameOver();
 }
 
