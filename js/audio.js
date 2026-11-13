@@ -427,16 +427,23 @@ const Sound = (() => {
     if (Math.random() < dt * 1.5) noise({ type: 'highpass', f: 3000, d: 0.015, vol: 0.02, pan: -0.5 });
   }
 
+  // Dia: synthwave calmo (Am9 – Fmaj7 – Cadd9 – G6), com pads de serra desafinados,
+  // baixo pulsando em oitavas, arpejo com eco e bateria eletrônica suave
   const DAY = {
-    bpm: 76,
-    chords: [[57, 60, 64], [57, 60, 65], [55, 60, 64], [55, 59, 62]],
-    bass: [45, 41, 48, 43],
-    penta: [69, 72, 74, 76, 79, 81],
+    bpm: 84,
+    chords: [[57, 60, 64, 71], [53, 57, 60, 64], [55, 60, 62, 64], [55, 59, 62, 64]],
+    bass: [33, 29, 36, 31],
+    arp: [[69, 72, 76, 79], [65, 69, 72, 76], [67, 72, 74, 76], [67, 71, 74, 79]],
+    penta: [76, 79, 81, 84, 86, 88],
   };
+  // Noite: darksynth (a vertente sombria do synthwave) em Ré menor: Dm – Dm – B♭ – A,
+  // baixo em semicolcheias, bumbo marcando os 4 tempos, arpejo rápido e lead de serra
   const NIGHT = {
-    bpm: 132,
-    chords: [[62, 65, 69], [62, 65, 69], [58, 62, 65], [57, 61, 64]],
+    bpm: 116,
+    chords: [[62, 65, 69, 74], [62, 65, 69, 72], [58, 62, 65, 69], [57, 61, 64, 69]],
     bass: [38, 38, 34, 33],
+    arp: [[62, 65, 69, 74], [62, 65, 69, 72], [58, 62, 65, 70], [57, 61, 64, 69]],
+    lead: [[74, 72, 69, 72], [74, 77, 76, 72], [70, 69, 65, 69], [69, 68, 69, 73]],
   };
 
   const currentMood = () => (typeof S !== 'undefined' && S.horde && S.horde.active) ? 'night' : 'day';
@@ -469,44 +476,109 @@ const Sound = (() => {
   }
 
   function dayStep(s, t) {
-    const i = bar % 4, chord = DAY.chords[i], barLen = stepDur() * 16, m = 'day';
+    const i = bar % 4, chord = DAY.chords[i], barLen = stepDur() * 16, sd = stepDur(), m = 'day';
+    // estrutura de 16 compassos: entrada só com pad, depois arpejo, baixo e bateria; os 2 últimos respiram sem bateria
+    const sec = bar % 16, intro = bar < 2, drums = bar >= 4 && sec < 14, lead = bar >= 8 && sec >= 4 && sec < 12;
+    const v = (o) => tone({ bus: 'music', mood: m, t, ...o });
+
+    // pad: duas serras desafinadas por nota, filtro fechado e muito reverb
     if (s === 0) {
       for (const n of chord) {
-        tone({ bus: 'music', mood: m, type: 'triangle', f: mtof(n), a: 1.2, hold: barLen - 1.2, d: 1.5, vol: 0.022, t, filter: { f: 1300 }, send: 0.6 });
-        tone({ bus: 'music', mood: m, type: 'sine', f: mtof(n), a: 1.2, hold: barLen - 1.2, d: 1.5, vol: 0.02, t, detune: 7, send: 0.6 });
+        v({ type: 'sawtooth', f: mtof(n), a: 1.4, hold: barLen - 1.2, d: 1.6, vol: 0.016, detune: -11, filter: { f: 1100, q: 0.5 }, send: 0.8, pan: -0.35 });
+        v({ type: 'sawtooth', f: mtof(n), a: 1.4, hold: barLen - 1.2, d: 1.6, vol: 0.016, detune: 11, filter: { f: 1100, q: 0.5 }, send: 0.8, pan: 0.35 });
       }
+      v({ type: 'sine', f: mtof(chord[0] - 12), a: 1.5, hold: barLen - 1.2, d: 1.6, vol: 0.03, send: 0.5 });
     }
-    if (s === 0 || s === 8) tone({ bus: 'music', mood: m, type: 'sine', f: mtof(DAY.bass[i]), a: 0.03, d: 1.3, vol: 0.11, t });
-    if ([0, 3, 6, 8, 11, 14].includes(s) && Math.random() < 0.75) {
-      const note = Math.random() < 0.7 ? pick(chord) + 12 : pick(DAY.penta);
-      tone({ bus: 'music', mood: m, type: 'triangle', f: mtof(note), a: 0.005, d: 0.9, vol: 0.045, t, send: 0.6, pan: rand(-0.4, 0.4) });
-      if (Math.random() < 0.12) tone({ bus: 'music', mood: m, type: 'sine', f: mtof(note + 12), a: 0.005, d: 1.4, vol: 0.02, t, send: 0.8 });
+
+    if (intro) return;
+
+    // arpejo em semicolcheias com eco de colcheia pontuada
+    const arp = DAY.arp[i];
+    const note = arp[[0, 1, 2, 3, 2, 1, 2, 3][s % 8]] + (s >= 8 && bar % 2 ? 12 : 0);
+    const pan = s % 2 ? 0.3 : -0.3;
+    v({ type: 'square', f: mtof(note), a: 0.004, d: 0.18, vol: 0.022, filter: { f: 2200, q: 2 }, send: 0.5, pan });
+    v({ type: 'square', f: mtof(note), a: 0.004, d: 0.18, vol: 0.009, filter: { f: 1600, q: 2 }, send: 0.7, pan: -pan, t: t + sd * 3 });
+
+    if (bar < 4) return;
+
+    // baixo pulsante: colcheias alternando a fundamental e a oitava
+    if (s % 2 === 0) {
+      const root = DAY.bass[i] + (s % 4 === 2 ? 12 : 0);
+      v({ type: 'sawtooth', f: mtof(root), a: 0.005, d: sd * 1.6, vol: s % 4 ? 0.05 : 0.07, filter: { f: 420, q: 4 } });
+    }
+
+    if (drums) {
+      // bumbo macio no 1 e no 3
+      if (s === 0 || s === 8) v({ type: 'sine', f: 110, f2: 40, a: 0.002, d: 0.3, vol: 0.22 });
+      // caixa com reverb longo no 2 e no 4 (a marca dos anos 80)
+      if (s === 4 || s === 12) {
+        noise({ bus: 'music', mood: m, type: 'bandpass', f: 1700, q: 0.7, d: 0.22, vol: 0.07, t, send: 1 });
+        v({ type: 'triangle', f: 200, f2: 150, d: 0.1, vol: 0.05, send: 0.6 });
+      }
+      // chimbal nas colcheias do contratempo
+      if (s % 4 === 2) noise({ bus: 'music', mood: m, type: 'highpass', f: 8000, d: 0.04, vol: 0.022, t, pan: 0.2 });
+    }
+
+    // melodia esparsa, como um sintetizador de lead ao longe
+    if (lead && [0, 6, 10].includes(s) && Math.random() < 0.7) {
+      const n = Math.random() < 0.6 ? pick(chord) + 24 : pick(DAY.penta);
+      if (n < 92) {
+        v({ type: 'sawtooth', f: mtof(n), a: 0.06, hold: sd * 3, d: 1.2, vol: 0.014, detune: 6, filter: { f: 2600, q: 1 }, send: 0.9 });
+        v({ type: 'triangle', f: mtof(n), a: 0.06, hold: sd * 3, d: 1.2, vol: 0.02, send: 0.9 });
+      }
     }
   }
 
   function nightStep(s, t) {
-    const i = bar % 4, chord = NIGHT.chords[i], root = NIGHT.bass[i], barLen = stepDur() * 16, m = 'night';
+    const i = bar % 4, chord = NIGHT.chords[i], root = NIGHT.bass[i], barLen = stepDur() * 16, sd = stepDur(), m = 'night';
     const boss = typeof S !== 'undefined' && S.horde.zs && S.horde.zs.some(z => ZTYPES[z.type].boss);
+    // a horda chega de uma vez: baixo e bumbo desde o início; arpejo a partir do 2º compasso, lead a partir do 5º
+    const sec = bar % 16, arpOn = bar >= 1, leadOn = bar >= 4 && sec >= 4 && sec < 12, fill = sec === 15;
+    const v = (o) => tone({ bus: 'music', mood: m, t, ...o });
+
+    // pad escuro: serras desafinadas com filtro fechado
     if (s === 0) {
-      for (const n of chord) tone({ bus: 'music', mood: m, type: 'sawtooth', f: mtof(n - 12), a: 0.4, hold: barLen - 0.4, d: 0.6, vol: 0.016, t, filter: { f: 750 }, send: 0.3 });
-      if (bar % 4 === 0) noise({ bus: 'music', mood: m, type: 'highpass', f: 5000, d: 1.3, vol: 0.05, t });
+      for (const n of chord) {
+        v({ type: 'sawtooth', f: mtof(n - 12), a: 0.5, hold: barLen - 0.5, d: 0.7, vol: 0.013, detune: -12, filter: { f: 750, q: 0.7 }, send: 0.5, pan: -0.4 });
+        v({ type: 'sawtooth', f: mtof(n - 12), a: 0.5, hold: barLen - 0.5, d: 0.7, vol: 0.013, detune: 12, filter: { f: 750, q: 0.7 }, send: 0.5, pan: 0.4 });
+      }
+      // varredura de ruído subindo a cada 4 compassos
+      if (bar % 4 === 3) noise({ bus: 'music', mood: m, type: 'bandpass', f: 400, f2: 6000, q: 1.5, a: barLen * 0.8, d: 0.2, vol: 0.05, t, send: 0.4 });
     }
-    // baixo pulsante
-    if (s % 2 === 0 || (s >= 14 && Math.random() < 0.5)) {
-      tone({ bus: 'music', mood: m, type: 'sawtooth', f: mtof(root), a: 0.005, d: 0.14, vol: s === 0 ? 0.11 : 0.075, t, filter: { f: 380, q: 3 } });
+
+    // baixo em semicolcheias: fundamental com oitavas no contratempo
+    const oct = [0, 0, 12, 0, 0, 12, 0, 12][s % 8];
+    v({ type: 'sawtooth', f: mtof(root + oct), a: 0.003, d: sd * 0.9, vol: s % 4 === 0 ? 0.085 : 0.06, filter: { f: 520, q: 5 } });
+    if (s % 4 === 0) v({ type: 'sine', f: mtof(root - 12), a: 0.003, d: sd * 3, vol: 0.09 });
+
+    // bateria: bumbo nos 4 tempos, caixa com reverb longo no 2 e no 4, chimbal em semicolcheias
+    if (s % 4 === 0) v({ type: 'sine', f: 140, f2: 42, a: 0.002, d: 0.22, vol: 0.38 });
+    if (s === 4 || s === 12 || (fill && s >= 12)) {
+      noise({ bus: 'music', mood: m, type: 'bandpass', f: 1600, q: 0.7, d: 0.2, vol: fill && s > 12 ? 0.08 : 0.13, t, send: 0.9 });
+      v({ type: 'triangle', f: 210, f2: 150, d: 0.09, vol: 0.08, send: 0.5 });
     }
-    // bateria
-    if ([0, 6, 8, 11].includes(s)) tone({ bus: 'music', mood: m, type: 'sine', f: 125, f2: 42, a: 0.002, d: 0.24, vol: 0.4, t });
-    if (s === 4 || s === 12) {
-      noise({ bus: 'music', mood: m, type: 'bandpass', f: 1800, d: 0.15, vol: 0.14, t, send: 0.2 });
-      tone({ bus: 'music', mood: m, type: 'triangle', f: 190, f2: 120, d: 0.08, vol: 0.08, t });
+    noise({ bus: 'music', mood: m, type: 'highpass', f: 8000, d: s % 4 === 2 ? 0.06 : 0.03, vol: s % 4 === 2 ? 0.035 : 0.018, t, pan: 0.25 });
+
+    // arpejo em semicolcheias com eco, subindo e descendo pelo acorde
+    if (arpOn) {
+      const arp = NIGHT.arp[i];
+      const n = arp[[0, 1, 2, 3, 2, 1, 2, 3][s % 8]] + (bar % 2 ? 12 : 0);
+      const pan = s % 2 ? 0.35 : -0.35;
+      v({ type: 'square', f: mtof(n), a: 0.003, d: 0.11, vol: 0.02, filter: { f: 2600, q: 3 }, send: 0.3, pan });
+      v({ type: 'square', f: mtof(n), a: 0.003, d: 0.11, vol: 0.008, filter: { f: 1800, q: 2 }, send: 0.5, pan: -pan, t: t + sd * 3 });
     }
-    noise({ bus: 'music', mood: m, type: 'highpass', f: 7500, d: 0.035, vol: s % 2 ? 0.02 : 0.035, t });
-    if (boss && (s === 2 || s === 10 || s === 14)) tone({ bus: 'music', mood: m, type: 'sine', f: 95, f2: 55, a: 0.003, d: 0.35, vol: 0.3, t, send: 0.4 });
-    // cordas em ostinato
-    if ([0, 3, 6, 8, 11, 14].includes(s)) {
-      const n = chord[(s / 2 | 0) % 3] + 12;
-      tone({ bus: 'music', mood: m, type: 'sawtooth', f: mtof(n), a: 0.005, d: 0.13, vol: 0.026, t, filter: { f: 2400 }, pan: s % 2 ? 0.3 : -0.3 });
+
+    // lead de serra: um motivo de 4 notas por compasso, em colcheias pontuadas
+    if (leadOn && [0, 3, 6, 10].includes(s)) {
+      const n = NIGHT.lead[i][[0, 3, 6, 10].indexOf(s)];
+      v({ type: 'sawtooth', f: mtof(n), a: 0.01, hold: sd * 1.5, d: 0.35, vol: 0.022, detune: -7, filter: { f: 2400, q: 2 }, send: 0.6 });
+      v({ type: 'sawtooth', f: mtof(n), a: 0.01, hold: sd * 1.5, d: 0.35, vol: 0.022, detune: 7, filter: { f: 2400, q: 2 }, send: 0.6 });
+    }
+
+    // chefe na tela: metais graves e sinistros
+    if (boss && (s === 0 || s === 8)) {
+      v({ type: 'sawtooth', f: mtof(root - 12), a: 0.05, hold: sd * 4, d: 0.6, vol: 0.06, filter: { f: 380, q: 6 }, send: 0.5 });
+      v({ type: 'sawtooth', f: mtof(root - 5), a: 0.05, hold: sd * 4, d: 0.6, vol: 0.04, filter: { f: 380, q: 6 }, send: 0.5 });
     }
   }
 
