@@ -76,7 +76,7 @@ const Weapons = (() => {
   const lockText = k => {
     const w = LWEAPONS[k], st = S.meta.stats, parts = [];
     if (Math.max(st.bestWave, S.best) < w.wave) parts.push(`chegue à onda ${w.wave}`);
-    if (w.bosses && st.bosses < w.bosses) parts.push(`derrote ${w.bosses} Abominações (${st.bosses}/${w.bosses})`);
+    if (w.bosses && st.bosses < w.bosses) parts.push(`derrote ${w.bosses} chefes (${st.bosses}/${w.bosses})`);
     return '🔒 ' + parts.join(' e ');
   };
   const cost = k => scaledCost(LWEAPONS[k].cost, LW_UP_MULT, lvl(k));
@@ -166,8 +166,11 @@ const Weapons = (() => {
     emit('lwAmmo', { x: x ?? 300, y: y ?? 140, text: `+${got} ${A.icon}` });
     return got;
   }
-  // Abominação derrotada: quantidades garantidas · expedição que voltou: chances por lugar
-  function bossLoot() { for (const kind in SPECIAL_DROPS.boss) gainSpecial(kind, SPECIAL_DROPS.boss[kind], 'dos restos da Abominação'); }
+  // chefe derrotado: quantidades garantidas (cada chefe deixa um saque) · expedição que voltou: chances por lugar
+  function bossLoot(type) {
+    const t = SPECIAL_DROPS.boss[type] || SPECIAL_DROPS.boss.chefe;
+    for (const kind in t) gainSpecial(kind, t[kind], `dos restos ${Bosses.ofThe(type)}`);
+  }
   function expLoot(loc, where) {
     const t = SPECIAL_DROPS.exp[loc];
     if (t) for (const kind in t) if (Math.random() < t[kind]) gainSpecial(kind, 1, where);
@@ -175,7 +178,8 @@ const Weapons = (() => {
   // texto "onde conseguir" de cada munição especial
   function howToGet(kind) {
     const out = [];
-    if (SPECIAL_DROPS.boss[kind]) out.push(`${SPECIAL_DROPS.boss[kind]} por Abominação derrotada`);
+    const bs = Object.entries(SPECIAL_DROPS.boss).filter(([, t]) => t[kind]).map(([b, t]) => t[kind]);
+    if (bs.length) out.push(`${Math.min(...bs)} a ${Math.max(...bs)} por chefe derrotado (varia com o chefe)`);
     for (const loc in SPECIAL_DROPS.exp) if (SPECIAL_DROPS.exp[loc][kind]) out.push(`${Math.round(SPECIAL_DROPS.exp[loc][kind] * 100)}% em expedições: ${EXPED[loc].nome}`);
     for (const t in SPECIAL_DROPS.kill) if (SPECIAL_DROPS.kill[t][kind]) out.push(`${Math.round(SPECIAL_DROPS.kill[t][kind] * 100)}% ao abater um ${ZTYPES[t].nome}`);
     return out.join(' · ');
@@ -202,10 +206,10 @@ const Weapons = (() => {
   function zombieAt(px, py) {
     let best = null, bd = Infinity;
     for (const z of S.horde.zs) {
-      if (z.dead) continue;
-      const s = ZTYPES[z.type].scale, pad = 2;
-      if (px > z.x - 7 * s - pad && px < z.x + 7 * s + pad && py > z.y - 21 * s - pad && py < z.y + 4) {
-        const d = Math.abs(px - z.x) + Math.abs(py - (z.y - 10 * s)) * 0.3;
+      if (z.dead || z.under) continue;
+      const s = zsc(z), pad = 2, y = z.y - (z.lift || 0);
+      if (px > z.x - 7 * s - pad && px < z.x + 7 * s + pad && py > y - 21 * s - pad && py < y + 4) {
+        const d = Math.abs(px - z.x) + Math.abs(py - (y - 10 * s)) * 0.3;
         if (d < bd) { bd = d; best = z; }
       }
     }
@@ -236,7 +240,7 @@ const Weapons = (() => {
         // espingarda: perde força com a distância do muro
         const d = w.falloff ? dmg * Math.max(0.25, 1 - 0.75 * Math.max(0, z.x - WORLD.WALL_X) / st.range) : dmg;
         // a cabeça fica no topo do boneco (só faz diferença contra o blindado)
-        Endgame.hit(z, d, 'player', { head: py < z.y - 12.5 * ZTYPES[z.type].scale });
+        Endgame.hit(z, d, 'player', { head: py < z.y - (z.lift || 0) - 12.5 * zsc(z) });
         if (st.pierce) {
           // atravessa os zumbis atrás, na mesma faixa, até o limite do alcance
           const behind = S.horde.zs.filter(o => !o.dead && o !== z && o.x > z.x && o.x <= far && o.x - z.x < 90 && Math.abs(o.y - z.y) < 10)
@@ -272,7 +276,7 @@ const Weapons = (() => {
       const d = Math.hypot(z.x - p.x, ((z.y - 8) - p.y) * 1.4);
       if (d > p.r) continue;
       if (p.rocket) {
-        if (ZTYPES[z.type].boss) damageZombie(z, z.maxHp * 0.4, 'player');
+        if (ZTYPES[z.type].boss) damageZombie(z, z.maxHp * 0.4, 'player', { blast: true, rocket: true });
         else killZombie(z, 'player');
       } else {
         Endgame.hit(z, p.dmg * (1 - 0.5 * d / p.r), 'player', { blast: true });
@@ -297,7 +301,7 @@ const Weapons = (() => {
       if (!z.burn || z.dead) continue;
       z.burn = Math.max(0, z.burn - dt);
       z.burnT = (z.burnT || 0) + dt;
-      if (z.burnT >= 0.25) { z.burnT = 0; damageZombie(z, z.burnDps * 0.25, 'player'); }
+      if (z.burnT >= 0.25) { z.burnT = 0; damageZombie(z, z.burnDps * 0.25, 'player', { fire: true }); }
       if (!z.burn) z.burnDps = 0;
     }
   }

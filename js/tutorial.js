@@ -153,7 +153,7 @@ function setupKeys() {
     };
     const recruitWhy = () => hasMod('isolados') ? '📵 Desafio "Isolados": ninguém pode ser recrutado nesta cidade.'
       : S.survivors >= maxSurv() ? `🧍 Abrigo lotado (${S.survivors}/${maxSurv()}): construa barracas para recrutar mais gente.`
-      : `🧍 Comida insuficiente para recrutar: precisa de ${RES.comida.icon} ${recruitCost()}.`;
+      : `🧍 Comida insuficiente para recrutar: precisa de ${RES.comida.icon} ${fmt(recruitCost())} (${exact(recruitCost())}).`;
     switch (k) {
       case ' ':
         e.preventDefault();

@@ -7,7 +7,7 @@ const Endgame = (() => {
     acido:  { nome: 'Ácido',                 icon: '🧪' },
     gas:    { nome: 'Gás tóxico',            icon: '☁️' },
     tecido: { nome: 'Tecido mutante',        icon: '🧫' },
-    raro:   { nome: 'Amostra da Abominação', icon: '🧬' },
+    raro:   { nome: 'Amostra de chefe', icon: '🧬' },
   };
   // valor < 1 = chance de 1 amostra · valor >= 1 = quantidade garantida
   const DROPS = {
@@ -19,6 +19,18 @@ const Endgame = (() => {
     explosivo: { gas: 0.6 },
     tanque:    { tecido: 0.4 },
     chefe:     { raro: 1, tecido: 3 },
+    saltador:  { raro: 1, tecido: 2, gas: 1 },
+    rolador:   { raro: 1, tecido: 3 },
+    matriarca: { raro: 1, tecido: 2, gas: 2 },
+    colosso:   { raro: 2, tecido: 3 },
+    escavador: { raro: 1, acido: 2, tecido: 2 },
+    colossal:  { raro: 1, gas: 4 },
+    carcaca:   { raro: 1, tecido: 4 },
+    cuspideira: { raro: 1, acido: 5 },
+    reiuivador: { raro: 1, gas: 5 },
+    gigante:   { raro: 1, tecido: 5 },
+    chefao:    { raro: 1 },
+    broto:     { tecido: 0.5 },
   };
 
   const BRANCHES = { armas: '🔫 Armas', defesa: '🧱 Defesa', logistica: '🏭 Logística' };
@@ -85,7 +97,7 @@ const Endgame = (() => {
     { key: 'kills',     goal: 1000, cash: 4, desc: 'Abata 1.000 zumbis' },
     { key: 'evNights',  goal: 2,    cash: 3, desc: 'Sobreviva a 2 noites especiais' },
     { key: 'evKills',   goal: 150,  cash: 3, desc: 'Abata 150 zumbis em noites especiais' },
-    { key: 'bosses',    goal: 1,    cash: 3, desc: 'Derrote uma Abominação' },
+    { key: 'bosses',    goal: 1,    cash: 3, desc: 'Derrote um chefe' },
     { key: 'research',  goal: 5,    cash: 2, desc: 'Conclua 5 pesquisas' },
     { key: 'exps',      goal: 8,    cash: 2, desc: 'Conclua 8 expedições' },
     { key: 'districts', goal: 2,    cash: 3, desc: 'Liberte 2 distritos' },
@@ -114,13 +126,13 @@ const Endgame = (() => {
   // src: onde ele pode aparecer · look: aparência no cenário (acessórios desenhados em Scene.drawHuman)
   const HSRC = {
     distrito: { icon: '🏴', txt: 'Libertando distritos da cidade (o primeiro distrito libertado sempre traz um herói)' },
-    chefe:    { icon: '👹', txt: 'Derrotando a Abominação (15% de chance)' },
+    chefe:    { icon: '👹', txt: 'Derrotando chefes (15% de chance)' },
     base:     { icon: '🪖', txt: 'Em expedições à Base militar (8% de chance)' },
   };
   const HEROES = {
     rafa:     { nome: 'Rafa',        cls: 'atirador',   src: 'distrito', ab: { id: 'crit',    nome: 'Olho de águia',        desc: '+10% de chance de tiro crítico (dano dobrado) em todos os tiros', v: 0.10 },
                 look: { skin: [224, 176, 140], hair: [40, 30, 20], shirt: [150, 50, 45], pants: [50, 50, 62], cap: [170, 40, 40], scarf: [230, 230, 220] } },
-    valeria:  { nome: 'Valéria',     cls: 'atirador',   src: 'chefe',    ab: { id: 'boss',    nome: 'Caçadora de monstros', desc: '+50% de dano contra a Abominação', v: 0.5 },
+    valeria:  { nome: 'Valéria',     cls: 'atirador',   src: 'chefe',    ab: { id: 'boss',    nome: 'Caçadora de monstros', desc: '+50% de dano contra os chefes', v: 0.5 },
                 look: { skin: [234, 192, 160], hair: [170, 60, 30], longHair: true, shirt: [40, 38, 42], pants: [30, 30, 34], patch: true } },
     dandara:  { nome: 'Dandara',     cls: 'atirador',   src: 'base',     ab: { id: 'leader',  nome: 'Instrutora de tiro',   desc: '+25% de dano das armas do líder', v: 0.25 },
                 look: { skin: [110, 72, 50], hair: [25, 20, 18], afro: true, shirt: [78, 88, 48], pants: [60, 66, 40], beret: [150, 30, 30] } },
@@ -234,13 +246,15 @@ const Endgame = (() => {
   const event = () => (S.horde && S.horde.active && S.horde.event) ? EVENTS[S.horde.event] : null;
 
   function rollEvent(n) {
-    if (n < EVENT_MIN_WAVE || n % 10 === 0 || Math.random() > EVENT_CHANCE) return null;
+    // ondas de chefe não têm noite especial, exceto às vezes os saqueadores (com o Chefe Saqueador)
+    if (n % 10 === 0) return n >= 20 && Math.random() < 0.2 ? 'saque' : null;
+    if (n < EVENT_MIN_WAVE || Math.random() > EVENT_CHANCE) return null;
     return pick(Object.keys(EVENTS).filter(k => n >= (EVENTS[k].min || 0)));
   }
-  // Onda perigosa (alarme e contagem regressiva): noites marcadas como perigosas e ondas da Abominação
+  // Onda perigosa (alarme e contagem regressiva): noites marcadas como perigosas e ondas de chefe
   function danger(ev, n) {
     if (ev && EVENTS[ev] && EVENTS[ev].danger) return { icon: EVENTS[ev].icon, nome: EVENTS[ev].nome };
-    if (n % 10 === 0) return { icon: '👹', nome: 'Abominação' };
+    if (n % 10 === 0) return { icon: '👹', nome: 'Chefe' };
     return null;
   }
 
@@ -249,10 +263,12 @@ const Endgame = (() => {
     const E = EVENTS[ev];
     let q = queue;
     if (E.runners) q = q.map(t => (t === 'normal' ? 'corredor' : t));
-    if (E.humans) q = q.map(() => (Math.random() < 0.3 ? 'incendiario' : 'saqueador'));
+    // saqueadores: o chefe da onda vira o líder deles
+    if (E.humans) q = q.map(t => (ZTYPES[t].boss ? 'chefao' : Math.random() < 0.3 ? 'incendiario' : 'saqueador'));
     if (E.count && E.count !== 1) {
       const target = Math.max(1, Math.round(q.length * E.count));
-      if (target < q.length) q = q.slice(0, target);
+      // corta da fila só os zumbis comuns: o chefe sempre vem
+      if (target < q.length) { const cut = new Set(q.map((t, i) => i).filter(i => !ZTYPES[q[i]].boss).slice(target - q.filter(t => ZTYPES[t].boss).length)); q = q.filter((t, i) => !cut.has(i)); }
       else while (q.length < target) q.splice(Math.floor(Math.random() * q.length), 0, E.runners ? 'corredor' : E.humans ? 'saqueador' : 'normal');
     }
     return q;
@@ -275,7 +291,7 @@ const Endgame = (() => {
     if (ev) count('evKills', 1);
     if (ZTYPES[z.type].boss) {
       count('bosses', 1);
-      if (Math.random() < 0.15) gainHero('derrotando a Abominação', 'chefe');
+      if (Math.random() < 0.15) gainHero(`derrotando ${Bosses.the(z.type)}`, 'chefe');
     }
     const drops = DROPS[z.type];
     if (!drops) return;
@@ -538,7 +554,7 @@ const Endgame = (() => {
       if (!head && (src === 'guard' || src === 'tower')) head = Math.random() < ARMOR_HEAD[src];
       if (head) {
         M().stats.headshots = (M().stats.headshots || 0) + 1;
-        emit('headshot', { x: z.x, y: zy(z) - 7 * ZTYPES[z.type].scale, src });
+        emit('headshot', { x: z.x, y: zy(z) - 7 * zsc(z), src });
       } else if (opts.blast) base *= ARMOR_BLAST;
       else { emit('armor', { x: z.x, y: zy(z), src }); return; }
     }
@@ -549,7 +565,7 @@ const Endgame = (() => {
       ? S.horde.zs.filter(o => !o.dead && o !== z && o.x > z.x && o.x - z.x < 60 && Math.abs(o.y - z.y) < 12)
         .sort((a, b) => a.x - b.x).slice(0, tl('perfuracao'))
       : [];
-    damageZombie(z, dmg, src);
+    damageZombie(z, dmg, src, opts);
     for (const o of behind) if (!ZTYPES[o.type].armor) damageZombie(o, dmg * 0.6, src);
   }
 
@@ -686,7 +702,7 @@ const Endgame = (() => {
       <div class="stat"><span>Amostras</span><span>${Object.entries(SAMPLES).map(([k, s]) => `<span title="${s.nome}">${s.icon} ${m.samples[k]}</span>`).join(' &nbsp;')}</span></div>
       <div class="stat"><span>Cientistas</span><span>${S.jobs.cientista} / ${sciCap()}</span></div>
       ${S.build.lab ? '' : '<p class="hint warn-text">Construa um 🧪 Laboratório (aba Construir) para contratar cientistas e gerar pesquisa.</p>'}
-      <p class="hint">Amostras caem dos zumbis especiais: Cuspidor 🧪, Inchado ☁️, Brutamontes 🧫 e Abominação 🧬.</p>`;
+      <p class="hint">Amostras caem dos zumbis especiais: Cuspidor 🧪, Inchado ☁️, Brutamontes 🧫 e os chefes 🧬.</p>`;
     for (const k in TECH) {
       const T = TECH[k], lv = tl(k), max = lv >= T.max;
       $('tl-' + k).textContent = lv ? ` nv. ${lv}${T.max !== Infinity ? '/' + T.max : ''}` : '';

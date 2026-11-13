@@ -12,6 +12,8 @@ const Scene = (() => {
   const towerMuzzle = [0, 0, 0];
   const parts = [], decals = [], tracers = [], texts = [], corpses = [], people = [], lights = [];
   const travelers = [], flashes = [], planes = [], toasts = [];
+  const later = [];   // efeitos agendados (ácido ou granada chegando no muro)
+  const after = (t, fn) => later.push({ t, fn });
   let hordeVis = 0;
   const hitAt = new Map();
   let banner = null, pid = 1;
@@ -168,7 +170,7 @@ const Scene = (() => {
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
     if (o.rot) ctx.rotate(o.rot);
-    ctx.scale((o.face || 1) * s, s);
+    ctx.scale((o.face || 1) * s, s * (o.sy || 1));   // sy: achata (agachado) ou estica (no salto)
     // partes soltas do corpo: oy desloca o pivô para o centro da parte; clip mostra só aquela faixa
     if (o.oy) ctx.translate(0, o.oy);
     if (o.clip) { ctx.beginPath(); ctx.rect(-12, o.clip[0], 24, o.clip[1] - o.clip[0]); ctx.clip(); }
@@ -261,6 +263,8 @@ const Scene = (() => {
       default:
         R(shade(o.shirt, 0.85), -1 - sw, -10 + dy, 2, 5); R(o.skin, -1 - sw, -5 + dy, 2, 1);
     }
+    // detalhes próprios de cada chefe, nas mesmas coordenadas do boneco
+    if (o.extra) o.extra(R, dy, o);
     ctx.restore();
   }
 
@@ -268,6 +272,86 @@ const Scene = (() => {
   const ZHAIR = [[40, 46, 36], [70, 60, 50], [110, 90, 60], [30, 30, 30], [140, 140, 130]];
   const ZCAPS = [[160, 40, 40], [40, 70, 140], [200, 170, 60]];
   const lookCache = new Map();
+
+  // ---------- chefes: cores próprias e detalhes desenhados por cima do boneco ----------
+  const BONE = [214, 204, 180], BONE_D = [160, 150, 128];
+  const BOSSLOOK = {
+    saltador:   { skin: [120, 152, 172], shirt: [56, 66, 88], pants: [40, 46, 64], eye: [120, 255, 240], lean: 2 },
+    rolador:    { skin: [156, 112, 78], shirt: [118, 80, 48], pants: [88, 60, 40], eye: [255, 150, 40] },
+    matriarca:  { skin: [150, 118, 140], shirt: [98, 58, 88], pants: [70, 40, 60], eye: [255, 80, 170], hair: [60, 30, 50], longHair: true, bald: false },
+    colosso:    { skin: [150, 92, 80], shirt: [96, 74, 62], pants: [62, 50, 44], eye: [255, 200, 60] },
+    escavador:  { skin: [128, 116, 88], shirt: [112, 90, 58], pants: [70, 60, 40], eye: [255, 230, 120], hardhat: [220, 176, 46] },
+    colossal:   { skin: [176, 156, 108], shirt: [136, 124, 100], pants: [90, 80, 70], eye: [255, 255, 120], fat: true },
+    carcaca:    { skin: [196, 186, 164], shirt: [72, 40, 40], pants: [42, 30, 30], eye: [255, 60, 40] },
+    cuspideira: { skin: [138, 170, 62], shirt: [68, 90, 40], pants: [50, 60, 36], eye: [200, 255, 80], drool: true },
+    reiuivador: { skin: [192, 192, 176], hair: [244, 244, 232], longHair: true, bald: false, shirt: [84, 40, 116], pants: [60, 30, 84], eye: [255, 240, 120] },
+    gigante:    { skin: [128, 108, 160], shirt: [70, 54, 96], pants: [52, 42, 70], eye: [220, 150, 255], spores: true },
+    chefao:     { shirt: [44, 44, 48], pants: [52, 42, 32], helmet: true, mask: [150, 20, 20], eye: [20, 20, 20], bald: false },
+    cria:       { skin: [160, 122, 146], shirt: [150, 112, 136], pants: [140, 104, 126], eye: [255, 80, 170], mouth: true },
+    broto:      { skin: [128, 116, 150], shirt: [70, 60, 90], spores: true },
+  };
+  // detalhes (coordenadas locais: frente em +x, pés em 0) · z: o zumbi, para animar com o estado
+  const BOSSX = {
+    saltador(R, dy, o, z) {
+      const sk = shade(o.skin, 0.75);
+      R(sk, -4, -13 + dy, 1, 7);                                   // espinha saltada
+      R(sk, -3, -5, 2, 2); R(sk, 1, -5, 2, 2);                     // coxas enormes
+      R([230, 230, 220], 7, -11 + dy, 1, 1); R([230, 230, 220], 6, -8 + dy, 1, 1);   // garras
+    },
+    rolador(R, dy, o) {
+      for (let i = 0; i < 4; i++) R(i % 2 ? [128, 100, 70] : [96, 74, 52], -5, -15 + dy + i * 3, 4, 3);   // placas das costas
+      R([128, 100, 70], -3, -18 + dy, 7, 2);
+    },
+    matriarca(R, dy, o) {
+      const p = Math.round(Math.sin(time * 4) * 0.8);
+      R([170, 120, 150], -9 - p, -16 + dy, 6 + p, 10);              // bolsa de ovos nas costas, pulsando
+      R([220, 200, 160], -8, -14 + dy, 1, 1); R([220, 200, 160], -6, -11 + dy, 1, 1); R([220, 200, 160], -8, -9 + dy, 1, 1);
+      R(o.skin, 1, -7 + dy, 5, 1); R(o.skin, 6, -6 + dy, 1, 1);    // braços extras
+    },
+    colosso(R, dy, o, z) {
+      if (!z.ph) {                                                 // casca de pedra
+        R([112, 110, 104], -5, -14 + dy, 10, 10); R([90, 88, 84], -5, -10 + dy, 10, 1); R([90, 88, 84], -1, -14 + dy, 1, 4);
+        R([112, 110, 104], -3, -19 + dy, 8, 3);
+      } else {                                                     // carne exposta
+        R([176, 52, 52], -3, -11 + dy, 6, 6); R([120, 20, 20], -1, -10 + dy, 1, 4); R([120, 20, 20], 1, -8 + dy, 2, 1);
+      }
+    },
+    escavador(R, dy, o) {
+      R([206, 196, 176], 6, -12 + dy, 2, 2); R([206, 196, 176], 7, -10 + dy, 2, 2); R([206, 196, 176], 6, -8 + dy, 2, 2);   // garras de pá
+      R([255, 244, 170], 1, -19 + dy, 1, 1);                       // lanterna do capacete
+    },
+    colossal(R, dy, o, z) {
+      const k = z.state === 'fuse' ? Math.min(1, (z.tt || 0) / ZTYPES.colossal.bloat.fuse) : 0;
+      const w = 12 + Math.round(k * 3);
+      R(o.skin, -w / 2, -14 + dy, w, 10);                          // barriga gigante
+      for (const [x, y] of [[-4, -12], [2, -9], [-1, -13], [3, -12], [-3, -7]]) R(k && Math.sin(time * 20) > 0 ? [255, 90, 60] : [200, 170, 80], x, y + dy, 1, 1);
+    },
+    carcaca(R, dy, o, z) {
+      for (let i = 0; i < 4; i++) R(i % 2 ? BONE : BONE_D, -3, -11 + dy + i * 2, 6, 1);   // costelas
+      R(BONE, -2, -18 + dy, 5, 2);                                  // crânio
+      if (z.open) { const g = Math.sin(time * 14) > 0; R(g ? [255, 210, 80] : [255, 110, 50], -1, -10 + dy, 3, 3); }
+      else { R(BONE_D, -2, -10 + dy, 2, 3); R(BONE, 0, -10 + dy, 2, 3); }   // placas fechadas sobre o tumor
+    },
+    cuspideira(R, dy, o, z) {
+      const p = z.told ? 2 : Math.round(Math.abs(Math.sin(time * 3)));
+      R([110, 190, 50], 0, -12 + dy, 5 + p, 4 + p);                // papo cheio de ácido
+      R([170, 240, 90], 1, -11 + dy, 2, 1);
+    },
+    reiuivador(R, dy, o) {
+      R(o.shirt, -3, -11 + dy, 6, 10); R(shade(o.shirt, 0.7), -3, -2, 6, 1);   // manto até os pés
+      R(BONE, -2, -18 + dy, 5, 1); R(BONE, -2, -20 + dy, 1, 2); R(BONE, 0, -21 + dy, 1, 3); R(BONE, 2, -20 + dy, 1, 2);   // coroa de ossos
+    },
+    gigante(R, dy, o) {
+      R([180, 50, 60], -3, -19 + dy, 7, 2); R([240, 230, 220], -2, -19 + dy, 1, 1); R([240, 230, 220], 2, -19 + dy, 1, 1);   // cogumelo na cabeça
+      R([170, 100, 200], -5, -13 + dy, 3, 2); R([150, 80, 180], -5, -9 + dy, 2, 2); R([170, 100, 200], 3, -6 + dy, 2, 2);   // brotos no corpo
+    },
+    chefao(R, dy) {
+      R([96, 98, 108], 5, -16 + dy, 2, 12); R([140, 144, 156], 5, -16 + dy, 1, 12); R([200, 40, 40], 6, -11 + dy, 1, 2);   // escudo
+    },
+    broto(R, dy) { R([170, 100, 200], -4, -12 + dy, 2, 2); R([180, 50, 60], -2, -18 + dy, 5, 1); },
+  };
+  const BOSSCOLOR = { chefe: '#ff3a3a', saltador: '#6fe0ff', rolador: '#ff9a40', matriarca: '#ff70c0', colosso: '#d8b080', escavador: '#e0c060',
+    colossal: '#ffe060', carcaca: '#f0e6d0', cuspideira: '#a8f060', reiuivador: '#c890ff', gigante: '#d080ff', chefao: '#ff5a4a' };
 
   function zlook(z) {
     let L = lookCache.get(z.id);
@@ -297,6 +381,7 @@ const Scene = (() => {
     }
     if (t === 'chefe') Object.assign(L, { skin: [140, 70, 70], shirt: [80, 30, 30], pants: [50, 30, 30], spikes: true,
       eye: [255, 220, 40], longHair: false, cap: null, oneArm: false });
+    if (BOSSLOOK[t]) Object.assign(L, { longHair: false, cap: null, oneArm: false, bald: true }, BOSSLOOK[t]);
     lookCache.set(z.id, L);
     if (lookCache.size > 300) lookCache.delete(lookCache.keys().next().value);
     return { ...L };
@@ -487,6 +572,114 @@ const Scene = (() => {
     for (let i = 0; i < 5; i++) parts.push({ x: WALL_X + 10, y: y - 10, vx: rand(-5, 30), vy: rand(-30, -5), g: 120, life: 0.6, max: 0.6, c: pick([[128, 92, 56], [90, 64, 36]]), s: 1, floor: y + 2 });
   }
 
+  // explosão (granadas, foguetes, inchados e o Inchado Colossal)
+  function blastFx(x, y, big) {
+    blasts.push({ x, y, t: time, r: big ? 40 : 30 });
+    if (blasts.length > 12) blasts.shift();
+    for (let i = 0; i < 26; i++) parts.push({
+      x, y, vx: rand(-60, 60), vy: rand(-70, -5), g: 120, life: rand(0.3, 0.8), max: 0.8,
+      c: pick(['#ffd040', '#ff8a20', '#ff5020', [90, 80, 80], [150, 120, 140]]), s: pick([1, 2, 2, 3]), floor: y + 14,
+    });
+    flashes.push({ x, y, r: big ? 90 : 45, c: '255,150,50', a: 0.9, life: big ? 0.6 : 0.35, max: big ? 0.6 : 0.35 });
+    { const life = rand(90, 160); decals.push({ x, y: y + 9, w: big ? 26 : 12, life, max: life, c: [40, 34, 30] }); }
+    if (big) for (let i = 0; i < 30; i++) parts.push({ x: x + rand(-20, 20), y: y + rand(-10, 6), vx: rand(-25, 25), vy: rand(-30, -8), life: rand(1, 2), max: 2, c: [90, 85, 85], s: 3, a: 0.5 });
+    shake = Math.max(shake, big ? 7 : 3.5);
+  }
+  // poeira levantada no chão (pouso, impacto, saída da terra)
+  const DIRT = [[110, 90, 60], [90, 72, 48], [130, 110, 80]];
+  function dust(x, y, n, spread, cols) {
+    for (let i = 0; i < n; i++) parts.push({ x: x + rand(-spread, spread), y: y - rand(0, 3), vx: rand(-45, 45), vy: rand(-45, -8), g: 110, life: rand(0.5, 1), max: 1,
+      c: pick(cols || [[150, 135, 110], [120, 108, 88], [170, 156, 130]]), s: pick([1, 2, 2, 3]), floor: y + 2, a: 0.85 });
+  }
+  const say = (x, y, t, c, big) => texts.push({ x, y, t, c, life: big ? 1.8 : 1.2, big });
+
+  // efeitos das ações dos chefes (evento 'boss')
+  function bossFx(d) {
+    switch (d.k) {
+      case 'crouch': dust(d.x, d.y, 6, 6); break;
+      case 'leap':
+        dust(d.x, d.y, 16, 8);
+        flashes.push({ x: d.x, y: d.y - 6, r: 30, c: '120,230,255', a: 0.4, life: 0.3, max: 0.3 });
+        break;
+      case 'land':
+        dust(d.x, d.y, 34, 14); chips(d.y); chips(d.y - 12);
+        shake = Math.max(shake, 6); wallJolt = 0.3;
+        flashes.push({ x: d.x, y: d.y - 8, r: 50, c: '200,220,255', a: 0.5, life: 0.35, max: 0.35 });
+        say(d.x + 4, d.y - 40, 'ESTRONDO!', '#9fe8ff', true);
+        break;
+      case 'interrupt':
+        say(d.x, d.y - 20, 'SALTO INTERROMPIDO!', '#ffe066', true);
+        sparks(d.x, d.y);
+        break;
+      case 'curl': dust(d.x, d.y, 8, 6); break;
+      case 'roll': dust(d.x, d.y, 18, 6); say(d.x, d.y - 30, 'ROLANDO!', '#ffb060'); break;
+      case 'impact':
+        dust(d.x, d.y, 30, 10); chips(d.y); chips(d.y - 8); chips(d.y - 16);
+        shake = Math.max(shake, 7); wallJolt = 0.35; redFlash = Math.max(redFlash, 0.25);
+        flashes.push({ x: d.x, y: d.y - 8, r: 55, c: '255,170,80', a: 0.6, life: 0.35, max: 0.35 });
+        say(d.x + 6, d.y - 36, 'BUM!', '#ff9a40', true);
+        break;
+      case 'daze': say(d.x, d.y - 20, 'TONTO! ATAQUE AGORA!', '#ffe066'); break;
+      case 'brood':
+        for (let i = 0; i < 16; i++) parts.push({ x: d.x, y: d.y, vx: rand(-30, 30), vy: rand(-40, -5), g: 120, life: rand(0.4, 0.8), max: 0.8, c: pick([[190, 140, 170], [150, 100, 130], [220, 200, 160]]), s: pick([1, 2]), floor: d.y + 10 });
+        say(d.x, d.y - 26, `+${d.n} crias`, '#ff90c8');
+        break;
+      case 'shell':
+        for (let i = 0; i < 22; i++) pieces.push({ chunk: true, x: d.x + rand(-6, 6), y: d.y + rand(-12, 6), vx: rand(-70, 70), vy: rand(-110, -30),
+          w: pick([2, 3, 3]), h: pick([2, 2, 3]), c: pick([[112, 110, 104], [90, 88, 84], [130, 128, 120]]), floor: d.y + 22 + rand(-2, 4), t: 0, life: 60, rest: false });
+        shake = Math.max(shake, 5);
+        flashes.push({ x: d.x, y: d.y, r: 60, c: '255,200,140', a: 0.6, life: 0.4, max: 0.4 });
+        banner = { t: d.ph === 1 ? '🗿 A CASCA QUEBROU!' : '🗿 ELE RASTEJA!', sub: d.ph === 1 ? 'Menor e muito mais rápido!' : 'Pouca vida, indo direto ao muro!', c: '#d8b080', life: 2.2, max: 2.2 };
+        break;
+      case 'dig': dust(d.x, d.y, 20, 8, DIRT); say(d.x, d.y - 40, 'CAVANDO!', '#e0c060'); break;
+      case 'rise':
+        dust(d.x, d.y, 40, 10, DIRT);
+        shake = Math.max(shake, 4);
+        say(d.x, d.y - 40, 'EMERGIU!', '#e0c060', true);
+        break;
+      case 'fuse': say(d.x, d.y - 30, 'VAI EXPLODIR!', '#ff5a3a', true); redFlash = Math.max(redFlash, 0.3); break;
+      case 'wallBoom': redFlash = Math.max(redFlash, 0.8); shake = Math.max(shake, 10); chips(170); chips(180); chips(160); break;
+      case 'nearBoom': say(d.x, d.y - 30, 'PERTO DEMAIS DO MURO!', '#ff6a4a', true); chips(175); break;
+      case 'farBoom': say(d.x, d.y - 30, 'LONGE DO MURO!', '#6fe39a', true); break;
+      case 'open':
+        flashes.push({ x: d.x, y: d.y, r: 30, c: '255,140,50', a: 0.7, life: 0.4, max: 0.4 });
+        say(d.x, d.y - 26, 'PONTO FRACO!', '#ffd040');
+        break;
+      case 'close': sparks(d.x, d.y); break;
+      case 'lobTell':
+        for (let i = 0; i < 6; i++) parts.push({ x: d.x + rand(-3, 3), y: d.y, vx: rand(-8, 8), vy: rand(-20, -8), life: 0.5, max: 0.5, c: '#b0ff60', s: 1, glow: '150,255,80' });
+        break;
+      case 'acid': {
+        const tx = WALL_X + 9, ty = d.ty - 14;
+        parts.push({ x: d.x, y: d.y, vx: (tx - d.x) / 0.85, vy: (ty - d.y) / 0.85 - 85, g: 200, life: 0.85, max: 0.85, solid: true, c: '#9be35a', s: 4, glow: '150,255,80' });
+        after(0.85, () => {
+          for (let i = 0; i < 20; i++) parts.push({ x: tx, y: ty, vx: rand(-40, 30), vy: rand(-50, -5), g: 150, life: rand(0.4, 0.8), max: 0.8, c: pick(['#9be35a', '#c8ff80', '#6fbf30']), s: pick([1, 2]), floor: d.ty + 2, glow: '150,255,80' });
+          chips(d.ty);
+        });
+        break;
+      }
+      case 'howlTell': say(d.x, d.y - 30, 'vai uivar...', '#c890ff'); break;
+      case 'howl':
+        flashes.push({ x: d.x, y: d.y, r: 160, c: '200,90,255', a: 0.55, life: 0.8, max: 0.8 });
+        for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; parts.push({ x: d.x, y: d.y, vx: Math.cos(a) * 70, vy: Math.sin(a) * 35, life: 0.6, max: 0.6, c: pick([[200, 120, 255], [255, 160, 220]]), s: 1, a: 0.9 }); }
+        shake = Math.max(shake, 3);
+        say(d.x, d.y - 30, d.n ? `UIVO! ${d.n} curados e mais rápidos` : 'UIVO!', '#d0a0ff', true);
+        break;
+      case 'stunAll':
+        flashes.push({ x: d.x, y: d.y, r: 220, c: '255,255,255', a: 0.6, life: 0.6, max: 0.6 });
+        if (d.n) banner = { t: '👑 HORDA ATORDOADA!', sub: `${d.n} zumbis parados por alguns segundos`, c: '#c890ff', life: 2.2, max: 2.2 };
+        break;
+      case 'split':
+        flashes.push({ x: d.x, y: d.y, r: d.big ? 50 : 30, c: '180,100,230', a: 0.6, life: 0.4, max: 0.4 });
+        for (let i = 0; i < (d.big ? 30 : 14); i++) parts.push({ x: d.x, y: d.y, vx: rand(-50, 50), vy: rand(-55, -5), g: 100, life: rand(0.4, 0.9), max: 0.9, c: pick([[190, 120, 220], [140, 200, 90], [180, 50, 60]]), s: pick([1, 2]) });
+        say(d.x, d.y - 24, d.big ? 'ELE SE DIVIDIU!' : 'dividiu!', '#d080ff', d.big);
+        break;
+      case 'smash':
+        if (d.type !== 'chefe') { dust(WALL_X + 14, d.y, 6, 4); shake = Math.max(shake, 2.5); }
+        break;
+    }
+  }
+
   function on(type, d) {
     switch (type) {
       case 'weaponSwap': leaderSwap = 0.22; break;
@@ -526,8 +719,10 @@ const Scene = (() => {
         break;
       case 'spit': {
         const tx = WALL_X + 9, ty = d.ty - 14;
-        const look = d.proj === 'rock' ? { c: [120, 112, 100], s: 2 } : d.proj === 'molotov' ? { c: '#ff9a30', s: 2, glow: '255,140,40' } : { c: '#9be35a', s: 2, glow: '150,255,80' };
+        const look = d.proj === 'rock' ? { c: [120, 112, 100], s: 2 } : d.proj === 'molotov' ? { c: '#ff9a30', s: 2, glow: '255,140,40' }
+          : d.proj === 'grenade' ? { c: [60, 70, 50], s: 3 } : { c: '#9be35a', s: 2, glow: '150,255,80' };
         parts.push({ x: d.x, y: d.y, vx: (tx - d.x) / 0.6, vy: (ty - d.y) / 0.6 - 60, g: 200, life: 0.6, max: 0.6, solid: true, ...look });
+        if (d.proj === 'grenade') after(0.6, () => { blastFx(tx + 2, ty, false); chips(d.ty); });
         break;
       }
       case 'zbuff': {
@@ -541,7 +736,11 @@ const Scene = (() => {
       }
       case 'armor':
         sparks(d.x - 3, d.y);
-        if (d.src === 'player') texts.push({ x: d.x, y: d.y - 12, t: 'blindado! mire na cabeça', c: '#a8c0d8', life: 0.9 });
+        if (d.msg) texts.push({ x: d.x, y: d.y - 14, t: d.msg, c: '#a8c0d8', life: 1 });
+        else if (d.src === 'player' && d.msg === undefined) texts.push({ x: d.x, y: d.y - 12, t: 'blindado! mire na cabeça', c: '#a8c0d8', life: 0.9 });
+        break;
+      case 'boss':
+        bossFx(d);
         break;
       case 'headshot':
         sparks(d.x - 2, d.y);
@@ -559,19 +758,7 @@ const Scene = (() => {
         banner = { t: '⚠️ INVESTIDA!', sub: `${d.n} zumbis chegaram de uma vez!`, c: '#ff3a3a', life: 3, max: 3 };
         shake = Math.max(shake, 6); redFlash = Math.max(redFlash, 0.6);
         break;
-      case 'explode': {
-        blasts.push({ x: d.x, y: d.y, t: time, r: d.big ? 40 : 30 });
-        if (blasts.length > 12) blasts.shift();
-        for (let i = 0; i < 26; i++) parts.push({
-          x: d.x, y: d.y, vx: rand(-60, 60), vy: rand(-70, -5), g: 120, life: rand(0.3, 0.8), max: 0.8,
-          c: pick(['#ffd040', '#ff8a20', '#ff5020', [90, 80, 80], [150, 120, 140]]), s: pick([1, 2, 2, 3]), floor: d.y + 14,
-        });
-        flashes.push({ x: d.x, y: d.y, r: d.big ? 90 : 45, c: '255,150,50', a: 0.9, life: d.big ? 0.6 : 0.35, max: d.big ? 0.6 : 0.35 });
-        { const life = rand(90, 160); decals.push({ x: d.x, y: d.y + 9, w: d.big ? 26 : 12, life, max: life, c: [40, 34, 30] }); }
-        if (d.big) for (let i = 0; i < 30; i++) parts.push({ x: d.x + rand(-20, 20), y: d.y + rand(-10, 6), vx: rand(-25, 25), vy: rand(-30, -8), life: rand(1, 2), max: 2, c: [90, 85, 85], s: 3, a: 0.5 });
-        shake = Math.max(shake, d.big ? 7 : 3.5);
-        break;
-      }
+      case 'explode': blastFx(d.x, d.y, d.big); break;
       case 'flame':
         for (let i = 0; i < 7; i++) parts.push({ x: d.x + rand(-d.r, d.r) * 0.7, y: d.y + rand(-4, 8), vx: rand(-8, 8), vy: rand(-30, -12), life: rand(0.25, 0.5), max: 0.5, c: pick(['#ffd040', '#ff8a20', '#ff5020']), s: pick([1, 2, 2]), glow: '255,140,40' });
         { const t = gunTip(); tracers.push({ x1: t.x, y1: t.y, x2: d.x, y2: d.y, life: 0.06, c: '255,150,60' }); }
@@ -625,10 +812,12 @@ const Scene = (() => {
         banner = { t: '💉 A CURA FOI ENCONTRADA', sub: 'A humanidade tem uma chance!', c: '#6fe39a', life: 6, max: 6 };
         for (let i = 0; i < 80; i++) parts.push({ x: rand(0, W), y: rand(-10, 30), vx: rand(-15, 15), vy: rand(20, 60), g: 20, life: rand(2, 4), max: 4, c: pick(['#6fe39a', '#ffe066', '#9be3ff', '#ff8ac0']), s: 2 });
         break;
-      case 'bossSpawn':
-        banner = { t: 'ABOMINAÇÃO!', sub: 'Concentre o fogo nela!', c: '#ff3a3a', life: 3, max: 3 };
+      case 'bossSpawn': {
+        const Z = ZTYPES[d.type] || ZTYPES.chefe;
+        banner = { t: `${Z.icon} ${Z.nome.toUpperCase()}!`, sub: Z.tip, c: BOSSCOLOR[d.type] || '#ff3a3a', life: 4, max: 4 };
         shake = 3;
         break;
+      }
       case 'expStart':
         for (let i = 0; i < Math.min(d.n, 6); i++) {
           const p = newPerson('ocioso');
@@ -653,7 +842,10 @@ const Scene = (() => {
       case 'zdeath': {
         if (d.type === 'explosivo') break;
         const z = { id: d.id, type: d.type };
-        dismember(d, zlook(z));
+        const zl = zlook(z);
+        if (d.scale) zl.scale = d.scale;
+        if (BOSSX[d.type]) zl.extra = (R, dy, o) => BOSSX[d.type](R, dy, o, { ph: d.ph, tt: 0 });
+        dismember(d, zl);
         { const live = corpses.filter(c => c.life === Infinity && !c.kept); for (let i = 0; i < live.length - MARKS.corpses; i++) retire(live[i]); }
         blood(d.x, d.y - 8, 14, d.y + 1);
         stain(d.x + rand(-3, 3), d.y + rand(-1, 1), rand(4, 9));
@@ -899,18 +1091,30 @@ const Scene = (() => {
     ctx.globalAlpha = 1;
   }
 
+  // barra de vida de cada chefe na tela (até 3), com o estado atual (tonto, blindado, subterrâneo...)
   function drawBossBar() {
-    const boss = S.horde.zs.find(z => ZTYPES[z.type].boss && !z.dead);
-    if (!boss) return;
-    const w = 180, x = W / 2 - w / 2, y = 24, T_ = ZTYPES.chefe;
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 2, y - 2, w + 4, 8);
-    ctx.fillStyle = '#7a1010'; ctx.fillRect(x, y, w, 4);
-    ctx.fillStyle = '#ff3a3a'; ctx.fillRect(x, y, w * Math.max(0, boss.hp) / (boss.maxHp || T_.hp), 4);
-    ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillStyle = '#000'; ctx.fillText('👹 ' + T_.nome.toUpperCase(), W / 2 + 0.6, y - 4 + 0.6);
-    ctx.fillStyle = '#ffb0a0'; ctx.fillText('👹 ' + T_.nome.toUpperCase(), W / 2, y - 4);
-    ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'right';
-    ctx.fillStyle = '#ffd0c8'; ctx.fillText(`${pts(boss.hp)} / ${pts(boss.maxHp)}`, x + w, y - 4);
+    const list = S.horde.zs.filter(z => ZTYPES[z.type].boss && !z.dead).slice(0, 3);
+    list.forEach((boss, i) => {
+      const T_ = ZTYPES[boss.type], col = BOSSCOLOR[boss.type] || '#ff3a3a';
+      const w = 180, x = W / 2 - w / 2, y = 24 + i * 15;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 2, y - 2, w + 4, 8);
+      ctx.fillStyle = '#3a0c0c'; ctx.fillRect(x, y, w, 4);
+      ctx.fillStyle = col; ctx.fillRect(x, y, w * Math.max(0, boss.hp) / (boss.maxHp || T_.hp), 4);
+      // marcas das fases do Colosso
+      if (T_.phases) for (const P of T_.phases) { ctx.fillStyle = '#000'; ctx.fillRect(x + w * P.at, y, 1, 4); }
+      const name = `${T_.icon} ${T_.nome.toUpperCase()}`;
+      ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#000'; ctx.fillText(name, W / 2 + 0.6, y - 4 + 0.6);
+      ctx.fillStyle = col; ctx.fillText(name, W / 2, y - 4);
+      ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'right';
+      ctx.fillStyle = '#ffd0c8'; ctx.fillText(`${pts(boss.hp)} / ${pts(boss.maxHp)}`, x + w, y - 4);
+      const st = Bosses.status(boss);
+      if (st) {
+        ctx.textAlign = 'left';
+        ctx.fillStyle = Math.sin(time * 8) > 0 || !/!/.test(st) ? '#ffe066' : '#ff8060';
+        ctx.fillText(st, x, y - 4);
+      }
+    });
   }
 
   function drawGround() {
@@ -1219,25 +1423,154 @@ const Scene = (() => {
   }
 
   function drawZombie(z) {
-    const t = ZTYPES[z.type], L = zlook(z);
-    const atk = z.state === 'attack' || z.state === 'spit' || (z.state === 'invade' && z.atk);
+    const t = ZTYPES[z.type], L = zlook(z), s = zsc(z);
+    L.scale = s;
+    const atk = z.state === 'attack' || z.state === 'spit' || z.state === 'lob' || z.state === 'howl' || (z.state === 'invade' && z.atk);
     L.pose = L.human ? (atk ? 'work' : 'walk') : atk ? 'zattack' : 'zwalk';
     L.phase = atk ? time * (L.human ? 7 : 4) + z.id : time * z.speed * 0.45 + z.id;
     // fortalecidos por um grito (rastro vermelho) ou por esporos (brilho roxo)
     if (z.haste && Math.random() < 0.3) parts.push({ x: z.x + 4, y: z.y - rand(4, 14), vx: rand(10, 25), vy: 0, life: 0.25, max: 0.25, c: [220, 60, 50], s: 1, a: 0.6 });
-    if (z.hard) { ctx.fillStyle = `rgba(170,90,220,${0.12 + 0.06 * z.hard})`; ctx.beginPath(); ctx.ellipse(z.x, z.y - 9 * t.scale, 7 * t.scale, 11 * t.scale, 0, 0, Math.PI * 2); ctx.fill(); }
+    if (z.hard) { ctx.fillStyle = `rgba(170,90,220,${0.12 + 0.06 * z.hard})`; ctx.beginPath(); ctx.ellipse(z.x, z.y - 9 * s, 7 * s, 11 * s, 0, 0, Math.PI * 2); ctx.fill(); }
     L.flash = time - (hitAt.get(z.id) ?? -9) < 0.08;
-    drawHuman(z.x, z.y, L);
+    const lift = z.lift || 0, top = z.y - lift - 19 * s;
+    if (BOSSX[z.type]) L.extra = (R, dy, o) => BOSSX[z.type](R, dy, o, z);
+    if (t.boss) {
+      // sombra no chão (mais nítida quando ele está no ar)
+      ctx.fillStyle = `rgba(0,0,0,${lift > 1 ? 0.35 : 0.2})`;
+      ctx.beginPath(); ctx.ellipse(z.x, z.y + 0.5, 6 * s * Math.max(0.4, 1 - lift / 90), 1.6 * s, 0, 0, Math.PI * 2); ctx.fill();
+      if (drawBossBody(z, t, L, s)) { bossMarks(z, t, s, top); return; }
+    }
+    drawHuman(z.x, z.y - lift, L);
+    if (t.boss) bossMarks(z, t, s, top);
+    else if (z.stun > 0) stars(z.x, top - 1, 3);
     if (z.maxHp > 1.5 && z.hp < z.maxHp) {
-      const by = z.y - 19 * t.scale - 3;
+      const by = top - 3;
       rect('#141414', z.x - 6, by, 12, 2);
       ctx.fillStyle = '#e05a4f'; ctx.fillRect(z.x - 6, by, 12 * Math.max(0, z.hp) / z.maxHp, 2);
     }
     if (z.name) {
       ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillStyle = '#000'; ctx.fillText(z.name, z.x + 0.5, z.y - 19 * t.scale - 6.5);
-      ctx.fillStyle = '#c9d6a0'; ctx.fillText(z.name, z.x, z.y - 19 * t.scale - 7);
+      ctx.fillStyle = '#000'; ctx.fillText(z.name, z.x + 0.5, top - 6.5);
+      ctx.fillStyle = '#c9d6a0'; ctx.fillText(z.name, z.x, top - 7);
     }
+  }
+
+  // estrelinhas girando sobre quem está atordoado
+  function stars(x, y, r) {
+    for (let i = 0; i < 3; i++) {
+      const a = time * 6 + i * 2.1;
+      rect(i % 2 ? '#ffe066' : '#ffffff', x + Math.cos(a) * r, y + Math.sin(a) * r * 0.4, 1, 1);
+    }
+  }
+
+  // Corpo dos chefes conforme o estado. Devolve true se já desenhou tudo (bola, buraco).
+  function drawBossBody(z, t, L, s) {
+    const st = z.state, tt = z.tt || 0;
+    switch (t.ai) {
+      case 'leap':
+        if (st === 'crouch') { L.sy = 0.72 + Math.sin(time * 40) * 0.03; L.pose = 'zattack'; }
+        else if (st === 'air') L.sy = 1.15;
+        else if (st === 'stun') L.sy = 0.85;
+        break;
+      case 'roll':
+        if (st === 'curl' || st === 'roll' || st === 'bounce') {
+          const k = st === 'curl' ? Math.min(1, tt / t.roll.curl) : 1;
+          if (k < 0.6) { L.sy = 1 - 0.5 * k; L.pose = 'zattack'; drawHuman(z.x + rand(-0.5, 0.5), z.y, L); return true; }
+          drawBall(z, L, s);
+          return true;
+        }
+        if (st === 'daze') L.lean = Math.round(Math.sin(time * 5) * 2);
+        break;
+      case 'burrow':
+        if (st === 'dig' || st === 'under' || st === 'rise') { drawDig(z, t, L, s); return true; }
+        light(z.x - 2 * s, z.y - 19 * s, 14, '255,240,170', 0.35);   // lanterna
+        break;
+      case 'phases':
+        if (z.crawl) { L.rot = -1.25; L.pose = 'zattack'; L.phase = time * 9; }
+        break;
+      case 'bloat':
+        if (st === 'fuse') {
+          const k = Math.min(1, tt / t.bloat.fuse);
+          L.scale = s * (1 + 0.18 * k + Math.sin(time * 30) * 0.02 * k);
+          if (Math.sin(time * (8 + 22 * k)) > 0) L.flash = true;
+          light(z.x, z.y - 10 * s, 20 + 20 * k, '255,80,40', 0.4 + 0.4 * k);
+        }
+        break;
+      case 'weakspot':
+        if (z.open) light(z.x - 1 * s, z.y - 9 * s, 16, '255,120,40', 0.6 + 0.3 * Math.sin(time * 14));
+        break;
+      case 'artillery':
+        if (st === 'lob') { L.lean = z.told ? -2 : 0; light(z.x, z.y - 11 * s, 10, '150,255,80', z.told ? 0.6 : 0.25); }
+        break;
+      case 'howl':
+        if (st === 'howl') {
+          L.pose = 'zattack';
+          if (z.told) { L.lean = -1; light(z.x, z.y - 14 * s, 30, '200,120,255', 0.35 + 0.25 * Math.sin(time * 20)); }
+        }
+        light(z.x + 1, z.y - 14 * s, 6, '255,240,120', 0.4);   // olhos acesos
+        break;
+    }
+    if (z.state === 'stun' || z.state === 'daze') { drawHuman(z.x, z.y - (z.lift || 0), L); stars(z.x, z.y - 19 * s - 2, 4); return true; }
+    return false;
+  }
+
+  // Rolador enrolado: bola de placas girando
+  function drawBall(z, L, s) {
+    const r = 4.4 * s, cx = z.x, cy = z.y - r - (z.lift || 0);
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(-(z.spin || 0));
+    circle(L.flash ? '#ffffff' : shade(L.skin, 0.75), 0, 0, r);
+    for (let i = 0; i < 6; i++) {
+      ctx.rotate(Math.PI / 3);
+      rect(L.flash ? '#ffffff' : i % 2 ? [128, 100, 70] : [96, 74, 52], -r * 0.4, -r, r * 0.8, r * 0.5);
+    }
+    rect(L.eye, r * 0.2, -1, 1.5, 1.5);
+    ctx.restore();
+    if (z.state === 'roll' && Math.random() < 0.7) parts.push({ x: cx + r, y: z.y - 1, vx: rand(10, 40), vy: rand(-18, -4), g: 60, life: 0.5, max: 0.5, c: [150, 135, 110], s: pick([1, 2]), a: 0.7 });
+  }
+
+  // Escavador entrando e saindo da terra (só o que está acima do chão aparece) e o monte de terra andando
+  function drawDig(z, t, L, s) {
+    const B = t.burrow, tt = z.tt || 0;
+    let sink = 1;
+    if (z.state === 'dig') sink = Math.min(1, tt / B.dig);
+    else if (z.state === 'rise') sink = 1 - Math.min(1, tt / B.rise);
+    const ground = z.y + 0.5;
+    if (Math.random() < 0.6) parts.push({ x: z.x + rand(-6, 6) * s / 1.8, y: ground - 1, vx: rand(-25, 25), vy: rand(-40, -10), g: 120, life: 0.6, max: 0.6, c: pick([[110, 90, 60], [90, 72, 48], [130, 110, 80]]), s: pick([1, 2]), floor: ground });
+    // monte de terra
+    rect([96, 78, 52], z.x - 6 * s / 1.8, ground - 2, 12 * s / 1.8, 2);
+    rect([118, 98, 66], z.x - 4 * s / 1.8, ground - 3, 8 * s / 1.8, 1);
+    if (sink >= 1) return;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(z.x - 30, ground - 80, 60, 80); ctx.clip();
+    L.pose = 'zattack';
+    drawHuman(z.x, z.y + sink * 21 * s, L);
+    ctx.restore();
+  }
+
+  // "!" piscando antes do ataque especial
+  function bossMarks(z, t, s, top) {
+    if (!Bosses.warn(z)) return;
+    if (Math.sin(time * 16) < -0.2) return;
+    ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#000'; ctx.fillText('!', z.x + 0.7, top - 4.3);
+    ctx.fillStyle = '#ff4030'; ctx.fillText('!', z.x, top - 5);
+  }
+
+  // poças de ácido da Mãe-Cuspideira no pé do muro
+  function drawPools() {
+    const pools = S.horde.active && S.horde.pools;
+    if (!pools || !pools.length) return;
+    for (const p of pools) {
+      const a = Math.min(1, p.t / 1.5);
+      ctx.globalAlpha = 0.8 * a;
+      ctx.fillStyle = T([90, 170, 40]);
+      ctx.beginPath(); ctx.ellipse(WALL_X + 13, p.y, 8, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+      rect([140, 220, 70], WALL_X + 9, p.y - 22, 1, 20);                    // ácido escorrendo no muro
+      rect([110, 200, 50], WALL_X + 6, p.y - 14, 1, 12);
+      if (Math.random() < 0.15) parts.push({ x: WALL_X + 9 + rand(-5, 8), y: p.y - 1, vx: rand(-3, 3), vy: rand(-14, -6), life: 0.6, max: 0.6, c: '#b0ff60', s: 1, glow: '150,255,80', a: 0.8 });
+      light(WALL_X + 12, p.y - 2, 10, '150,255,80', 0.25 * a);
+    }
+    ctx.globalAlpha = 1;
   }
 
   // Boneco com skin (líder, vencedores do Hall da Fama e miniaturas): capa atrás, coroa por cima
@@ -1665,6 +1998,8 @@ const Scene = (() => {
     prune(toasts, t => t.life > 0);
     for (const f of flashes) f.life -= dt;
     prune(flashes, f => f.life > 0);
+    for (const l of later) if ((l.t -= dt) <= 0) l.fn();
+    prune(later, l => l.t > 0);
 
     for (const p of parts) {
       p.vy += (p.g || 0) * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
@@ -1709,6 +2044,7 @@ const Scene = (() => {
     drawWall();
     drawDefenses();
     drawDecals();
+    drawPools();
 
     const ents = [];
     for (const p of people) if (!p.hidden) ents.push([p.y, () => drawPerson(p)]);

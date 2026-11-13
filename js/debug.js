@@ -60,6 +60,13 @@ const Debug = (() => {
       ondaMais: ['Onda +1', () => { if (!S.horde.active) S.wave++; }],
       ondaMais5: ['Onda +5', () => { if (!S.horde.active) S.wave += 5; }],
     }],
+    // chefe na hora: entra na horda atual ou começa uma horda com ele na frente
+    ['👹 Chefes (aparece agora)', Object.fromEntries([...BOSS_POOL, 'chefao'].map(t => ['boss_' + t, [`${ZTYPES[t].icon} ${ZTYPES[t].nome}`, () => {
+      if (S.horde.active) Bosses.spawned(spawnZombie(t, S.horde));
+      else { S.dbgBoss = t; hordeNow(); }
+      note(`${ZTYPES[t].nome} chamado.`);
+      return true;
+    }]]))],
     ['🧍 Pessoas', {
       mais1: ['+1 sobrevivente', () => addPeople(1)],
       mais5: ['+5 sobreviventes', () => addPeople(5)],

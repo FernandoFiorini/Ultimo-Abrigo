@@ -59,7 +59,8 @@ const ZTYPES = {
   cuspidor:  { nome: 'Cuspidor',    hp: 2,  speed: 11, scale: 1,    dmg: 2.5, hits: 2, loot: 3,
                spit: { range: 75, cd: 2.2, dmg: 2, count: 4 } },
   explosivo: { nome: 'Inchado',     hp: 2,  speed: 7,  scale: 1.25, dmg: 15,  hits: 1, loot: 3, explode: true },
-  chefe:     { nome: 'Abominação',  hp: 30, speed: 5,  scale: 2.2,  dmg: 10,  hits: 4, loot: 40, boss: true },
+  chefe:     { nome: 'Abominação',  hp: 30, speed: 5,  scale: 2.2,  dmg: 10,  hits: 4, loot: 40, boss: true, art: 'a', icon: '👹', wave: 10,
+               tip: 'Concentre o fogo nela!' },
   // alguém do grupo que foi liberado depois de uma mordida e voltou transformado
   mordido:   { nome: 'Transformado', hp: 3, speed: 17, scale: 1.05, dmg: 4,   hits: 3, loot: 6 },
   // onDeath: ao morrer, o grito acelera os zumbis em volta (haste) ou os esporos os deixam mais resistentes (harden)
@@ -74,14 +75,58 @@ const ZTYPES = {
   saqueador: { nome: 'Saqueador',   hp: 1.5, speed: 30, scale: 1,  dmg: 1.8, hits: 5, atk: 0.5, loot: 2, human: true, food: 4, ammo: 2 },
   incendiario: { nome: 'Incendiário', hp: 1.5, speed: 26, scale: 1, dmg: 2, hits: 3, atk: 0.5, loot: 2, human: true, food: 3, ammo: 3,
                spit: { range: 110, cd: 1.4, dmg: 2, count: 5, proj: 'molotov' } },
+
+  // ---------- chefes (lógica em bosses.js) ----------
+  // ai: comportamento · wave: onda a partir da qual pode aparecer · hits: ataques no muro até o grupo dar conta dele
+  // leak: dano no muro quando a onda é resolvida de uma vez (offline) · off: vida extra no offline (fases, armadura)
+  // art: artigo (a/o) · icon e tip: barra de vida e faixa de aviso
+  saltador:  { nome: 'Saltador',   art: 'o', icon: '🦘', hp: 24, speed: 9,  scale: 1.9, dmg: 14, hits: 4, loot: 40, boss: true, ai: 'leap', wave: 10,
+               leap: { stop: 75, crouch: 1.3, air: 0.75, cd: 2.2, interrupt: 0.12 }, leak: 50,
+               tip: 'Ele vai pular no muro! Acerte-o enquanto se agacha para interromper' },
+  rolador:   { nome: 'Rolador',    art: 'o', icon: '🌀', hp: 26, speed: 7,  scale: 1.8, dmg: 12, hits: 5, loot: 40, boss: true, ai: 'roll', wave: 10,
+               roll: { stop: 95, curl: 0.7, speed: 95, back: 0.7, daze: 2.6 }, leak: 55, off: 1.4,
+               tip: 'Rolando, é blindado. Ataque quando ele ficar tonto depois da batida' },
+  matriarca: { nome: 'Matriarca',  art: 'a', icon: '🕷️', hp: 30, speed: 4,  scale: 2.1, dmg: 9,  hits: 4, loot: 45, boss: true, ai: 'brood', wave: 20,
+               brood: { cd: 6, n: [2, 3], max: 10 }, leak: 40,
+               tip: 'Ela pare crias sem parar. Mate-a rápido!' },
+  colosso:   { nome: 'Colosso',    art: 'o', icon: '🗿', hp: 44, speed: 4,  scale: 2.5, dmg: 12, hits: 5, loot: 55, boss: true, ai: 'phases', wave: 20,
+               phases: [{ at: 0.5, scale: 1.7, speed: 3, dmg: 0.8, atk: 0.6 }, { at: 0.2, scale: 1.25, speed: 4.5, dmg: 0.6, atk: 0.45, crawl: true }], leak: 70, off: 1.3,
+               tip: 'Ao perder a casca ele fica menor e muito mais rápido' },
+  escavador: { nome: 'Escavador',  art: 'o', icon: '⛏️', hp: 28, speed: 8,  scale: 1.8, dmg: 11, hits: 4, loot: 45, boss: true, ai: 'burrow', wave: 20,
+               burrow: { at: 110, out: 32, speed: 40, dig: 0.9, rise: 1.1, again: 0.5 }, leak: 45, off: 1.2,
+               tip: 'Debaixo da terra ninguém o acerta. Espere ele sair!' },
+  colossal:  { nome: 'Inchado Colossal', art: 'o', icon: '🎈', hp: 22, speed: 3.5, scale: 2.3, dmg: 0, hits: 1, loot: 45, boss: true, ai: 'bloat', wave: 30,
+               bloat: { fuse: 2, wall: 70, safe: 55, r: 55, dmg: 6, near: 0.4 }, leak: 70,
+               tip: 'Exploda-o LONGE do muro! Perto, a explosão destrói tudo' },
+  carcaca:   { nome: 'Carcaça',    art: 'a', icon: '🦴', hp: 26, speed: 5,  scale: 2.1, dmg: 11, hits: 5, loot: 50, boss: true, ai: 'weakspot', wave: 30,
+               weak: { closed: 4.5, open: 2.6, mult: 1.6 }, leak: 55, off: 2.5,
+               tip: 'Só o tumor brilhante fere. Atire quando ele abrir!' },
+  cuspideira:{ nome: 'Mãe-Cuspideira', art: 'a', icon: '🤮', hp: 24, speed: 6, scale: 2, dmg: 9, hits: 2, loot: 50, boss: true, ai: 'artillery', wave: 30,
+               acid: { stop: 128, cd: 2.8, count: 8, dmg: 3, pool: 8, dps: 0.5 }, leak: 60,
+               tip: 'Fica longe e cospe ácido que corrói o muro. Use armas de longo alcance' },
+  reiuivador:{ nome: 'Rei Uivador', art: 'o', icon: '👑', hp: 26, speed: 6, scale: 1.9, dmg: 10, hits: 4, loot: 55, boss: true, ai: 'howl', wave: 40,
+               howl: { stop: 140, cd: 7, count: 6, heal: 0.2, haste: 1.3, stun: 2.2 }, leak: 50,
+               tip: 'O grito dele cura e acelera a horda. Ao morrer, atordoa todos!' },
+  gigante:   { nome: 'Hospedeiro Gigante', art: 'o', icon: '🍄', hp: 26, speed: 4.5, scale: 2.3, dmg: 10, hits: 4, loot: 50, boss: true, ai: 'split', wave: 40,
+               split: { type: 'broto', n: 2 }, leak: 45,
+               tip: 'Ao morrer ele se divide. E os pedaços se dividem de novo!' },
+  // Noite dos Saqueadores: o líder deles toma o lugar do chefe
+  chefao:    { nome: 'Chefe Saqueador', art: 'o', icon: '🏴‍☠️', hp: 20, speed: 18, scale: 1.6, dmg: 6, hits: 6, atk: 0.6, loot: 40, boss: true, human: true, ai: 'warlord',
+               armor: true, food: 30, ammo: 20, spit: { range: 120, cd: 1.6, dmg: 3, count: 8, proj: 'molotov' }, leak: 60,
+               tip: 'Escudo à frente: mire na cabeça ou use explosivos' },
+  // filhotes e pedaços dos chefes
+  cria:      { nome: 'Cria',       hp: 0.5, speed: 22, scale: 0.7, dmg: 1.5, hits: 2, loot: 1 },
+  broto:     { nome: 'Broto',      hp: 6,  speed: 8,  scale: 1.5, dmg: 4,   hits: 3, loot: 8, split: { type: 'normal', n: 3 }, onDeath: 'harden' },
 };
+// chefes que podem aparecer nas ondas múltiplas de 10 (o Chefe Saqueador só vem com os saqueadores)
+const BOSS_POOL = Object.keys(ZTYPES).filter(k => ZTYPES[k].boss && ZTYPES[k].wave);
 // Armadura: chance de guardas e torres acertarem a cabeça; no progresso offline o blindado vale por ARMOR_OFFLINE zumbis
 const ARMOR_HEAD = { guard: 0.2, tower: 0.3 }, ARMOR_BLAST = 0.5, ARMOR_OFFLINE = 3;
 // Efeito de quem morre gritando (haste) ou soltando esporos (harden): alcance, multiplicador e limite de acúmulo
 const ZBUFF = { haste: { r: 60, mult: 1.3, max: 2 }, harden: { r: 45, mult: 1.3, max: 3 } };
 const WARN_TIME = 10;   // segundos de alarme e contagem regressiva antes de uma onda perigosa
 const RUSH_DELAY = 14;  // Investida: segundos depois do início da onda até a massa chegar (os últimos 5 com contagem)
-const leakOf = (t, n) => { const Z = ZTYPES[t]; return (Z.dmg * Z.hits + (Z.spit ? Z.spit.dmg * Z.spit.count : 0)) * dmgMult(n); };
+const leakOf = (t, n) => { const Z = ZTYPES[t]; return (Z.leak ?? (Z.dmg * Z.hits + (Z.spit ? Z.spit.dmg * Z.spit.count : 0))) * dmgMult(n); };
 const foeWord = t => (ZTYPES[t] && ZTYPES[t].human ? 'saqueadores' : 'zumbis');
 
 // count/grow: tamanho das hordas · hp/hpGrow/dmg/speed: força dos zumbis · early: especiais chegam N ondas antes
@@ -141,7 +186,7 @@ const EXPED = {
   base:      { nome: 'Base militar',          icon: '🪖', dur: 240, min: 3, risk: 0.15, unlock: 8, loot: { municao: [40, 80], sucata: [40, 70], remedio: [1, 3] } },
 };
 
-// O cash só vem de conquistas e da Abominação (o zumbi mais forte da horda)
+// O cash só vem de conquistas e dos chefes (os zumbis mais fortes da horda)
 const BOSS_CASH = 5;
 const BOOST_MAX = 4 * 3600;
 
@@ -170,7 +215,7 @@ const PERKS = {
 
 // Efeito total de cada nível (mostrado no registro e no painel)
 const BUILD_FX = {
-  muro:    lv => `muro com ${maxWall()} de resistência máxima`,
+  muro:    lv => `muro com ${fmt(maxWall())} de resistência máxima`,
   horta:   lv => `+${25 * lv}% de produção de comida`,
   oficina: lv => `+${25 * lv}% de produção de sucata`,
   beliche: lv => `${maxSurv()} vagas para sobreviventes`,
@@ -247,7 +292,7 @@ const LWEAPONS = {
                 cost: { sucata: 1200, municao: 200 }, desc: 'Segure para incendiar uma área perto do muro. Cada tanque de combustível enche o lança-chamas, e combustível é raro.' },
   // special: não usa a munição do abrigo, e sim munição especial (raríssima: veja SPECIAL_AMMO)
   bazuca:     { nome: 'Bazuca',          icon: '🚀', type: 'rocket', dmg: 0,    cd: 1,    mag: 1,  reload: 8,   use: 0,   special: 'rocket', range: 230, radius: 36, wave: 25, bosses: 5,
-                cost: { sucata: 5000, municao: 600, remedio: 10 }, desc: 'Um único foguete e recarga muito lenta. Mata qualquer zumbi comum da área e tira 40% da vida da Abominação. Guarde para o chefe.' },
+                cost: { sucata: 5000, municao: 600, remedio: 10 }, desc: 'Um único foguete e recarga muito lenta. Mata qualquer zumbi comum da área e tira 40% da vida de um chefe (até de um blindado). Guarde para os chefes.' },
 };
 const LW_MAX_LVL = 5, LW_UP_MULT = 1.7;
 const LW_KEYS = ['Q', 'W', 'E'];   // até 3 armas por noite (R recarrega durante a horda; de dia, recruta)
@@ -259,9 +304,23 @@ const SPECIAL_AMMO = {
   grenade: { nome: 'granada',  plural: 'granadas',  icon: '💣', max: 6 },
   fuel:    { nome: 'tanque de combustível', plural: 'tanques de combustível', icon: '⛽', max: 3, tank: true },
 };
-// De onde vem: Abominação (quantidade garantida), expedições (chance) e zumbis abatidos pelo líder (chance)
+// De onde vem: chefes (quantidade garantida, varia com o chefe), expedições (chance) e zumbis abatidos pelo líder (chance)
 const SPECIAL_DROPS = {
-  boss: { rocket: 1, grenade: 2, fuel: 1 },
+  // por chefe: cada um deixa um saque diferente
+  boss: {
+    chefe:      { rocket: 1, grenade: 2, fuel: 1 },
+    saltador:   { grenade: 3, fuel: 1 },
+    rolador:    { rocket: 1, grenade: 2 },
+    matriarca:  { fuel: 2, grenade: 1 },
+    colosso:    { rocket: 2, grenade: 1 },
+    escavador:  { grenade: 2, fuel: 1, rocket: 1 },
+    colossal:   { fuel: 3 },
+    carcaca:    { rocket: 2, fuel: 1 },
+    cuspideira: { grenade: 3, rocket: 1 },
+    reiuivador: { rocket: 1, grenade: 2, fuel: 2 },
+    gigante:    { fuel: 2, grenade: 2 },
+    chefao:     { grenade: 4, rocket: 1 },
+  },
   exp:  { base: { rocket: 0.05, grenade: 0.2, fuel: 0.1 }, delegacia: { grenade: 0.08 }, ferro: { fuel: 0.1 } },
   kill: { blindado: { grenade: 0.1 }, explosivo: { fuel: 0.05 } },
 };

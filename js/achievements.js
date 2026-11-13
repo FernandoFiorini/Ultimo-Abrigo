@@ -1,7 +1,8 @@
 'use strict';
 
 function newStats() {
-  return { kills: 0, bosses: 0, bloaters: 0, exps: 0, builds: 0, scav: 0, shots: 0, saved: 0, evacs: 0, airstrikes: 0, flawless: 0, bestWave: 0 };
+  return { kills: 0, bosses: 0, bloaters: 0, exps: 0, builds: 0, scav: 0, shots: 0, saved: 0, evacs: 0, airstrikes: 0, flawless: 0, bestWave: 0,
+    bk: {}, leapStops: 0, bloatFar: 0 };   // bk: chefes derrotados por tipo
 }
 let achT = 0;
 const stat = k => S.meta.stats[k];
@@ -9,7 +10,7 @@ const stat = k => S.meta.stats[k];
 function countKill(type) {
   const st = S.meta.stats;
   st.kills++;
-  if (ZTYPES[type].boss) st.bosses++;
+  if (ZTYPES[type].boss) { st.bosses++; if (!st.bk) st.bk = {}; st.bk[type] = (st.bk[type] || 0) + 1; }
   if (type === 'explosivo') st.bloaters++;
 }
 
@@ -23,8 +24,8 @@ const ACH = [
   { id: 'wave10',   icon: '🌕', nome: 'Veterano da noite',   desc: 'Sobreviva até a onda 10',               val: () => stat('bestWave'), goal: 10, cash: 3 },
   { id: 'wave20',   icon: '🌑', nome: 'Inquebrável',         desc: 'Sobreviva até a onda 20',               val: () => stat('bestWave'), goal: 20, cash: 6 },
   { id: 'wave30',   icon: '👑', nome: 'Rei das ruínas',      desc: 'Sobreviva até a onda 30',               val: () => stat('bestWave'), goal: 30, cash: 12 },
-  { id: 'boss1',    icon: '👹', nome: 'Matador de gigantes', desc: 'Derrote uma Abominação',                val: () => stat('bosses'), goal: 1,   cash: 3 },
-  { id: 'boss10',   icon: '🗡️', nome: 'Pesadelo dos monstros', desc: 'Derrote 10 Abominações',              val: () => stat('bosses'), goal: 10,  cash: 10 },
+  { id: 'boss1',    icon: '👹', nome: 'Matador de gigantes', desc: 'Derrote um chefe',                      val: () => stat('bosses'), goal: 1,   cash: 3 },
+  { id: 'boss10',   icon: '🗡️', nome: 'Pesadelo dos monstros', desc: 'Derrote 10 chefes',                    val: () => stat('bosses'), goal: 10,  cash: 10 },
   { id: 'bloat25',  icon: '💥', nome: 'Estourador',          desc: 'Elimine 25 Inchados',                   val: () => stat('bloaters'), goal: 25, cash: 2 },
   { id: 'flaw1',    icon: '🛡️', nome: 'Intocável',           desc: 'Vença uma onda 5+ sem dano ao muro',    val: () => stat('flawless'), goal: 1,  cash: 2 },
   { id: 'flaw10',   icon: '🏰', nome: 'Muralha viva',        desc: 'Vença 10 ondas 5+ sem dano ao muro',    val: () => stat('flawless'), goal: 10, cash: 5 },

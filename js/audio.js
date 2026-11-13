@@ -155,6 +155,28 @@ const Sound = (() => {
     }
   }
 
+  // Morte de cada chefe: um grito final com a "voz" dele e a queda
+  function bossDeath(type, pan, t) {
+    const V = {
+      saltador:   { w: 'sawtooth', f: 900, f2: 120, q: 4, cut: 1600 },
+      rolador:    { w: 'square', f: 160, f2: 40, q: 6, cut: 600 },
+      matriarca:  { w: 'sawtooth', f: 1400, f2: 300, q: 6, cut: 2400 },
+      colosso:    { w: 'sawtooth', f: 70, f2: 20, q: 8, cut: 350 },
+      escavador:  { w: 'sawtooth', f: 200, f2: 50, q: 5, cut: 700 },
+      colossal:   { w: 'sawtooth', f: 120, f2: 60, q: 3, cut: 500 },
+      carcaca:    { w: 'square', f: 300, f2: 60, q: 7, cut: 900 },
+      cuspideira: { w: 'sawtooth', f: 260, f2: 60, q: 9, cut: 700 },
+      reiuivador: { w: 'sawtooth', f: 700, f2: 90, q: 3, cut: 1800 },
+      gigante:    { w: 'sawtooth', f: 150, f2: 40, q: 7, cut: 600 },
+      chefao:     { w: 'triangle', f: 400, f2: 150, q: 2, cut: 1500 },
+    }[type] || { w: 'sawtooth', f: 90, f2: 25, q: 6, cut: 500 };
+    tone({ type: V.w, f: V.f, f2: V.f2, a: 0.05, d: 1.6, vol: 0.18, filter: { type: 'bandpass', f: V.cut, q: V.q }, pan, send: 0.6 });
+    tone({ f: 60, f2: 25, d: 0.6, vol: 0.4, t: t + 0.9, pan });
+    noise({ type: 'lowpass', f: 400, d: 1, vol: 0.25, t: t + 0.9, pan, send: 0.4 });
+    if (type === 'carcaca') for (let i = 0; i < 10; i++) noise({ type: 'highpass', f: 2500, d: 0.03, vol: 0.1, t: t + 0.9 + i * 0.05, pan });
+    if (type === 'colosso') for (let i = 0; i < 6; i++) tone({ f: rand(60, 120), f2: 30, d: 0.3, vol: 0.15, t: t + 0.95 + i * 0.09, pan });
+  }
+
   // Evita sobrecarga quando muitos sons acontecem juntos
   function allow(name, gap) {
     if (!ac || ac.state !== 'running' || !P('sfx') || voices > 48) return false;
@@ -245,6 +267,8 @@ const Sound = (() => {
         noise({ type: 'lowpass', f: 300, d: 1.5, vol: 0.3, t: t + 0.4, pan });
         return;
       }
+      if (ZTYPES[d.type] && ZTYPES[d.type].boss) { bossDeath(d.type, pan, t); return; }
+      if (d.type === 'cria') { tone({ type: 'square', f: 2200, f2: 900, d: 0.08, vol: 0.025, filter: { f: 4000 }, pan }); return; }
       if (d.type === 'explosivo') return; // o som é o da explosão
       tone({ type: 'sawtooth', f: rand(85, 140), f2: rand(40, 55), a: 0.03, d: rand(0.35, 0.6), vol: 0.06, filter: { f: 650, q: 5 }, pan });
       tone({ f: 75, f2: 38, d: 0.16, vol: 0.14, t: t + 0.28, pan });
@@ -304,6 +328,12 @@ const Sound = (() => {
       if (d.proj === 'rock') {   // pedra arremessada: zunido e pancada no muro
         noise({ type: 'bandpass', f: 600, q: 1, d: 0.25, vol: 0.05, pan });
         tone({ f: 120, f2: 60, d: 0.12, vol: 0.12, t: t + 0.6, pan: -0.2 });
+        return;
+      }
+      if (d.proj === 'grenade') {   // granada do Chefe Saqueador: assobio e explosão no muro
+        tone({ type: 'sine', f: 1800, f2: 900, d: 0.55, vol: 0.03, pan });
+        tone({ f: 80, f2: 30, d: 0.5, vol: 0.35, t: t + 0.6, pan: -0.2 });
+        noise({ type: 'lowpass', f: 1800, f2: 120, d: 0.6, vol: 0.3, t: t + 0.6, pan: -0.2, send: 0.4 });
         return;
       }
       if (d.proj === 'molotov') {   // garrafa quebrando e fogo
@@ -369,10 +399,123 @@ const Sound = (() => {
         noise({ type: 'lowpass', f: 300, a: 0.5, d: 2, vol: 0.15, t: t + 0.8 });
       }
     },
-    bossSpawn() {
-      tone({ type: 'sawtooth', f: 75, f2: 38, a: 0.1, d: 1.9, vol: 0.3, filter: { f: 480, q: 7 }, pan: 0.6, send: 0.6 });
-      tone({ type: 'sawtooth', f: 112, f2: 50, a: 0.1, d: 1.7, vol: 0.15, filter: { f: 600, q: 5 }, pan: 0.6 });
-      noise({ type: 'lowpass', f: 420, d: 1.6, vol: 0.25, pan: 0.6 });
+    // cada chefe chega com um rugido próprio
+    bossSpawn(d) {
+      const t = ac.currentTime, pan = 0.6;
+      switch (d.type) {
+        case 'saltador':   // guincho agudo e respiração ofegante
+          tone({ type: 'sawtooth', f: 300, f2: 1300, a: 0.05, d: 0.6, vol: 0.09, filter: { type: 'bandpass', f: 1500, q: 4 }, pan, send: 0.6 });
+          for (let i = 0; i < 4; i++) noise({ type: 'bandpass', f: 900, q: 2, a: 0.04, d: 0.14, vol: 0.08, t: t + 0.7 + i * 0.22, pan });
+          break;
+        case 'rolador':    // placas rangendo e um ronco grave
+          for (let i = 0; i < 5; i++) tone({ type: 'square', f: rand(160, 260), f2: rand(90, 140), d: 0.12, vol: 0.04, t: t + i * 0.1, filter: { f: 900, q: 6 }, pan });
+          tone({ type: 'sawtooth', f: 70, f2: 45, a: 0.1, d: 1.3, vol: 0.2, filter: { f: 400, q: 6 }, t: t + 0.4, pan, send: 0.5 });
+          break;
+        case 'matriarca':  // chiado de inseto com muitos estalos
+          noise({ type: 'bandpass', f: 4200, q: 6, a: 0.2, d: 1.2, vol: 0.06, pan, send: 0.5 });
+          for (let i = 0; i < 12; i++) noise({ type: 'bandpass', f: rand(2000, 3500), q: 5, d: 0.02, vol: 0.06, t: t + i * 0.07, pan });
+          tone({ type: 'sawtooth', f: 140, f2: 90, a: 0.2, d: 1, vol: 0.1, filter: { f: 700, q: 8 }, t: t + 0.3, pan });
+          break;
+        case 'colosso':    // passos de pedra pesadíssimos
+          for (let i = 0; i < 3; i++) { tone({ f: 55, f2: 28, d: 0.5, vol: 0.45, t: t + i * 0.55, pan }); noise({ type: 'lowpass', f: 500, d: 0.4, vol: 0.2, t: t + i * 0.55, pan, send: 0.5 }); }
+          tone({ type: 'sawtooth', f: 48, a: 0.3, hold: 0.6, d: 1, vol: 0.15, filter: { f: 300, q: 5 }, t: t + 1.6, pan, send: 0.6 });
+          break;
+        case 'escavador':  // terra sendo revirada e uma picareta
+          noise({ type: 'lowpass', f: 700, f2: 200, a: 0.1, d: 1.2, vol: 0.2, pan, send: 0.4 });
+          for (let i = 0; i < 3; i++) tone({ type: 'triangle', f: 1400, d: 0.25, vol: 0.05, t: t + 0.3 + i * 0.35, pan, send: 0.6 });
+          break;
+        case 'colossal':   // borbulhar enorme
+          for (let i = 0; i < 10; i++) tone({ f: rand(80, 200), f2: rand(250, 400), a: 0.02, d: 0.12, vol: 0.08, t: t + i * rand(0.07, 0.14), pan });
+          tone({ type: 'sawtooth', f: 60, f2: 40, a: 0.3, d: 1.4, vol: 0.15, filter: { f: 350, q: 6 }, pan, send: 0.5 });
+          break;
+        case 'carcaca':    // ossos estalando
+          for (let i = 0; i < 8; i++) noise({ type: 'highpass', f: 2500, d: 0.03, vol: 0.12, t: t + i * rand(0.06, 0.13), pan, send: 0.4 });
+          tone({ type: 'sawtooth', f: 90, f2: 50, a: 0.1, d: 1.4, vol: 0.18, filter: { f: 500, q: 8 }, t: t + 0.5, pan, send: 0.6 });
+          break;
+        case 'cuspideira': // gorgolejo ácido
+          tone({ type: 'sawtooth', f: 180, f2: 70, a: 0.1, d: 1.1, vol: 0.12, filter: { type: 'bandpass', f: 600, q: 9 }, pan, send: 0.5 });
+          for (let i = 0; i < 8; i++) tone({ f: rand(300, 600), f2: rand(700, 1000), d: 0.07, vol: 0.05, t: t + 0.2 + i * 0.1, pan });
+          break;
+        case 'reiuivador': // uivo longo e majestoso
+          tone({ type: 'sawtooth', f: 220, f2: 660, a: 0.4, hold: 0.4, d: 1.2, vol: 0.08, filter: { type: 'bandpass', f: 900, q: 3 }, pan, send: 0.8 });
+          tone({ type: 'sawtooth', f: 330, f2: 990, a: 0.4, hold: 0.4, d: 1.2, vol: 0.05, filter: { type: 'bandpass', f: 1300, q: 3 }, pan, send: 0.8 });
+          break;
+        case 'gigante':    // estouro úmido de esporos
+          for (let i = 0; i < 6; i++) noise({ type: 'lowpass', f: 800, f2: 200, d: 0.25, vol: 0.12, t: t + i * 0.18, pan });
+          tone({ type: 'sawtooth', f: 85, f2: 45, a: 0.2, d: 1.5, vol: 0.18, filter: { f: 450, q: 7 }, pan, send: 0.6 });
+          break;
+        case 'chefao':     // grito de guerra e apito
+          tone({ type: 'square', f: 2200, d: 0.5, vol: 0.04, filter: { f: 4000 }, pan, send: 0.5 });
+          tone({ type: 'square', f: 2200, d: 0.25, vol: 0.04, t: t + 0.6, filter: { f: 4000 }, pan, send: 0.5 });
+          tone({ type: 'sawtooth', f: 160, f2: 240, a: 0.05, d: 0.6, vol: 0.08, filter: { type: 'bandpass', f: 800, q: 3 }, t: t + 0.9, pan, send: 0.5 });
+          break;
+        default:           // Abominação
+          tone({ type: 'sawtooth', f: 75, f2: 38, a: 0.1, d: 1.9, vol: 0.3, filter: { f: 480, q: 7 }, pan, send: 0.6 });
+          tone({ type: 'sawtooth', f: 112, f2: 50, a: 0.1, d: 1.7, vol: 0.15, filter: { f: 600, q: 5 }, pan });
+          noise({ type: 'lowpass', f: 420, d: 1.6, vol: 0.25, pan });
+      }
+    },
+    // ações especiais dos chefes
+    boss(d) {
+      const pan = panOf(d.x), t = ac.currentTime;
+      switch (d.k) {
+        case 'crouch': tone({ type: 'sawtooth', f: 90, f2: 160, a: 0.3, d: 0.9, vol: 0.08, filter: { f: 600, q: 6 }, pan }); break;   // tensão subindo
+        case 'leap': noise({ type: 'bandpass', f: 400, f2: 2000, q: 1, d: 0.5, vol: 0.12, pan }); tone({ type: 'sawtooth', f: 500, f2: 1400, d: 0.3, vol: 0.05, filter: { type: 'bandpass', f: 1200, q: 3 }, pan }); break;
+        case 'land':
+          tone({ f: 60, f2: 22, d: 0.8, vol: 0.6, pan: -0.2 });
+          noise({ type: 'lowpass', f: 1500, f2: 120, d: 0.9, vol: 0.45, pan: -0.2, send: 0.5 });
+          noise({ type: 'bandpass', f: 400, q: 2, d: 0.2, vol: 0.2, t: t + 0.05, pan: -0.2 });
+          break;
+        case 'interrupt': tone({ type: 'triangle', f: 880, f2: 440, d: 0.3, vol: 0.08, pan }); tone({ type: 'sawtooth', f: 200, f2: 90, d: 0.4, vol: 0.08, filter: { f: 900 }, pan }); break;
+        case 'curl': for (let i = 0; i < 4; i++) tone({ type: 'square', f: rand(200, 320), f2: 120, d: 0.06, vol: 0.04, t: t + i * 0.12, filter: { f: 1000, q: 4 }, pan }); break;
+        case 'roll': noise({ type: 'lowpass', f: 300, a: 0.1, d: 1.2, vol: 0.25, pan }); tone({ type: 'sawtooth', f: 40, f2: 70, a: 0.2, d: 1, vol: 0.1, filter: { f: 300 }, pan }); break;
+        case 'impact':
+          tone({ f: 70, f2: 25, d: 0.7, vol: 0.6, pan: -0.2 });
+          noise({ type: 'lowpass', f: 2500, f2: 150, d: 0.7, vol: 0.45, pan: -0.2, send: 0.4 });
+          for (let i = 0; i < 3; i++) tone({ type: 'square', f: rand(300, 600), d: 0.08, vol: 0.03, t: t + 0.1 + i * 0.07, filter: { f: 1500 }, pan: -0.2 });
+          break;
+        case 'daze': for (let i = 0; i < 3; i++) tone({ type: 'sine', f: 1200 + i * 300, f2: 900 + i * 300, d: 0.15, vol: 0.04, t: t + i * 0.12, pan }); break;   // "piu piu"
+        case 'brood': for (let i = 0; i < d.n; i++) { noise({ type: 'lowpass', f: 900, f2: 300, d: 0.15, vol: 0.1, t: t + i * 0.15, pan }); tone({ type: 'square', f: 1800, f2: 2600, d: 0.06, vol: 0.02, t: t + i * 0.15 + 0.08, filter: { f: 4000 }, pan }); } break;
+        case 'shell':
+          noise({ type: 'highpass', f: 1200, d: 0.5, vol: 0.3, pan, send: 0.4 });
+          for (let i = 0; i < 8; i++) tone({ f: rand(80, 200), f2: 40, d: 0.15, vol: 0.12, t: t + i * 0.05, pan });
+          tone({ type: 'sawtooth', f: 100, f2: 300, a: 0.1, d: 0.8, vol: 0.12, filter: { f: 900, q: 5 }, t: t + 0.3, pan, send: 0.5 });
+          break;
+        case 'dig': case 'rise':
+          noise({ type: 'lowpass', f: 600, f2: 150, a: 0.05, d: d.k === 'rise' ? 0.8 : 1, vol: 0.3, pan, send: 0.3 });
+          if (d.k === 'rise') tone({ f: 80, f2: 35, d: 0.4, vol: 0.35, pan });
+          break;
+        case 'fuse':   // chiado de pavio acelerando
+          noise({ type: 'highpass', f: 4000, a: 0.05, d: 2, vol: 0.06, pan: -0.2 });
+          for (let i = 0; i < 10; i++) tone({ type: 'square', f: 1000, d: 0.04, vol: 0.04, t: t + 2 * (1 - Math.pow(1 - i / 10, 0.6)), filter: { f: 3000 }, pan: -0.2 });
+          break;
+        case 'wallBoom': tone({ f: 45, f2: 18, d: 1.6, vol: 0.7 }); noise({ type: 'lowpass', f: 1200, f2: 60, d: 2, vol: 0.5, send: 0.6 }); break;
+        case 'farBoom': [72, 76, 79].forEach((m, i) => tone({ type: 'triangle', f: mtof(m), d: 0.25, vol: 0.06, t: t + 0.4 + i * 0.08 })); break;
+        case 'nearBoom': tone({ type: 'sawtooth', f: 300, f2: 120, d: 0.6, vol: 0.06, filter: { f: 900 }, t: t + 0.3 }); break;
+        case 'open': tone({ type: 'sawtooth', f: 120, f2: 60, a: 0.05, d: 0.5, vol: 0.12, filter: { f: 700, q: 8 }, pan }); noise({ type: 'lowpass', f: 900, f2: 300, d: 0.3, vol: 0.1, pan }); tone({ type: 'triangle', f: 660, d: 0.2, vol: 0.05, t: t + 0.1, pan }); break;
+        case 'close': for (let i = 0; i < 2; i++) noise({ type: 'highpass', f: 2500, d: 0.04, vol: 0.12, t: t + i * 0.08, pan }); break;
+        case 'lobTell': tone({ type: 'sawtooth', f: 120, f2: 260, a: 0.2, d: 0.5, vol: 0.06, filter: { type: 'bandpass', f: 500, q: 8 }, pan }); break;
+        case 'acid':
+          tone({ f: 200, f2: 700, d: 0.2, vol: 0.08, pan }); noise({ type: 'bandpass', f: 900, q: 3, d: 0.2, vol: 0.08, pan });
+          noise({ type: 'highpass', f: 3500, a: 0.02, d: 0.9, vol: 0.08, t: t + 0.85, pan: -0.2 });   // chiado do ácido no muro
+          tone({ f: 90, f2: 50, d: 0.15, vol: 0.12, t: t + 0.85, pan: -0.2 });
+          break;
+        case 'howlTell': tone({ type: 'sawtooth', f: 110, f2: 220, a: 1, d: 0.3, vol: 0.05, filter: { f: 800, q: 4 }, pan }); break;
+        case 'howl':
+          tone({ type: 'sawtooth', f: 260, f2: 820, a: 0.05, hold: 0.3, d: 0.9, vol: 0.09, filter: { type: 'bandpass', f: 1100, q: 3 }, pan, send: 0.8 });
+          tone({ type: 'sawtooth', f: 390, f2: 1230, a: 0.05, hold: 0.3, d: 0.9, vol: 0.06, filter: { type: 'bandpass', f: 1500, q: 3 }, pan, send: 0.8 });
+          tone({ type: 'sawtooth', f: 130, f2: 400, a: 0.05, hold: 0.3, d: 0.9, vol: 0.06, filter: { f: 700, q: 3 }, pan, send: 0.8 });
+          break;
+        case 'stunAll': tone({ type: 'sine', f: 2400, f2: 600, d: 1.2, vol: 0.07, send: 0.8 }); noise({ type: 'lowpass', f: 400, d: 1, vol: 0.15 }); break;
+        case 'split':
+          noise({ type: 'lowpass', f: 1200, f2: 250, d: 0.4, vol: d.big ? 0.3 : 0.15, pan });
+          tone({ f: 180, f2: 60, d: 0.3, vol: d.big ? 0.2 : 0.1, pan });
+          break;
+        case 'smash':
+          if (d.type === 'chefe') break;
+          tone({ f: 75, f2: 35, d: 0.3, vol: 0.3, pan: -0.2 }); noise({ type: 'lowpass', f: 900, d: 0.2, vol: 0.18, pan: -0.2 });
+          break;
+      }
     },
     waveEnd() {
       const t = ac.currentTime;
@@ -568,7 +711,9 @@ const Sound = (() => {
   const GAPS = { outOfRange: 0.15, armor: 0.07, headshot: 0.05, zbuff: 0.15, sample: 0.1, crit: 0.08, trap: 0.06, shock: 0.1, research: 0.2, weapon: 0.3, assign: 0.06, unassign: 0.06, shot: 0.035, hit: 0.04, zdeath: 0.07, wallHit: 0.09, spit: 0.15, melee: 0.06, injured: 0.15, bitten: 0.3, harvest: 1.2, scavenge: 0.03 };
 
   function on(type, d) {
-    if (!SFX[type] || !allow(type, GAPS[type] ?? 0.05)) return;
+    // morte de chefe e cada ação de chefe têm o próprio limite (não somem no meio de outros sons)
+    const key = type === 'zdeath' && d && ZTYPES[d.type] && ZTYPES[d.type].boss ? 'bossDeath' : type === 'boss' && d ? 'boss_' + d.k : type;
+    if (!SFX[type] || !allow(key, GAPS[type] ?? 0.05)) return;
     SFX[type](d || {});
   }
 

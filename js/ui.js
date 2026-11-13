@@ -12,6 +12,10 @@ function fmt(n) {
   while (Math.abs(v) >= 1000 && i < u.length - 1) { v /= 1000; i++; }
   return v.toFixed(1).replace('.', ',') + u[i];
 }
+// valor exato (17.234.512), para mostrar ao passar o mouse sobre um número abreviado
+const exact = n => Math.round(n).toLocaleString('pt-BR');
+// número abreviado como nos recursos (17,2M) com o valor exato no title
+const num = n => `<span title="${exact(n)}">${fmt(n)}</span>`;
 function fmtClock(s) {
   s = Math.ceil(s);
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = String(s % 60).padStart(2, '0');
@@ -27,7 +31,7 @@ function fmtTime(s) {
 }
 function costHtml(c) {
   return Object.entries(c).map(([r, v]) =>
-    `<span class="${S.res[r] < v ? 'missing' : ''}">${RES[r].icon} ${fmt(v)}</span>`).join(' ');
+    `<span class="${S.res[r] < v ? 'missing' : ''}" title="${RES[r].nome}: ${exact(v)}">${RES[r].icon} ${fmt(v)}</span>`).join(' ');
 }
 
 function buildUI() {
@@ -149,7 +153,7 @@ function render() {
     el.textContent = fmtRate(r[k]) + (left[k] != null && left[k] < 300 ? ` · ${fmtClock(left[k])}` : '');
     el.className = 'rate ' + (r[k] > 0.001 ? 'pos' : r[k] < -0.001 ? 'neg' : '');
     el.parentNode.classList.toggle('danger', left[k] != null && left[k] < 60);
-    el.parentNode.title = RES[k].nome + (left[k] != null ? ` (acaba em ~${fmtTime(left[k])} no ritmo atual)` : '');
+    el.parentNode.title = `${RES[k].nome}: ${exact(S.res[k])}` + (left[k] != null ? ` (acaba em ~${fmtTime(left[k])} no ritmo atual)` : '');
   }
   $('r-hope').textContent = S.meta.hope;
   $('diff-chip').textContent = `${D().icon} ${D().nome}` + (S.mods.length ? ' · ' + S.mods.map(k => MODS[k].icon).join('') : '');
@@ -194,13 +198,14 @@ function render() {
   renderPeople();
 
   const sg = scavGain();
-  setHtml($('btn-scavenge'), `🔍 Vasculhar · +${sg.comida} 🥫 +${sg.sucata} 🔩 ${hk('V')}`);
+  setHtml($('btn-scavenge'), `🔍 Vasculhar · +${fmt(sg.comida)} 🥫 +${fmt(sg.sucata)} 🔩 ${hk('V')}`);
 
   const rc = recruitCost();
   const full = S.survivors >= maxSurv();
   const iso = hasMod('isolados');
-  setHtml($('btn-recruit'), (iso ? '📵 Isolados: sem recrutamento' : full ? '🧍 Lotado · construa barracas' : `🧍 Recrutar · ${RES.comida.icon} ${rc}`) + ' ' + hk('R'));
+  setHtml($('btn-recruit'), (iso ? '📵 Isolados: sem recrutamento' : full ? '🧍 Lotado · construa barracas' : `🧍 Recrutar · ${RES.comida.icon} ${fmt(rc)}`) + ' ' + hk('R'));
   $('btn-recruit').disabled = iso || full || S.res.comida < rc;
+  $('btn-recruit').title = iso || full ? '' : `Recrutar custa ${exact(rc)} de comida (você tem ${exact(S.res.comida)})`;
 
   for (const k in JOBS) {
     $('jc-' + k).textContent = S.jobs[k];
@@ -226,15 +231,16 @@ function render() {
        <div class="bar wave"><div style="width:${(1 - (H.queue.length + H.zs.length) / Math.max(1, waveSize(H.n))) * 100}%"></div></div>`
     : `<div class="stat"><span>Próxima horda (onda ${S.wave})</span><span>${Math.ceil(S.waveTimer)}s</span></div>
        <div class="bar wave"><div style="width:${(1 - S.waveTimer / waveInterval()) * 100}%"></div></div>
-       <div class="stat"><span>Zumbis esperados</span><span>${waveSize(S.wave)}${S.wave % 10 === 0 ? ' + 👹 chefe' : ''}</span></div>`;
+       <div class="stat"><span>Zumbis esperados</span><span>${num(waveSize(S.wave))}${S.wave % 10 === 0 ? ' + 👹 chefe' : ''}</span></div>`;
   $('defense').innerHTML = top + `
-    <div class="stat"><span>🧱 Muro</span><span>${Math.ceil(S.wallHp)} / ${maxWall()}</span></div>
+    <div class="stat"><span>🧱 Muro</span><span title="${exact(Math.ceil(S.wallHp))} / ${exact(maxWall())}">${fmt(Math.ceil(S.wallHp))} / ${fmt(maxWall())}</span></div>
     <div class="bar ${wallPct < 30 ? 'low' : ''}"><div style="width:${wallPct}%"></div></div>
     <div class="stat"><span>🛡️ ${S.jobs.guarda} guardas · 🗼 ${S.build.torre} torres</span><span>☠ ${fmt(S.kills)} · 🏆 onda ${S.best}</span></div>
     <div class="stat" title="Chance de acerto. Melhora com Treinamento de tiro, a pesquisa Miras ópticas, o talento Boa mira e o herói Atirador. Tiro errado também gasta munição."><span>🎯 Precisão</span><span>guardas ${Math.round(accuracy('guard') * 100)}% · torres ${Math.round(accuracy('tower') * 100)}%</span></div>`;
 
-  setHtml($('btn-repair'), `🔨 Reparar muro · ${RES.sucata.icon} ${REPAIR_COST} ${hk('C')}`);
+  setHtml($('btn-repair'), `🔨 Reparar muro · ${RES.sucata.icon} ${fmt(REPAIR_COST)} ${hk('C')}`);
   $('btn-repair').disabled = S.res.sucata < REPAIR_COST || S.wallHp >= maxWall();
+  $('btn-repair').title = `Custa ${exact(REPAIR_COST)} de sucata e recupera ${exact(Math.round(REPAIR_AMOUNT * (1 + Endgame.ab('repair'))))} de resistência. Muro: ${exact(Math.ceil(S.wallHp))} / ${exact(maxWall())}`;
 
   const scale = (1 + 0.08 * (S.wave - 1)) * hopeMult();
   const sieged = hasMod('semexp');
@@ -322,7 +328,7 @@ function diffStats(k) {
     `❤️ Vida dos zumbis ${pct(d.hp)} · dano ${pct(d.dmg)}`,
     `⏱ ${d.interval}s entre hordas · 🥫 consumo ${d.food.toLocaleString('pt-BR')}/s por pessoa`,
     `🏭 Produção ${pct(d.prod)}`,
-    `✨ Esperança ×${fmt(d.hope)} · 👹 Abominação 💵 ${d.bossCash}` + (d.loot ? ` · 🎒 saque ×${fmt(d.loot)}` : ''),
+    `✨ Esperança ×${fmt(d.hope)} · 👹 Chefe 💵 ${d.bossCash}` + (d.loot ? ` · 🎒 saque ×${fmt(d.loot)}` : ''),
     ...(d.permadeath ? ['<b class="bad-text">💀 Morte permanente: se o abrigo cair, o save é apagado</b>'] : []),
   ];
 }
@@ -627,7 +633,7 @@ function showImport() {
 // ---------- realce de palavras-chave ----------
 // Cada grupo vira uma classe kw-<grupo> (cores no CSS). Só mexe em texto: botões, campos e atalhos ficam de fora.
 const KEYWORDS = [
-  ['danger', 'hordas?|zumbis?|Abominaç(?:ão|ões)|invas(?:ão|ões)|morreu|morreram|mort[oa]s?|infectad[oa]s?|mordida|saqueadores|fome|Lua de Sangue|chefe'],
+  ['danger', 'hordas?|zumbis?|Abominaç(?:ão|ões)|Saltador|Rolador|Matriarca|Colosso|Escavador|Inchado Colossal|Carcaça|Mãe-Cuspideira|Rei Uivador|Hospedeiro Gigante|Chefe Saqueador|invas(?:ão|ões)|morreu|morreram|mort[oa]s?|infectad[oa]s?|mordida|saqueadores|fome|Lua de Sangue|chefe'],
   ['life',   'vidas?|sobreviventes?|remédios?|salv(?:ou|aram|am|ar)|Cura'],
   ['gold',   'Esperança|Legado|cash|conquistas?'],
   ['food',   'comida'],

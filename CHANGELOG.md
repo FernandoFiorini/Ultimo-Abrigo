@@ -61,6 +61,17 @@ Apocalipse, saves e vitória.
 - Novas amostras: Arremessador (ácido), Uivador (gás), Hospedeiro e Policial blindado (tecido).
 - Conquistas novas: Na cabeça (100 tiros na cabeça de blindados) e Daqui não passa (repelir 3 ataques de saqueadores).
 - Conquistas novas: Fogo cruzado (onda 10 no Apocalipse), Inferno na Terra (onda 30) e Lenda do Apocalipse (vencer no Apocalipse).
+- **11 novos chefes.** A Abominação agora é um entre vários: o chefe de cada onda múltipla de 10 é sorteado entre os já liberados, sem repetir o anterior (os que você nunca derrotou aparecem com mais frequência). Cada um tem visual, sons, ataque especial, aviso antes do ataque (um **!** piscando) e saque de munição especial próprios, e a barra de vida mostra o estado dele (tonto, blindado, subterrâneo...). Até 3 barras aparecem quando vem mais de um chefe.
+  - Desde a onda 10: 🦘 **Saltador**, que para longe do muro, se agacha e **pula em cima dele** (dano alto e empurra a horda para trás; tiros enquanto ele se agacha **interrompem o salto**); 🌀 **Rolador**, que vira uma bola **blindada**, rola até o muro, bate e quica de volta, e fica **tonto** (dano ×1,5).
+  - Desde a onda 20: 🕷️ **Matriarca**, que pare crias sem parar; 🗿 **Colosso**, que perde a casca com 50% de vida (fica menor e bem mais rápido) e **rasteja** com 20%; ⛏️ **Escavador**, que cava longe do muro, passa por baixo da terra sem poder ser atingido e **sai perto do muro** (nunca do outro lado). Com metade da vida, ele foge cavando de novo.
+  - Desde a onda 30: 🎈 **Inchado Colossal**, que explode ao morrer (**longe do muro**, a explosão fere a própria horda; perto, o muro também sofre) e, se chegar ao muro, acende o pavio e explode com tudo; 🦴 **Carcaça**, que tem casca de osso e só toma dano quando o **tumor** abre (dano ×1,6); 🤮 **Mãe-Cuspideira**, que fica longe e cospe ácido, deixando **poças que corroem o muro** por alguns segundos.
+  - Desde a onda 40: 👑 **Rei Uivador**, que fica atrás da horda e **grita, curando e acelerando** todos (ao morrer, **atordoa a horda inteira**); 🍄 **Hospedeiro Gigante**, que ao morrer **se divide em 2 brotos**, e cada broto em 3 zumbis.
+  - 🏴‍☠️ **Chefe Saqueador:** nas ondas de chefe a partir da 20, às vezes vêm os saqueadores, liderados por ele. Tem escudo (mire na cabeça ou use explosivos) e alterna molotovs e granadas.
+- Os chefes também valem no progresso offline (os blindados e os de fases custam mais tiros, e a Matriarca traz crias).
+- **Conquistas de chefes:** uma para cada chefe novo, Pouso cancelado (interromper 3 saltos), Fogos de artifício (explodir o Inchado Colossal longe do muro) e **Bestiário completo** (derrotar os 12 tipos).
+- Textos atualizados para "chefe" no lugar de "Abominação" onde valem para todos (conquistas, desafio semanal, heroína Valéria, bazuca, munição especial).
+- Correção: nas noites especiais com menos zumbis (Corredores, Saqueadores), o chefe não some mais da fila.
+- **Números grandes abreviados** nos botões de recrutar e reparar, no muro, nos custos e no Vasculhar, como nos recursos (17,2M em vez de 17234512). Passe o mouse para ver o valor exato.
 
 ## 1.06.000
 

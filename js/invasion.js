@@ -103,6 +103,7 @@ const Invasion = (() => {
   // Muro caído: o zumbi deixa de atacar o muro e entra no acampamento
   function enter(z) {
     z.state = 'invade'; z.atk = false; z.hits = 0; z.t = 0;
+    z.lift = 0; z.rolling = false; z.under = false;   // chefes no meio de um salto, rolando ou cavando
     z.tx = rnd(WORLD.WALL_X - 75, WORLD.WALL_X - 15);
     z.ty = rnd(WORLD.LANE_MIN, WORLD.LANE_MAX);
   }

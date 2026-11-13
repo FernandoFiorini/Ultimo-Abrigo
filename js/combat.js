@@ -28,7 +28,9 @@ function startWave(quiet) {
   // o evento pode ter sido sorteado antes, para o alarme de onda perigosa
   const event = S.pending !== undefined ? S.pending : Endgame.rollEvent(n);
   delete S.pending;
-  const queue = Endgame.modifyQueue(waveComposition(n), event);
+  const queue = Endgame.modifyQueue(Bosses.assign(waveComposition(n), n), event);
+  // debug: chefe escolhido no menu entra na frente da fila
+  if (S.dbgBoss) { queue.unshift(S.dbgBoss); delete S.dbgBoss; }
   // quem foi liberado depois de uma mordida e não resistiu volta com a horda (saqueadores não trazem ninguém)
   const turned = Endgame.EVENTS[event] && Endgame.EVENTS[event].humans ? [] : Invasion.addTurned(queue);
   S.horde = { active: true, n, queue, event, spawnT: 1.5, zs: [], kills: 0, loot: 0, food: 0, ammo: 0, dmg: 0, gcd: [], tcd: [], mcd: [], turned,
@@ -40,10 +42,10 @@ function startWave(quiet) {
   }
   const word = foeWord(queue[0]);
   if (!quiet) addLog(`🌙 A noite caiu. Onda ${n}: ${queue.length + (S.horde.rush ? S.horde.rush.length : 0)} ${word} se aproximam!` +
-    (queue.includes('chefe') ? ' Algo ENORME vem junto...' : ''), 'warn');
+    (queue.some(t => ZTYPES[t].boss) ? ' Algo ENORME vem junto...' : ''), 'warn');
   if (event && !quiet) addLog(`${Endgame.EVENTS[event].icon} NOITE ESPECIAL: ${Endgame.EVENTS[event].nome}! ${Endgame.EVENTS[event].desc}`, 'bad');
   Weapons.refill();
-  emit('waveStart', { n, count: queue.length + (S.horde.rush ? S.horde.rush.length : 0), boss: queue.includes('chefe'), event, word });
+  emit('waveStart', { n, count: queue.length + (S.horde.rush ? S.horde.rush.length : 0), boss: queue.some(t => ZTYPES[t].boss), event, word });
 }
 
 // A massa da Investida: no mínimo 20, cresce com a onda, com alguns brutamontes no meio
@@ -57,7 +59,7 @@ function spawnZombie(type, H, opts = {}) {
   const z = {
     id: S.zid++, type, hp, maxHp: hp, state: 'walk', t: 0, hits: 0, spits: 0,
     x: (opts.x ?? WORLD.SPAWN_X + Math.random() * 10) + (Z.boss ? 15 : 0),
-    y: Z.boss ? 178 : WORLD.LANE_MIN + Math.random() * (WORLD.LANE_MAX - WORLD.LANE_MIN),
+    y: opts.y ?? (Z.boss ? 178 : WORLD.LANE_MIN + Math.random() * (WORLD.LANE_MAX - WORLD.LANE_MIN)),
     speed: Z.speed * D().speed * Endgame.speedMultEv() * (0.85 + Math.random() * 0.3),
   };
   z.speed0 = z.speed;
@@ -66,19 +68,24 @@ function spawnZombie(type, H, opts = {}) {
   return z;
 }
 
-const zy = z => z.y - 9 * ZTYPES[z.type].scale;
+// tamanho atual (o Colosso encolhe ao perder a casca) e altura do corpo (lift: no ar, pulando)
+const zsc = z => z.scale || ZTYPES[z.type].scale;
+const zy = z => z.y - (z.lift || 0) - 9 * zsc(z);
 
 function pickTarget() {
   let best = null;
-  for (const z of S.horde.zs) if (!z.dead && z.x <= Endgame.range() && (!best || z.x < best.x)) best = z;
+  for (const z of S.horde.zs) if (!z.dead && !z.under && z.x <= Endgame.range() && (!best || z.x < best.x)) best = z;
   return best;
 }
 
-function damageZombie(z, dmg, src) {
+// o: { blast, fire, rocket }: tipo do dano, para as armaduras e fraquezas dos chefes
+function damageZombie(z, dmg, src, o = {}) {
   if (z.dead) return;
+  if (ZTYPES[z.type].ai) { dmg = Bosses.guard(z, dmg, src, o); if (!(dmg > 0)) return; }
   z.hp -= dmg;
   emit('hit', { id: z.id, x: z.x, y: zy(z) });
   if (z.hp <= 0) killZombie(z, src);
+  else if (ZTYPES[z.type].ai) Bosses.hurt(z);
 }
 
 function killZombie(z, src) {
@@ -89,13 +96,14 @@ function killZombie(z, src) {
   S.res.sucata += loot;
   S.kills++; H.kills++; H.loot += loot;
   if (src !== 'wall') bountyOf(z.type, H);
-  emit('zdeath', { id: z.id, x: z.x, y: z.y, type: z.type, loot, src });
+  emit('zdeath', { id: z.id, x: z.x, y: z.y, type: z.type, loot, src, scale: z.scale, ph: z.ph });
   if (Z.onDeath) zombieBuff(z, Z.onDeath);
   countKill(z.type);
   Endgame.onKill(z, src);
   if (src === 'player') Weapons.onKill(z);
   Invasion.onKill(z, src);
-  if (Z.boss) { gainCash(D().bossCash, 'a Abominação foi derrotada!', z.x, zy(z) - 10); Weapons.bossLoot(); }
+  if (Z.boss) { gainCash(D().bossCash, `${Bosses.the(z.type)} foi derrotad${Z.art || 'a'}!`, z.x, zy(z) - 10); Weapons.bossLoot(z.type); }
+  if (Z.ai || Z.split) Bosses.onDeath(z, src);
   if (Z.explode) {
     emit('explode', { x: z.x, y: zy(z) });
     // Explodir um inchado longe do muro fere os zumbis próximos
@@ -139,7 +147,7 @@ function airStrike() {
   for (const z of H.zs) {
     if (z.dead) continue;
     emit('explode', { x: z.x, y: zy(z), air: true });
-    if (ZTYPES[z.type].boss) damageZombie(z, 10, 'air');
+    if (ZTYPES[z.type].boss) damageZombie(z, 10, 'air', { blast: true, rocket: true });
     else killZombie(z, 'air');
   }
   H.zs = H.zs.filter(z => !z.dead);
@@ -157,7 +165,7 @@ function updateHorde(dt) {
   if (H.queue.length && H.spawnT <= 0) {
     const type = H.queue.shift(), z = spawnZombie(type, H);
     H.spawnT = spawnGap(H.n) * (0.6 + Math.random() * 0.8);
-    if (ZTYPES[type].boss) { emit('bossSpawn', { id: z.id }); addLog('👹 Uma ABOMINAÇÃO surgiu na horda!', 'bad'); }
+    if (ZTYPES[type].boss) Bosses.spawned(z);
   }
 
   // Investida: contagem regressiva com alarme e a massa inteira surgindo de uma vez
@@ -180,13 +188,23 @@ function updateHorde(dt) {
   // granadas em voo e zumbis em chamas
   Weapons.hordeTick(dt);
   if (S !== st) return;
+  // poças de ácido da Mãe-Cuspideira
+  if (!Bosses.hordeTick(dt)) return;
 
   const WX = WORLD.WALL_X + 13;
   for (const z of H.zs) {
     if (z.dead) continue;
     const Z = ZTYPES[z.type];
+    // atordoado (grito de morte do Rei Uivador, crias e pedaços recém-nascidos)
+    if (z.stun > 0) { z.stun -= dt; continue; }
     // muro caído: quem chega nele (ou estava atacando) entra no abrigo
     if (S.wallDown && z.state !== 'invade' && (z.state === 'attack' || z.x <= WX + (Z.boss ? 8 : 0))) Invasion.enter(z);
+    // chefes: estados especiais (pular, rolar, cavar, cuspir ácido...)
+    if (Z.ai && z.state !== 'invade') {
+      const r = Bosses.tick(z, dt);
+      if (r < 0 || S !== st) return;
+      if (r > 0 || z.dead) continue;
+    }
     if (z.state === 'invade') {
       if (!Invasion.zombie(z, dt)) return;
     } else if (z.state === 'walk') {
@@ -197,8 +215,10 @@ function updateHorde(dt) {
       z.t += dt;
       if (z.t >= Z.spit.cd) {
         z.t = 0; z.spits++;
-        emit('spit', { x: z.x - 4, y: zy(z) - 4, ty: z.y, proj: Z.spit.proj });
-        H.dmg += wallDamage(Z.spit.dmg * dmgMult(H.n), z.y);
+        // o Chefe Saqueador alterna molotov e granada (mais forte)
+        const gren = Z.ai === 'warlord' && z.spits % 2 === 0;
+        emit('spit', { x: z.x - 4, y: zy(z) - 4, ty: z.y, proj: gren ? 'grenade' : Z.spit.proj });
+        H.dmg += wallDamage(Z.spit.dmg * (gren ? 1.6 : 1) * dmgMult(H.n), z.y);
         if (S !== st) return;
         if (z.spits >= Z.spit.count || S.wallDown) z.state = 'walk';
       }
@@ -206,9 +226,10 @@ function updateHorde(dt) {
       z.t += dt;
       if (Z.explode) {
         if (z.t >= 0.6) { H.dmg += wallDamage(Z.dmg * dmgMult(H.n), z.y); if (S !== st) return; killZombie(z, 'wall'); }
-      } else if (z.t >= (Z.atk || 1)) {
-        z.t -= Z.atk || 1; z.hits++;
-        H.dmg += wallDamage(Z.dmg * dmgMult(H.n), z.y);
+      } else if (z.t >= (z.atkS || Z.atk || 1)) {
+        z.t -= z.atkS || Z.atk || 1; z.hits++;
+        if (Z.boss) emit('boss', { k: 'smash', x: z.x, y: z.y, type: z.type, id: z.id });
+        H.dmg += wallDamage(Z.dmg * (z.dmgM || 1) * dmgMult(H.n), z.y);
         if (S !== st) return;
         if (z.hits >= Z.hits) killZombie(z, 'melee');
       }
@@ -277,6 +298,8 @@ function flushWave() {
   ];
   // o blindado só cai com tiros na cabeça: custa bem mais tiros
   for (const z of list) if (ZTYPES[z.type].armor) z.hp *= ARMOR_OFFLINE;
+  // chefes com fases e armaduras ficam mais duros; a Matriarca traz crias
+  Bosses.offline(list);
   H.rush = null;
   let pool = offlineDefense(list.length) * Endgame.mult('dmg') * Endgame.offlineMult(), leak = 0;
   for (const z of list) {
@@ -287,7 +310,10 @@ function flushWave() {
       bountyOf(z.type, H);
       countKill(z.type);
       Endgame.onKill({ type: z.type }, 'offline');
-      if (ZTYPES[z.type].boss) { gainCash(D().bossCash, 'a Abominação foi derrotada!'); Weapons.bossLoot(); }
+      if (ZTYPES[z.type].boss) { gainCash(D().bossCash, `${Bosses.the(z.type)} foi derrotad${ZTYPES[z.type].art || 'a'}!`); Weapons.bossLoot(z.type); }
+      // o Hospedeiro Gigante e seus brotos se dividem
+      const sp = ZTYPES[z.type].split;
+      if (sp) for (let i = 0; i < sp.n; i++) list.push({ type: sp.type, hp: ZTYPES[sp.type].hp * hpMult(H.n) * Endgame.hpMultEv() });
     } else {
       pool = 0;
       leak += leakOf(z.type, H.n);
@@ -307,7 +333,7 @@ function endWave() {
   const extra = (H.food ? `, +${H.food} comida` : '') + (H.ammo ? `, +${H.ammo} munição` : '');
   const ev = Endgame.EVENTS[H.event];
   addLog(`☀️ Onda ${H.n} sobrevivida! ${H.kills} ${ev && ev.humans ? 'saqueadores repelidos' : 'zumbis abatidos'} (+${H.loot} sucata${extra})` +
-    (H.inv ? '. Os zumbis invadiram o abrigo.' : H.dmg > 0 ? `. O muro sofreu ${Math.round(H.dmg)} de dano.` : '. Nenhum dano ao muro!'),
+    (H.inv ? '. Os zumbis invadiram o abrigo.' : H.dmg > 0 ? `. O muro sofreu ${fmt(Math.round(H.dmg))} de dano.` : '. Nenhum dano ao muro!'),
     H.dmg > 0 || H.inv ? 'warn' : 'good');
   const st = S.meta.stats;
   st.bestWave = Math.max(st.bestWave, H.n);
