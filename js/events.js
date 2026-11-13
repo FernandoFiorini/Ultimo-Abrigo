@@ -218,29 +218,58 @@ const Events = (() => {
 
   // ---------- comerciante ----------
   const SAMPLE_ICON = { acido: '🧪', gas: '☁️', tecido: '🧫' };
+  // Quantidades acompanham a economia do abrigo: cada lado da troca vale ~MERCH_SECS segundos da produção
+  // bruta daquele recurso (ou o valor pela onda, o que for maior). Assim, no fim do jogo ele não oferece
+  // migalhas, e a troca continua justa entre um recurso que você produz muito e um que produz pouco.
+  const MERCH_SECS = 45;
+  const gross = r => ({
+    comida: S.jobs.forrageiro * 0.6 * foodMult(),
+    sucata: S.jobs.coletor * 0.5 * scrapMult(),
+    municao: S.jobs.armeiro * AMMO_RATE * prodMult() * Endgame.mult('ammo'),
+    remedio: S.jobs.medico * 0.04 * prodMult() * Endgame.mult('meds'),
+  })[r] || 0;
+  const rpRate = () => S.jobs.cientista * 0.12 * (1 + 0.25 * Math.max(0, S.build.lab - 1)) * Endgame.mult('rp');
+  // base: quantidade no começo do jogo (equivale a uns 30 de comida)
+  const Q = (r, base) => Math.max(R(base), Math.round(gross(r) * MERCH_SECS * base / 30));
+  const bag = o => { const out = {}; for (const r in o) out[r] = Q(r, o[r]); return out; };
+  // Fim de jogo: abrigo grande, cidade nova depois de evacuar ou laboratório funcionando
+  const lateGame = () => S.meta.city > 1 || S.best >= 15 || (S.build.lab > 0 && S.wave >= 10);
+
   const OFFERS = [
-    () => ({ give: { sucata: R(30) }, get: { municao: R(20) } }),
-    () => ({ give: { comida: R(30) }, get: { sucata: R(30) } }),
-    () => ({ give: { sucata: R(40) }, get: { remedio: 2 } }),
-    () => ({ give: { municao: R(25) }, get: { comida: R(40) } }),
-    () => ({ give: { comida: R(40) }, get: { municao: R(22) } }),
-    () => ({ give: { remedio: 2 }, get: { sucata: R(55) } }),
-    () => ({ give: { sucata: R(25) }, get: { comida: R(30) } }),
+    () => ({ give: bag({ sucata: 30 }), get: bag({ municao: 20 }) }),
+    () => ({ give: bag({ comida: 30 }), get: bag({ sucata: 30 }) }),
+    () => ({ give: bag({ sucata: 40 }), get: bag({ remedio: 2 }) }),
+    () => ({ give: bag({ municao: 25 }), get: bag({ comida: 40 }) }),
+    () => ({ give: bag({ comida: 40 }), get: bag({ municao: 22 }) }),
+    () => ({ give: bag({ remedio: 2 }), get: bag({ sucata: 55 }) }),
+    () => ({ give: bag({ sucata: 25 }), get: bag({ comida: 30 }) }),
   ];
   const RARE = [
-    () => S.build.lab ? { give: { sucata: R(60) }, get: { sample: pick(['acido', 'gas', 'tecido']) }, left: 1 } : null,
-    () => S.best >= 6 ? { give: { comida: R(80), sucata: R(80) }, get: { weapon: 1 }, left: 1 } : null,
-    () => ({ give: { comida: R(50), municao: R(30) }, get: { survivor: 1 }, left: 1 }),
+    () => S.build.lab ? { give: bag({ sucata: 60 }), get: { sample: pick(['acido', 'gas', 'tecido']) }, left: 1 } : null,
+    () => S.best >= 6 ? { give: bag({ comida: 80, sucata: 80 }), get: { weapon: 1 }, left: 1 } : null,
+    () => ({ give: bag({ comida: 50, municao: 30 }), get: { survivor: 1 }, left: 1 }),
   ];
+  // Ofertas de fim de jogo: coisas que a produção comum não dá
+  const LATE = [
+    () => S.build.lab ? { give: bag({ comida: 120, sucata: 120 }), get: { sample: pick(['acido', 'gas', 'tecido']), n: 2 + Math.floor(S.meta.city / 3) }, left: 1 } : null,
+    () => S.build.lab ? { give: bag({ municao: 60, remedio: 3 }), get: { rp: Math.max(40, Math.round(rpRate() * 120)) }, left: 2 } : null,
+    () => ({ give: bag({ comida: 150, sucata: 150, municao: 60 }), get: { weapon: 1, n: 2 }, left: 1 }),
+    () => S.best >= 20 && Object.keys(Endgame.HEROES).some(k => !S.meta.heroes.some(h => h.key === k))
+      ? { give: bag({ comida: 250, sucata: 250, remedio: 6 }), get: { hero: 1 }, left: 1 } : null,
+  ];
+  const shuffle = a => [...a].sort(() => Math.random() - 0.5);
 
   function arrive_() {
-    const offers = [...OFFERS].sort(() => Math.random() - 0.5).slice(0, 3).map(f => ({ ...f(), left: 2 }));
-    if (chance(0.35)) { const r = pick(RARE)(); if (r) offers.push(r); }
+    const late = lateGame();
+    // no fim de jogo vêm menos trocas básicas e duas ofertas especiais
+    const offers = shuffle(OFFERS).slice(0, late ? 2 : 3).map(f => ({ ...f(), left: 2 }));
+    if (late) offers.push(...shuffle(LATE).map(f => f()).filter(Boolean).slice(0, 2));
+    if (chance(late ? 0.2 : 0.35)) { const r = pick(RARE)(); if (r) offers.push(r); }
     S.merchant = { t: MERCHANT_STAY, offers };
     addLog('🛒 Um comerciante ambulante parou no portão! Ele fica pouco tempo: veja as ofertas.', 'good');
     emit('merchant');
     toast({ icon: '🛒', label: 'Comerciante ambulante', name: 'Ofertas por tempo limitado',
-      desc: 'Troque recursos que estão sobrando pelos que estão faltando.', btn: 'Ver ofertas', onBtn: openMerchant });
+      desc: late ? 'Trocas maiores e itens raros para quem já está longe.' : 'Troque recursos que estão sobrando pelos que estão faltando.', btn: 'Ver ofertas', onBtn: openMerchant });
   }
 
   function leave(reason) {
@@ -252,17 +281,22 @@ const Events = (() => {
 
   function bagHtml(bag, check) {
     return Object.entries(bag).map(([r, v]) => {
-      if (r === 'sample') return `${SAMPLE_ICON[v]} 1 amostra`;
-      if (r === 'weapon') return '🗡️ 1 arma';
+      const n = bag.n || 1;
+      if (r === 'n') return null;
+      if (r === 'sample') return `${SAMPLE_ICON[v]} ${n} amostra${n > 1 ? 's' : ''}`;
+      if (r === 'weapon') return `🗡️ ${n} arma${n > 1 ? 's' : ''}`;
       if (r === 'survivor') return '🧍 1 sobrevivente';
+      if (r === 'hero') return '🦸 1 herói';
+      if (r === 'rp') return `🔬 ${fmt(v)} de pesquisa`;
       const txt = `${RES[r].icon} ${fmt(v)}`;
       return check && S.res[r] < v ? `<span class="missing">${txt}</span>` : txt;
-    }).join(' + ');
+    }).filter(Boolean).join(' + ');
   }
   function offerBlock(o) {
     if (o.left <= 0) return 'Esgotado';
     if (!canAfford(o.give)) return 'Recursos insuficientes';
     if (o.get.survivor && S.survivors >= maxSurv()) return 'Sem vaga';
+    if (o.get.hero && Object.keys(Endgame.HEROES).every(k => S.meta.heroes.some(h => h.key === k))) return 'Você já tem todos os heróis';
     return '';
   }
 
@@ -272,8 +306,11 @@ const Events = (() => {
     pay(o.give);
     o.left--;
     let got;
-    if (o.get.sample) { S.meta.samples[o.get.sample]++; Endgame.count('samples', 1); got = `${SAMPLE_ICON[o.get.sample]} 1 amostra`; }
-    else if (o.get.weapon) { Endgame.gainWeapon('com o comerciante'); got = '🗡️ uma arma'; }
+    const n = o.get.n || 1;
+    if (o.get.sample) { S.meta.samples[o.get.sample] += n; Endgame.count('samples', n); got = bagHtml(o.get); }
+    else if (o.get.weapon) { for (let k = 0; k < n; k++) Endgame.gainWeapon('com o comerciante'); got = bagHtml(o.get); }
+    else if (o.get.hero) { Endgame.gainHero('com o comerciante', 'merchant'); got = '🦸 um herói'; }
+    else if (o.get.rp) { S.meta.rp += o.get.rp; got = bagHtml(o.get); }
     else if (o.get.survivor) { const n = addSurvivor(); arrive(1); got = `${n}, que decidiu ficar no abrigo`; }
     else got = change(o.get);
     addLog(`🛒 Troca feita: ${bagHtml(o.give)} por ${got}.`, 'good');

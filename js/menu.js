@@ -197,7 +197,7 @@ const Menu = (() => {
             <small>${x ? `${escHtml(x.name)} · ${DIFFS[x.diff] ? DIFFS[x.diff].icon : ''} <span class="bad-text">será substituído</span>` : 'vazio'}</small></button>`).join('')}</div>
         <label class="opt-label" for="mm-name">Seu nome <small>(aparece no Hall da Fama se você vencer)</small></label>
         <input id="mm-name" class="mm-name" maxlength="${NAME_MAX}" placeholder="Sobrevivente" value="${escHtml(pick.name)}" autocomplete="off">
-        <div class="opt-label">Dificuldade <small>(depois, só dá para subir, nunca voltar)</small></div>
+        <div class="opt-label">Dificuldade <small>(não dá para mudar depois)</small></div>
         <div class="diff-list">${diffCardsHtml(pick.diff)}</div>
         <div class="mm-back">
           <button data-go="home">← Voltar</button>

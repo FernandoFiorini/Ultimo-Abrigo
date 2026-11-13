@@ -141,7 +141,6 @@ function buildUI() {
   setupKeys();
   Tutorial.setup();
   $('btn-menu').onclick = () => Slots.toMenu();
-  $('diff-chip').onclick = changeDifficulty;
 }
 
 function render() {
@@ -157,7 +156,7 @@ function render() {
   }
   $('r-hope').textContent = S.meta.hope;
   $('diff-chip').textContent = `${D().icon} ${D().nome}` + (S.mods.length ? ' · ' + S.mods.map(k => MODS[k].icon).join('') : '');
-  $('diff-chip').title = 'Dificuldade (clique para mudar)' + (S.mods.length ? '\nDesafios: ' + S.mods.map(k => MODS[k].nome).join(', ') : '');
+  $('diff-chip').title = 'Dificuldade deste save (escolhida ao começar um novo jogo, não muda depois)' + (S.mods.length ? '\nDesafios: ' + S.mods.map(k => MODS[k].nome).join(', ') : '');
   $('pause-badge').classList.toggle('hidden', !paused);
   const fast = Settings.get('speed2x'), sp = $('btn-speed');
   sp.classList.toggle('active', fast);
@@ -247,7 +246,7 @@ function render() {
   $('btn-repair').disabled = S.res.sucata < REPAIR_COST || S.wallHp >= maxWall();
   $('btn-repair').title = `Custa ${exact(REPAIR_COST)} de sucata e recupera ${exact(Math.round(REPAIR_AMOUNT * (1 + Endgame.ab('repair'))))} de resistência. Muro: ${exact(Math.ceil(S.wallHp))} / ${exact(maxWall())}`;
 
-  const scale = (1 + 0.08 * (S.wave - 1)) * hopeMult();
+  const scale = expLootScale();
   const sieged = hasMod('semexp');
   for (const k in EXPED) {
     const L = EXPED[k], locked = sieged || S.best + 1 < L.unlock, n = expSel[k];
@@ -260,7 +259,7 @@ function render() {
     } else {
       const loot = Object.entries(L.loot).map(([r, [a, b]]) =>
         `${RES[r].icon} ${fmt(a * n * scale)}–${fmt(b * n * scale)}`).join(' ');
-      $('ed-' + k).innerHTML = `⏱ ${fmtTime(L.dur)} · ☠ ${Math.round(L.risk * 100)}% por pessoa · ${loot}`;
+      $('ed-' + k).innerHTML = `⏱ ${fmtTime(L.dur)} · ☠ ${Math.round(expRisk(k) * 100)}% por pessoa · ${loot}`;
     }
     $('es-' + k).disabled = locked || n <= L.min;
     $('ea-' + k).disabled = locked || n >= idle();
@@ -340,8 +339,9 @@ function diffStats(k) {
 }
 
 // Cartões de dificuldade (seletor do jogo e menu principal). min: menor dificuldade permitida neste save.
-function diffCardsHtml(cur, min = 0) {
-  return Object.entries(DIFFS).map(([k, d]) => {
+// only: mostra só essa dificuldade (o save já tem a dele e não pode trocar)
+function diffCardsHtml(cur, min = 0, only = null) {
+  return Object.entries(DIFFS).filter(([k]) => !only || k === only).map(([k, d]) => {
     const locked = diffRank(k) < min;
     return `
     <button class="diff-card ${cur === k ? 'current' : ''} ${d.permadeath ? 'perma' : ''}" data-diff="${k}" style="--c:${d.color}" ${locked ? 'disabled' : ''}>
@@ -354,12 +354,15 @@ function diffCardsHtml(cur, min = 0) {
 }
 const PERMA_WARN = 'Atenção: no Apocalipse a morte é permanente. Se todos morrerem, este save será APAGADO, sem volta. O save também nunca mais poderá voltar para uma dificuldade menor. Continuar?';
 
-function chooseDifficulty({ title, sub, cancel, onPick }) {
+// only: a dificuldade fica travada nessa (evacuar e Novo Mundo mantêm a do save; o cartão só confirma)
+function chooseDifficulty({ title, sub, cancel, onPick, only = null }) {
   const modal = $('modal');
   const min = S && S.meta ? S.meta.minDiff || 0 : 0;
   $('modal-title').innerHTML = title;
-  $('modal-sub').innerHTML = sub + (min > 0 ? `<br><small>🔒 Para não dar para juntar recursos numa dificuldade alta e depois voltar a uma mais fácil, este save não pode jogar abaixo de <b>${DIFFS[DIFF_ORDER[min]].icon} ${DIFFS[DIFF_ORDER[min]].nome}</b>.</small>` : '');
-  $('diff-list').innerHTML = diffCardsHtml(S && S.diff, min);
+  $('modal-sub').innerHTML = sub + (only
+    ? `<br><small>🔒 A dificuldade é escolhida ao começar um novo jogo e não muda depois. Este save joga no <b>${DIFFS[only].icon} ${DIFFS[only].nome}</b>. Clique no cartão para continuar.</small>`
+    : min > 0 ? `<br><small>🔒 Para não dar para juntar recursos numa dificuldade alta e depois voltar a uma mais fácil, este save não pode jogar abaixo de <b>${DIFFS[DIFF_ORDER[min]].icon} ${DIFFS[DIFF_ORDER[min]].nome}</b>.</small>` : '');
+  $('diff-list').innerHTML = diffCardsHtml(S && S.diff, min, only);
   $('modal-cancel').style.display = cancel ? '' : 'none';
   modalOpen = true;
   const close = () => { modal.classList.add('hidden'); modalOpen = false; };
@@ -367,7 +370,7 @@ function chooseDifficulty({ title, sub, cancel, onPick }) {
   $('diff-list').querySelectorAll('.diff-card').forEach(b => {
     b.onclick = () => {
       const k = b.dataset.diff;
-      if (diffRank(k) < min) return;
+      if (diffRank(k) < min || (only && k !== only)) return;
       if (DIFFS[k].permadeath && !(S && D().permadeath) && !confirm(PERMA_WARN)) return;
       close();
       onPick(k);
@@ -378,21 +381,6 @@ function chooseDifficulty({ title, sub, cancel, onPick }) {
     };
   });
   modal.classList.remove('hidden');
-}
-
-function changeDifficulty() {
-  chooseDifficulty({
-    title: 'Mudar dificuldade',
-    sub: `Mudar a dificuldade <b>recomeça a cidade atual do zero</b>. Você mantém Esperança, cash, conquistas e melhorias permanentes. Só é possível <b>subir</b> de dificuldade, nunca voltar. Dificuldade atual: <b>${D().icon} ${D().nome}</b>.`,
-    cancel: true,
-    onPick: diff => {
-      if (diff === S.diff) return;
-      S = newState(S.meta, diff);
-      addLog(`🔄 Cidade recomeçada no modo ${DIFFS[diff].icon} ${DIFFS[diff].nome}.`, 'warn');
-      emit('gameOver');
-      save();
-    },
-  });
 }
 
 const TOAST_TIME = 7000;

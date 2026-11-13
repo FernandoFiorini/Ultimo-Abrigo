@@ -132,17 +132,18 @@ const foeWord = t => (ZTYPES[t] && ZTYPES[t].human ? 'saqueadores' : 'zumbis');
 // count/grow: tamanho das hordas · hp/hpGrow/dmg/speed: força dos zumbis · early: especiais chegam N ondas antes
 // interval: segundos entre hordas · food: consumo por pessoa · prod: produção · hope/bossCash: recompensas
 const DIFFS = {
-  facil:    { nome: 'Fácil',    icon: '🌱', color: '#7cc96b', count: 0.85, grow: 1.16, hp: 0.8, hpGrow: 0.06, dmg: 0.7, speed: 0.9,  early: -1, interval: 120, food: 0.14, prod: 1.2 , hope: 0.6, bossCash: 3,
+  facil:    { nome: 'Fácil',    icon: '🌱', color: '#7cc96b', count: 0.85, grow: 1.16, hp: 0.8, hpGrow: 0.06, dmg: 0.7, speed: 0.9,  early: -1, interval: 120, food: 0.14, prod: 1.2 , hope: 0.6, bossCash: 3, risk: 0.6, loot: 0.85,
               desc: 'Para relaxar. Hordas menores e mais espaçadas, comida sobrando.' },
-  normal:   { nome: 'Normal',   icon: '🧟', color: '#e0a940', count: 1,    grow: 1.19, hp: 1,   hpGrow: 0.08, dmg: 1,     speed: 1,    early: 0,  interval: 90,  food: 0.15, prod: 1,    hope: 1,   bossCash: 5,
+  normal:   { nome: 'Normal',   icon: '🧟', color: '#e0a940', count: 1,    grow: 1.19, hp: 1,   hpGrow: 0.08, dmg: 1,     speed: 1,    early: 0,  interval: 90,  food: 0.15, prod: 1,    hope: 1,   bossCash: 5, risk: 1,   loot: 1,
               desc: 'A experiência pensada para o jogo. Exige planejamento.' },
-  dificil:  { nome: 'Difícil',  icon: '💀', color: '#e05a4f', count: 1,    grow: 1.21, hp: 1.05, hpGrow: 0.09, dmg: 1.1, speed: 1.1, early: 0,  interval: 80,  food: 0.16, prod: 0.9 , hope: 1.5, bossCash: 7,
+  dificil:  { nome: 'Difícil',  icon: '💀', color: '#e05a4f', count: 1,    grow: 1.21, hp: 1.05, hpGrow: 0.09, dmg: 1.1, speed: 1.1, early: 0,  interval: 80,  food: 0.16, prod: 0.9 , hope: 1.5, bossCash: 7, risk: 1.3, loot: 1.3,
               desc: 'Zumbis mais duros e rápidos, que crescem mais a cada onda. Falta recurso.' },
-  pesadelo: { nome: 'Pesadelo', icon: '☣️', color: '#b04ad0', count: 1.05, grow: 1.23, hp: 1.1, hpGrow: 0.11, dmg: 1.25, speed: 1.2, early: 1,  interval: 70,  food: 0.17, prod: 0.8,  hope: 2.2, bossCash: 10,
+  pesadelo: { nome: 'Pesadelo', icon: '☣️', color: '#b04ad0', count: 1.05, grow: 1.23, hp: 1.1, hpGrow: 0.11, dmg: 1.25, speed: 1.2, early: 1,  interval: 70,  food: 0.17, prod: 0.8,  hope: 2.2, bossCash: 10, risk: 1.6, loot: 1.65,
               desc: 'Só para veteranos. Cada noite pode ser a última.' },
-  // permadeath: se o abrigo cair, o save é apagado · loot: multiplica o saque das expedições
+  // permadeath: se o abrigo cair, o save é apagado
+  // risk/loot (em todas): multiplicam a chance de morte e o saque das expedições
   apocalipse: { nome: 'Apocalipse', icon: '🔥', color: '#ff3b30', count: 1.15, grow: 1.25, hp: 1.25, hpGrow: 0.13, dmg: 1.45, speed: 1.3, early: 2, interval: 60, food: 0.18, prod: 0.7, hope: 4, bossCash: 20,
-              loot: 1.5, permadeath: true,
+              risk: 1.8, loot: 2.1, permadeath: true,
               desc: 'Morte permanente: se o abrigo cair, o save é apagado. Recompensas enormes para quem aguentar.' },
 };
 // Ordem crescente. Um save nunca volta para uma dificuldade menor do que a maior que já jogou.
@@ -179,11 +180,11 @@ const BUILD = {
 };
 
 const EXPED = {
-  mercado:   { nome: 'Supermercado saqueado', icon: '🛒', dur: 45,  min: 1, risk: 0.04, unlock: 1, loot: { comida: [20, 40] } },
-  ferro:     { nome: 'Ferro-velho',           icon: '🚗', dur: 60,  min: 1, risk: 0.05, unlock: 1, loot: { sucata: [25, 50] } },
-  delegacia: { nome: 'Delegacia',             icon: '🚓', dur: 90,  min: 2, risk: 0.08, unlock: 3, loot: { municao: [12, 25], sucata: [8, 15] } },
-  hospital:  { nome: 'Hospital',              icon: '🏥', dur: 120, min: 2, risk: 0.10, unlock: 5, loot: { remedio: [1, 3], comida: [8, 16] } },
-  base:      { nome: 'Base militar',          icon: '🪖', dur: 240, min: 3, risk: 0.15, unlock: 8, loot: { municao: [40, 80], sucata: [40, 70], remedio: [1, 3] } },
+  mercado:   { nome: 'Supermercado saqueado', icon: '🛒', dur: 45,  min: 1, risk: 0.10, unlock: 1, loot: { comida: [20, 40] } },
+  ferro:     { nome: 'Ferro-velho',           icon: '🚗', dur: 60,  min: 1, risk: 0.12, unlock: 1, loot: { sucata: [25, 50] } },
+  delegacia: { nome: 'Delegacia',             icon: '🚓', dur: 90,  min: 2, risk: 0.15, unlock: 3, loot: { municao: [12, 25], sucata: [8, 15] } },
+  hospital:  { nome: 'Hospital',              icon: '🏥', dur: 120, min: 2, risk: 0.20, unlock: 5, loot: { remedio: [1, 3], comida: [8, 16] } },
+  base:      { nome: 'Base militar',          icon: '🪖', dur: 240, min: 3, risk: 0.25, unlock: 8, loot: { municao: [40, 80], sucata: [40, 70], remedio: [1, 3] } },
 };
 
 // O cash só vem de conquistas e dos chefes (os zumbis mais fortes da horda)

@@ -3,9 +3,9 @@
 function expReturn(e) {
   const L = EXPED[e.loc];
   let dead = 0;
-  for (let i = 0; i < e.n; i++) if (Math.random() < L.risk * Endgame.riskMult()) dead++;
+  for (let i = 0; i < e.n; i++) if (Math.random() < expRisk(e.loc)) dead++;
   const back = e.n - dead;
-  const scale = (1 + 0.08 * (S.wave - 1)) * hopeMult() * Endgame.scoutLoot() * (D().loot || 1);
+  const scale = expLootScale();
   const got = [];
   for (const r in L.loot) {
     const [a, b] = L.loot[r];
@@ -35,8 +35,9 @@ function evacuate() {
   if (!g) return;
   chooseDifficulty({
     title: `🚁 Evacuar para a cidade ${S.meta.city + 1}`,
-    sub: `Você ganha <b>✨ ${g} de Esperança</b> e recomeça do zero (sobreviventes, recursos e construções). Escolha a dificuldade da próxima cidade. Quanto mais difícil, mais Esperança você ganhará lá.`,
+    sub: `Você ganha <b>✨ ${g} de Esperança</b> e recomeça do zero (sobreviventes, recursos e construções). A próxima cidade continua no ${D().icon} ${D().nome}.`,
     cancel: true,
+    only: S.diff,
     onPick: diff => {
       const meta = S.meta;
       meta.hope += g;

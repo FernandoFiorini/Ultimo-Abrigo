@@ -364,6 +364,7 @@ const Endgame = (() => {
       sub: `Com a Cura em mãos, você leva o conhecimento para um novo mundo. Você ganha <b>🏛️ ${g} de Legado</b> (+25% de produção e pesquisa e +10% de dano por ponto, para sempre). ` +
         'Recomeçam: Esperança, melhorias, pesquisas, amostras e a Cura. Ficam: cash, conquistas, heróis, armas, recordes e Legado.',
       cancel: true,
+      only: S.diff,
       onPick: diff => {
         const m = M();
         const keep = { cash: m.cash, ach: m.ach, stats: m.stats, heroes: m.heroes, weapons: m.weapons, active: m.active, hid: m.hid,

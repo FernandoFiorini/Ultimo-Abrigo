@@ -96,6 +96,10 @@ const scavGain = () => {
 // encarece só meio passo (FREE_JOIN_WEIGHT), para essas chegadas continuarem sendo vantagem.
 // Limitado ao tamanho do grupo, para o preço cair quando gente morre (saves antigos usam o grupo todo).
 const FREE_JOIN_WEIGHT = 0.5;
+// Expedições: risco por pessoa e multiplicador de saque (dificuldade, onda, Esperança, batedor, talentos)
+const EXP_RISK_CAP = 0.6;
+const expRisk = k => Math.min(EXP_RISK_CAP, EXPED[k].risk * (D().risk || 1) * Endgame.riskMult());
+const expLootScale = () => (1 + 0.08 * (S.wave - 1)) * hopeMult() * Endgame.scoutLoot() * (D().loot || 1);
 const recruitCost = () => Math.round(12 * Math.pow(1.3, Math.max(0, Math.min(S.recruits ?? Infinity, S.survivors - 3))));
 const bumpRecruit = w => { S.recruits = Math.min((S.recruits ?? Math.max(0, S.survivors - 4)) + w, S.survivors); };
 // Chamado depois de addSurvivor quando a pessoa foi paga com comida: completa o passo inteiro

@@ -184,7 +184,7 @@ button.cashbtn:hover:not(:disabled) { background: #28603e; border-color: #6fe39a
   font-weight: 700;
   font-size: 13px;
 }
-.diff-chip:hover:not(:disabled) { background: #1e231e; border-color: var(--c); }
+.diff-chip { display: inline-block; cursor: default; }
 
 .modal {
   position: fixed;

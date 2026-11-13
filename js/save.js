@@ -109,7 +109,7 @@ function startLegacyChoice() {
   awaitingChoice = true;
   chooseDifficulty({
     title: '☣ Escolha a dificuldade',
-    sub: 'O jogo agora tem níveis de dificuldade. Escolha um para a <b>cidade atual</b>: seu progresso continua. Depois, dá para mudar pelo selo ao lado do título (recomeçando a cidade).',
+    sub: 'O jogo agora tem níveis de dificuldade. Escolha um para a <b>cidade atual</b>: seu progresso continua. Depois ela não muda mais neste save.',
     cancel: false,
     onPick: diff => {
       S.diff = diff;
