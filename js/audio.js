@@ -125,8 +125,17 @@ const Sound = (() => {
         noise({ type: 'bandpass', f: 1800, q: 2, d: 0.05, vol: 0.1, t: t + 0.35, pan });   // engatilhar
         break;
       case 'rifle':
-        noise({ type: 'highpass', f: 2500, d: 0.07, vol: 0.32, pan, send: 0.5 });
-        tone({ f: 220, f2: 55, d: 0.18, vol: 0.3, pan, send: 0.4 });
+        // estampido pesado: estalo supersônico, soco grave, corpo largo e o eco rolando pela cidade
+        noise({ type: 'highpass', f: 3500, d: 0.035, vol: 0.45, pan });
+        tone({ type: 'sine', f: 70, f2: 28, d: 0.55, vol: 0.6, pan });
+        tone({ type: 'triangle', f: 160, f2: 45, d: 0.25, vol: 0.35, pan });
+        noise({ type: 'lowpass', f: 2200, f2: 180, d: 0.7, vol: 0.5, pan, send: 0.7 });
+        noise({ type: 'lowpass', f: 900, f2: 150, a: 0.02, d: 0.9, vol: 0.16, t: t + 0.28, pan: -pan * 0.5, send: 0.9 });
+        noise({ type: 'lowpass', f: 600, f2: 120, a: 0.03, d: 1.1, vol: 0.08, t: t + 0.65, pan: pan * 0.3, send: 1 });
+        // ferrolho: abre e fecha
+        noise({ type: 'bandpass', f: 2200, q: 3, d: 0.05, vol: 0.12, t: t + 0.55, pan });
+        tone({ type: 'square', f: 900, f2: 600, d: 0.03, vol: 0.04, t: t + 0.56, pan, filter: { f: 2500 } });
+        noise({ type: 'bandpass', f: 1600, q: 3, d: 0.06, vol: 0.14, t: t + 0.78, pan });
         break;
       case 'smg':
         noise({ type: 'bandpass', f: 3000, f2: 900, q: 0.8, d: 0.04, vol: 0.14, pan });
@@ -212,6 +221,19 @@ const Sound = (() => {
       noise({ type: 'bandpass', f: 1500, q: 3, d: 0.05, vol: 0.08, t: t + 0.08 });
     },
     lwAmmo() { tone({ type: 'triangle', f: 990, f2: 1480, d: 0.1, vol: 0.05 }); },
+    // recarga: pente saindo e entrando (a espingarda engatilha)
+    reload(d) {
+      const t = ac.currentTime;
+      if (d.phase === 'start') {
+        noise({ type: 'bandpass', f: 1400, q: 3, d: 0.05, vol: 0.1 });
+        tone({ type: 'square', f: 500, f2: 350, d: 0.04, vol: 0.03, filter: { f: 1800 } });
+      } else {
+        noise({ type: 'bandpass', f: 2000, q: 3, d: 0.04, vol: 0.12 });
+        noise({ type: 'bandpass', f: 2600, q: 4, d: 0.04, vol: 0.12, t: t + 0.09 });
+        if (d.k === 'espingarda' || d.k === 'rifle') noise({ type: 'bandpass', f: 1600, q: 3, d: 0.06, vol: 0.12, t: t + 0.2 });
+      }
+    },
+    outOfRange() { tone({ type: 'square', f: 300, d: 0.05, vol: 0.025, filter: { f: 1200 } }); },
     hit(d) {
       noise({ type: 'lowpass', f: 900, d: 0.06, vol: 0.1, pan: panOf(d.x) });
       tone({ f: 110, f2: 60, d: 0.05, vol: 0.06, pan: panOf(d.x) });
@@ -279,9 +301,60 @@ const Sound = (() => {
     },
     spit(d) {
       const pan = panOf(d.x), t = ac.currentTime;
+      if (d.proj === 'rock') {   // pedra arremessada: zunido e pancada no muro
+        noise({ type: 'bandpass', f: 600, q: 1, d: 0.25, vol: 0.05, pan });
+        tone({ f: 120, f2: 60, d: 0.12, vol: 0.12, t: t + 0.6, pan: -0.2 });
+        return;
+      }
+      if (d.proj === 'molotov') {   // garrafa quebrando e fogo
+        noise({ type: 'highpass', f: 5000, d: 0.12, vol: 0.08, t: t + 0.6, pan: -0.2 });
+        noise({ type: 'lowpass', f: 900, a: 0.05, d: 0.7, vol: 0.12, t: t + 0.62, pan: -0.2 });
+        return;
+      }
       tone({ f: 280, f2: 900, d: 0.12, vol: 0.06, pan });
       noise({ type: 'bandpass', f: 1300, q: 3, d: 0.12, vol: 0.05, pan });
       noise({ type: 'highpass', f: 4000, d: 0.45, vol: 0.04, t: t + 0.6, pan: -0.2 });
+    },
+    // sirene de alerta antes de uma onda perigosa
+    dangerWarn() {
+      const t = ac.currentTime;
+      for (let i = 0; i < 3; i++) {
+        tone({ type: 'sawtooth', f: 520, f2: 1040, a: 0.05, d: 0.6, vol: 0.05, t: t + i * 1.2, filter: { f: 2400 }, send: 0.5 });
+        tone({ type: 'sawtooth', f: 1040, f2: 520, a: 0.05, d: 0.6, vol: 0.05, t: t + i * 1.2 + 0.6, filter: { f: 2400 }, send: 0.5 });
+      }
+    },
+    countdown(d) {
+      const last = d.n === 1;
+      tone({ type: 'square', f: last ? 1320 : 880, d: last ? 0.35 : 0.12, vol: 0.06, filter: { f: 3000 } });
+    },
+    rush() {
+      const t = ac.currentTime;
+      tone({ type: 'sawtooth', f: 98, a: 0.05, hold: 0.8, d: 1, vol: 0.15, filter: { f: 700, q: 3 }, send: 0.5 });
+      tone({ type: 'sawtooth', f: 147, a: 0.05, hold: 0.8, d: 1, vol: 0.1, filter: { f: 700, q: 3 }, send: 0.5 });
+      for (let i = 0; i < 6; i++) {
+        const f = rand(70, 140);
+        tone({ type: 'sawtooth', f, f2: f * 0.6, a: 0.1, d: rand(0.6, 1.2), vol: 0.05, t: t + rand(0, 0.6), filter: { f: 600, q: 5 }, pan: rand(0.2, 0.9) });
+      }
+    },
+    zbuff(d) {
+      const pan = panOf(d.x), t = ac.currentTime;
+      if (d.kind === 'haste') {   // grito agudo
+        tone({ type: 'sawtooth', f: 380, f2: 1100, a: 0.02, d: 0.5, vol: 0.06, filter: { type: 'bandpass', f: 1400, q: 3 }, pan, send: 0.5 });
+        tone({ type: 'sawtooth', f: 1100, f2: 500, d: 0.4, vol: 0.04, t: t + 0.45, filter: { type: 'bandpass', f: 1200, q: 3 }, pan });
+      } else {   // estouro úmido de esporos
+        noise({ type: 'lowpass', f: 700, f2: 200, d: 0.5, vol: 0.12, pan });
+        tone({ f: 160, f2: 70, d: 0.25, vol: 0.08, pan });
+      }
+    },
+    armor(d) {
+      const pan = panOf(d.x), f = rand(2400, 3200);
+      tone({ type: 'triangle', f, f2: f * 0.8, d: 0.12, vol: 0.04, pan });
+      tone({ type: 'sine', f: f * 1.5, d: 0.08, vol: 0.02, pan });
+    },
+    headshot(d) {
+      const pan = panOf(d.x);
+      noise({ type: 'bandpass', f: 3000, q: 2, d: 0.05, vol: 0.1, pan });
+      tone({ f: 200, f2: 60, d: 0.08, vol: 0.12, pan });
     },
     waveStart(d) {
       const t = ac.currentTime;
@@ -492,7 +565,7 @@ const Sound = (() => {
       [60, 64, 67, 72, 76].forEach((m, i) => tone({ type: 'triangle', f: mtof(m), d: 1.2, vol: 0.06, t: t + 0.5 + i * 0.15, send: 0.6 }));
     },
   };
-  const GAPS = { sample: 0.1, crit: 0.08, trap: 0.06, shock: 0.1, research: 0.2, weapon: 0.3, assign: 0.06, unassign: 0.06, shot: 0.035, hit: 0.04, zdeath: 0.07, wallHit: 0.09, spit: 0.15, melee: 0.06, injured: 0.15, bitten: 0.3, harvest: 1.2, scavenge: 0.03 };
+  const GAPS = { outOfRange: 0.15, armor: 0.07, headshot: 0.05, zbuff: 0.15, sample: 0.1, crit: 0.08, trap: 0.06, shock: 0.1, research: 0.2, weapon: 0.3, assign: 0.06, unassign: 0.06, shot: 0.035, hit: 0.04, zdeath: 0.07, wallHit: 0.09, spit: 0.15, melee: 0.06, injured: 0.15, bitten: 0.3, harvest: 1.2, scavenge: 0.03 };
 
   function on(type, d) {
     if (!SFX[type] || !allow(type, GAPS[type] ?? 0.05)) return;

@@ -43,7 +43,8 @@ function newState(meta = newMeta(), diff = 'normal') {
     districts: {},
     zid: 1,
     clickCd: 0,
-    lwAmmo: {},
+    lwMag: {},       // tiros no pente de cada arma do líder
+    reload: null,    // recarga em andamento: { k, t, dur }
     starve: 0,
     kills: 0,
     best: 0,

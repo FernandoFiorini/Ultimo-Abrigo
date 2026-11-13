@@ -26,11 +26,11 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 | Sistema | Descrição |
 |---|---|
 | Sobreviventes | Cada um com nome (e às vezes um talento), em seis funções (forrageiro, coletor, armeiro, guarda, médico, cientista), com consumo de comida, risco de fome e um memorial para quem morreu |
-| Armas do líder | Mira manual na horda e sete armas com melhorias (da pistola à bazuca), munição própria por noite e até 3 armas por noite, em (Q) (W) (E) |
+| Armas do líder | Mira manual na horda e sete armas com melhorias (da pistola à bazuca), com pente, recarga e alcance próprios, gastando a munição do abrigo, e até 3 armas por noite, em (Q) (W) (E) |
 | Invasão | Se o muro cair, os zumbis entram no abrigo e os sobreviventes lutam corpo a corpo. Quem é alcançado morre, escapa ferido (precisa de médico) ou é mordido, e cada mordida pede uma decisão: matar (luto no grupo) ou liberar (pode voltar transformado na horda seguinte, ou curado) |
 | Combate | Guardas e torres com precisão que evolui por treinamento, pesquisa, talentos e heróis; tiros errados também gastam munição |
-| Hordas | Ondas crescentes com seis tipos de zumbi: comum, corredor, brutamontes, cuspidor, inchado (explode) e a Abominação, chefe a cada 10 ondas |
-| Noites especiais | Lua de Sangue, Neblina, Horda Dupla, Chuva Ácida e Noite dos Corredores, cada uma com regras e visual próprios |
+| Hordas | Ondas crescentes com dez tipos de zumbi: comum, corredor, brutamontes, cuspidor, inchado (explode), arremessador (ataca de longe), uivador (acelera os outros ao morrer), hospedeiro (fortalece os outros ao morrer), policial blindado (só morre com tiro na cabeça) e a Abominação, chefe a cada 10 ondas |
+| Noites especiais | Lua de Sangue, Neblina, Horda Dupla, Chuva Ácida, Noite dos Corredores, Investida (massa de zumbis de uma vez), Horda Furiosa e Noite dos Saqueadores (humanos no lugar dos zumbis); as perigosas têm alarme e contagem regressiva |
 | Expedições e distritos | Missões com risco de morte e recompensas; esquadrões libertam distritos da cidade em troca de bônus |
 | Pesquisa | Laboratório, amostras coletadas de zumbis especiais e uma árvore com 14 tecnologias, incluindo automações |
 | Heróis | Personagens permanentes com classe, nível e armas de quatro raridades |
@@ -54,7 +54,8 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 | Tecla | Ação |
 |---|---|
 | `1` a `0` | Trocar de aba |
-| `Q` `W` `E` `R` | Trocar de arma na horda (ou a roda do mouse) |
+| `Q` `W` `E` | Trocar de arma na horda (ou a roda do mouse) |
+| `R` | Recarregar a arma na horda (de dia, recrutar) |
 | `Espaço` | Pausar / continuar |
 | `V` | Vasculhar |
 | `G` | Recrutar |

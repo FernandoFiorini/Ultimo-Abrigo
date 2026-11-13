@@ -72,7 +72,19 @@ function tick(dt, live) {
   if (S.horde.active) {
     if (live) updateHorde(dt); else flushWave();
   } else {
+    const before = Math.ceil(S.waveTimer);
     S.waveTimer -= dt;
+    // ao vivo, o evento da próxima onda é sorteado um pouco antes: se for perigosa, toca o alarme e conta
+    if (live && S.waveTimer <= WARN_TIME && S.pending === undefined) {
+      S.pending = Endgame.rollEvent(S.wave);
+      const dg = Endgame.danger(S.pending, S.wave);
+      if (dg) {
+        addLog(`🚨 ALERTA: ${dg.icon} ${dg.nome} em ${Math.ceil(S.waveTimer)} segundos! Prepare a defesa.`, 'bad');
+        emit('dangerWarn', { ...dg, t: S.waveTimer });
+      }
+    }
+    const now = Math.ceil(S.waveTimer);
+    if (live && now !== before && now <= 5 && now > 0 && Endgame.danger(S.pending, S.wave)) emit('countdown', { n: now });
     if (S.waveTimer <= 0) {
       if (live) startWave(false);
       else { startWave(true); flushWave(); }

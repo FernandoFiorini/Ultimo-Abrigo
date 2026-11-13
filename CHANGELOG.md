@@ -31,6 +31,27 @@ Apocalipse, saves e vitória.
   - 🎖️ Zeca (+2 vagas para sobreviventes), Marcão (−10% no consumo de comida).
 - **Heróis bloqueados aparecem na aba Heróis**, com o visual, o bônus da classe, a habilidade e **onde conseguir** cada um: distritos, Abominação ou Base militar (cada origem traz heróis específicos; esgotada a origem, vem qualquer um que falta).
 - Saves antigos: cada herói vira um do elenco (mesma classe, e o mesmo nome quando possível), mantendo nível, experiência e arma.
+- **Armas do líder rebalanceadas:**
+  - **Menos dano:** a pistola tira 4 de vida de um zumbi comum que tem ~7 no começo do jogo e ~16 na onda 8. Ela não mata mais com um tiro; as melhorias, a pesquisa e os heróis é que fazem as armas crescerem. A melhoria permanente Mira do líder caiu de +40% para +20% de dano por nível.
+  - **Pente e recarga:** cada arma tem pente (pistola 5, espingarda 2, rifle 5, submetralhadora 30, lança-granadas 4, lança-chamas 40, bazuca 1) e tempo de recarga. A recarga é automática com o pente vazio, ou com **(R)** durante a horda (de dia, R continua recrutando; G também recruta). Trocar de arma interrompe a recarga.
+  - **Alcance:** cada arma alcança uma distância a partir do muro (espingarda e lança-chamas curto, pistola e submetralhadora médio, rifle longo). Uma linha tracejada no chão mostra o limite, e a mira fica vermelha com "fora de alcance". A espingarda perde força com a distância.
+  - **Munição escassa:** a munição por noite acabou. Recarregar gasta a **🔫 munição do abrigo**, a mesma dos guardas (espingarda 2 por tiro, rifle 3, submetralhadora 0,5, granada 8, lança-chamas 0,4, bazuca 40). Só a pistola é grátis. Os zumbis que você abate às vezes deixam 1 a 3 de munição para o abrigo.
+  - Na aba Armas, cada arma mostra dano, pente, recarga, alcance, custo por tiro e **quantos tiros derrubam um zumbi comum na onda atual**.
+  - **Escala de vida e dano:** os números aparecem ×10 e inteiros (dano 4, vida 16). A barra da Abominação mostra a vida restante.
+- **Guardas e torres** alcançam menos: atiram a partir de 160 px do muro em vez de 210 (antes pegavam zumbis quase na borda da tela).
+- **Novo som do rifle de caça:** estampido pesado com estalo, soco grave, eco rolando pela cidade e o ferrolho sendo manejado. Novos sons de recarga.
+- **Novos inimigos** (entram nas ondas aos poucos, a partir da onda 5; no Apocalipse, 2 ondas antes):
+  - 🪨 **Arremessador:** para longe do muro e o acerta com pedras, de mais longe que o Cuspidor.
+  - 😱 **Uivador:** ao morrer, solta um grito que deixa os zumbis em volta 30% mais rápidos (acumula até o dobro).
+  - 🍄 **Hospedeiro:** ao morrer, espalha esporos que dão +30% de vida aos zumbis em volta (até 3 vezes). Os fortalecidos ganham um brilho roxo; os acelerados, um rastro vermelho.
+  - 🪖 **Policial blindado:** tiros no corpo ricocheteiam. **Mire na cabeça** com as armas do líder; guardas e torres só acertam a cabeça de vez em quando (20% e 30%). Explosões ferem pela metade, e fogo, armadilhas e a bazuca funcionam normalmente.
+- **Novas noites especiais:**
+  - ⚠️ **Investida:** no meio da noite, depois de um alarme e contagem regressiva, pelo menos 20 zumbis chegam **todos de uma vez**. +50% de sucata.
+  - 😡 **Horda Furiosa:** zumbis 40% mais resistentes e 30% mais rápidos, mas rendem o dobro de sucata, **comida a cada abate** e um prêmio de comida e munição no fim.
+  - 🏴‍☠️ **Noite dos Saqueadores** (a partir da onda 6): **humanos** no lugar dos zumbis. Correm, golpeiam o muro duas vezes por segundo e os Incendiários jogam coquetéis molotov de longe. Deixam comida e munição, e quem eles alcançam dentro do abrigo pode se ferir, mas nunca é mordido.
+- **Alarme de onda perigosa:** 10 segundos antes de uma noite perigosa (Investida, Horda Furiosa, Saqueadores ou Abominação), toca uma sirene, aparece um aviso piscando com a contagem no cenário e os últimos 5 segundos são marcados com bipes.
+- Novas amostras: Arremessador (ácido), Uivador (gás), Hospedeiro e Policial blindado (tecido).
+- Conquistas novas: Na cabeça (100 tiros na cabeça de blindados) e Daqui não passa (repelir 3 ataques de saqueadores).
 - Conquistas novas: Fogo cruzado (onda 10 no Apocalipse), Inferno na Terra (onda 30) e Lenda do Apocalipse (vencer no Apocalipse).
 
 ## 1.06.000

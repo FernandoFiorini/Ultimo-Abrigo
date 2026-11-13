@@ -15,6 +15,7 @@ const Scene = (() => {
   let hordeVis = 0;
   const hitAt = new Map();
   let banner = null, pid = 1;
+  let alert = null;   // alerta de onda perigosa (contagem até a horda)
   const ptr = { x: W / 2, y: H / 2, in: false, down: false };
   let dayHintT = 0;
 
@@ -196,6 +197,8 @@ const Scene = (() => {
       R([190, 160, 90], -2, -10 + dy, 1, 1); R([190, 160, 90], 2, -7 + dy, 1, 1); R([190, 160, 90], 0, -11 + dy, 1, 1);
     } else R(o.shirt, -3, -11 + dy, 6, 6);
     R([40, 32, 26], -3, -6 + dy, 6, 1);
+    if (o.vest) { R(o.vest, -3, -11 + dy, 6, 4); R([220, 190, 40], -3, -9 + dy, 6, 1); }
+    if (o.spores) { R([190, 120, 220], -2, -10 + dy, 1, 1); R([190, 120, 220], 1, -8 + dy, 1, 1); R([150, 90, 190], 2, -11 + dy, 1, 1); }
     if (o.spikes) { R([220, 210, 190], -4, -13 + dy, 1, 2); R([220, 210, 190], -4, -10 + dy, 1, 2); R([220, 210, 190], -3, -15 + dy, 1, 2); R([120, 20, 20], -1, -10 + dy, 3, 2); }
     if (o.apron) R([110, 80, 50], -1, -9 + dy, 4, 4);
     if (o.cross) { R([200, 40, 40], 0, -10 + dy, 1, 3); R([200, 40, 40], -1, -9 + dy, 3, 1); }
@@ -223,6 +226,9 @@ const Scene = (() => {
     if (o.beret) { R(o.beret, hx - 1, -18 + dy, 6, 2); R(o.beret, hx + 4, -19 + dy, 2, 1); }
     if (o.bandana) { R(o.bandana, hx, -17 + dy, 5, 2); R(o.bandana, hx - 2, -16 + dy, 2, 1); R(o.bandana, hx - 2, -15 + dy, 1, 1); }
     if (o.scarf) { R(o.scarf, -3, -11 + dy, 6, 1); R(o.scarf, -4, -11 + dy, 1, 3); }
+    if (o.mask) R(o.mask, hx + 1, -13 + dy, 4, 2);
+    if (o.riot) { R([24, 28, 38], hx - 1, -18 + dy, 7, 4); R([110, 150, 180], hx + 3, -16 + dy, 3, 2); R([24, 28, 38], hx - 1, -14 + dy, 1, 3); }
+    if (o.spores) { R([190, 120, 220], hx + 1, -16 + dy, 1, 1); R([150, 90, 190], hx + 4, -13 + dy, 1, 1); }
     if (o.mouth) R([90, 20, 20], hx + 3, -12 + dy, 2, 1);
     if (o.drool) R('#9be35a', hx + 4, -12 + dy, 1, 2 + Math.round(Math.abs(Math.sin(o.phase))));
     // braços
@@ -278,6 +284,17 @@ const Scene = (() => {
     if (t === 'cuspidor') Object.assign(L, { skin: [150, 172, 70], shirt: [70, 90, 50], drool: true, oneArm: false });
     if (t === 'explosivo') Object.assign(L, { skin: [156, 128, 150], shirt: [120, 110, 120], fat: true, cap: null, longHair: false });
     if (t === 'mordido') Object.assign(L, { skin: [168, 172, 140], shirt: [70, 92, 128], pants: [60, 60, 70], bandage: true, oneArm: false, cap: null });
+    if (t === 'uivador') Object.assign(L, { skin: [180, 184, 160], hair: [225, 225, 215], longHair: true, shirt: [90, 70, 100], eye: [255, 240, 120], cap: null });
+    if (t === 'hospedeiro') Object.assign(L, { skin: [128, 116, 150], shirt: [70, 60, 90], spores: true, cap: null, oneArm: false });
+    if (t === 'arremessador') Object.assign(L, { shirt: [110, 90, 60], pack: [90, 84, 76], oneArm: false, cap: null });
+    if (t === 'blindado') Object.assign(L, { shirt: [34, 44, 74], pants: [28, 32, 52], vest: [26, 30, 40], riot: true, cap: null, longHair: false, oneArm: false });
+    if (ZTYPES[t].human) {
+      // gente viva: pele e olhos normais, de pé, rosto coberto por um pano
+      Object.assign(L, { skin: SKINS[i % 5], hair: HAIRS[i % 6], eye: [20, 20, 20], mouth: false, torn: false, lean: 0, oneArm: false,
+        shirt: pick([[170, 60, 50], [60, 110, 150], [150, 130, 60], [80, 80, 80], [120, 70, 130]]), pants: pick([[50, 60, 90], [40, 40, 44], [80, 70, 55]]),
+        mask: t === 'incendiario' ? [30, 30, 30] : pick([[170, 30, 30], [30, 30, 30], [40, 60, 120]]), human: true,
+        cap: t === 'incendiario' ? [30, 30, 30] : i % 3 === 0 ? ZCAPS[i % 3] : null, longHair: i % 5 === 1 });
+    }
     if (t === 'chefe') Object.assign(L, { skin: [140, 70, 70], shirt: [80, 30, 30], pants: [50, 30, 30], spikes: true,
       eye: [255, 220, 40], longHair: false, cap: null, oneArm: false });
     lookCache.set(z.id, L);
@@ -509,9 +526,39 @@ const Scene = (() => {
         break;
       case 'spit': {
         const tx = WALL_X + 9, ty = d.ty - 14;
-        parts.push({ x: d.x, y: d.y, vx: (tx - d.x) / 0.6, vy: (ty - d.y) / 0.6 - 60, g: 200, life: 0.6, max: 0.6, c: '#9be35a', s: 2, solid: true, glow: '150,255,80' });
+        const look = d.proj === 'rock' ? { c: [120, 112, 100], s: 2 } : d.proj === 'molotov' ? { c: '#ff9a30', s: 2, glow: '255,140,40' } : { c: '#9be35a', s: 2, glow: '150,255,80' };
+        parts.push({ x: d.x, y: d.y, vx: (tx - d.x) / 0.6, vy: (ty - d.y) / 0.6 - 60, g: 200, life: 0.6, max: 0.6, solid: true, ...look });
         break;
       }
+      case 'zbuff': {
+        const haste = d.kind === 'haste';
+        flashes.push({ x: d.x, y: d.y, r: haste ? 60 : 45, c: haste ? '255,70,50' : '180,100,230', a: 0.5, life: 0.5, max: 0.5 });
+        for (let i = 0; i < 18; i++) parts.push({ x: d.x, y: d.y, vx: rand(-50, 50), vy: rand(-40, 20), life: rand(0.4, 0.8), max: 0.8,
+          c: haste ? pick([[230, 70, 50], [255, 160, 120]]) : pick([[190, 120, 220], [140, 200, 90]]), s: pick([1, 2]), a: 0.8 });
+        texts.push({ x: d.x, y: d.y - 14, t: haste ? (d.n ? `GRITO! ${d.n} mais rápido(s)` : 'GRITO!') : (d.n ? `ESPOROS! ${d.n} mais resistente(s)` : 'ESPOROS!'),
+          c: haste ? '#ff7a60' : '#d0a0ff', life: 1.4 });
+        break;
+      }
+      case 'armor':
+        sparks(d.x - 3, d.y);
+        if (d.src === 'player') texts.push({ x: d.x, y: d.y - 12, t: 'blindado! mire na cabeça', c: '#a8c0d8', life: 0.9 });
+        break;
+      case 'headshot':
+        sparks(d.x - 2, d.y);
+        texts.push({ x: d.x + rand(-3, 3), y: d.y - 8, t: 'NA CABEÇA!', c: '#ffe066', life: 0.8 });
+        break;
+      case 'dangerWarn':
+        alert = { t: d.t, icon: d.icon, nome: d.nome };
+        redFlash = Math.max(redFlash, 0.5);
+        break;
+      case 'countdown':
+        texts.push({ x: W / 2, y: 104, t: String(d.n), c: '#ff5a4a', life: 0.9, big: true });
+        redFlash = Math.max(redFlash, 0.25);
+        break;
+      case 'rush':
+        banner = { t: '⚠️ INVESTIDA!', sub: `${d.n} zumbis chegaram de uma vez!`, c: '#ff3a3a', life: 3, max: 3 };
+        shake = Math.max(shake, 6); redFlash = Math.max(redFlash, 0.6);
+        break;
       case 'explode': {
         blasts.push({ x: d.x, y: d.y, t: time, r: d.big ? 40 : 30 });
         if (blasts.length > 12) blasts.shift();
@@ -536,7 +583,10 @@ const Scene = (() => {
         texts.push({ x: d.x, y: d.y, t: d.text, c: '#9be35a', life: 1.4 });
         break;
       case 'noAmmo':
-        texts.push({ x: ptr.x, y: ptr.y - 8, t: 'sem munição!', c: '#ff8070', life: 0.8 });
+        texts.push({ x: ptr.x, y: ptr.y - 8, t: 'sem munição no abrigo!', c: '#ff8070', life: 0.8 });
+        break;
+      case 'outOfRange':
+        texts.push({ x: d.x, y: d.y - 8, t: 'longe demais', c: '#ff9a80', life: 0.6 });
         break;
       case 'cash': {
         const x = d.x ?? LEADER.x + 30, y = d.y ?? LEADER.y - 20;
@@ -649,11 +699,12 @@ const Scene = (() => {
         break;
       case 'waveStart':
         banner = d.event
-          ? { t: `${Endgame.EVENTS[d.event].icon} ${Endgame.EVENTS[d.event].nome.toUpperCase()}`, sub: `Onda ${d.n}: ${Endgame.EVENTS[d.event].desc}`, c: '#ff3a8a', life: 4.5, max: 4.5 }
-          : { t: `ONDA ${d.n}`, sub: `${d.count} zumbis estão vindo!`, c: '#ff5a4a', life: 3, max: 3 };
+          ? { t: `${Endgame.EVENTS[d.event].icon} ${Endgame.EVENTS[d.event].nome.toUpperCase()}`, sub: `Onda ${d.n}: ${Endgame.EVENTS[d.event].short || Endgame.EVENTS[d.event].desc}`, c: '#ff3a8a', life: 4.5, max: 4.5 }
+          : { t: `ONDA ${d.n}`, sub: `${d.count} ${d.word || 'zumbis'} estão vindo!`, c: '#ff5a4a', life: 3, max: 3 };
+        alert = null;
         break;
       case 'waveEnd':
-        banner = { t: 'ONDA SOBREVIVIDA', sub: `${d.kills} zumbis abatidos`, c: '#9be35a', life: 3, max: 3 };
+        banner = { t: 'ONDA SOBREVIVIDA', sub: `${d.kills} ${d.humans ? 'saqueadores repelidos' : 'zumbis abatidos'}`, c: '#9be35a', life: 3, max: 3 };
         break;
       case 'gameOver':
         people.length = 0; corpses.length = 0; travelers.length = 0;
@@ -842,6 +893,8 @@ const Scene = (() => {
     ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
     ctx.fillStyle = '#000'; ctx.fillText('👹 ' + T_.nome.toUpperCase(), W / 2 + 0.6, y - 4 + 0.6);
     ctx.fillStyle = '#ffb0a0'; ctx.fillText('👹 ' + T_.nome.toUpperCase(), W / 2, y - 4);
+    ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillStyle = '#ffd0c8'; ctx.fillText(`${pts(boss.hp)} / ${pts(boss.maxHp)}`, x + w, y - 4);
   }
 
   function drawGround() {
@@ -1159,9 +1212,12 @@ const Scene = (() => {
 
   function drawZombie(z) {
     const t = ZTYPES[z.type], L = zlook(z);
-    const atk = z.state === 'attack' || (z.state === 'invade' && z.atk);
-    L.pose = atk ? 'zattack' : 'zwalk';
-    L.phase = atk ? time * 4 + z.id : time * z.speed * 0.45 + z.id;
+    const atk = z.state === 'attack' || z.state === 'spit' || (z.state === 'invade' && z.atk);
+    L.pose = L.human ? (atk ? 'work' : 'walk') : atk ? 'zattack' : 'zwalk';
+    L.phase = atk ? time * (L.human ? 7 : 4) + z.id : time * z.speed * 0.45 + z.id;
+    // fortalecidos por um grito (rastro vermelho) ou por esporos (brilho roxo)
+    if (z.haste && Math.random() < 0.3) parts.push({ x: z.x + 4, y: z.y - rand(4, 14), vx: rand(10, 25), vy: 0, life: 0.25, max: 0.25, c: [220, 60, 50], s: 1, a: 0.6 });
+    if (z.hard) { ctx.fillStyle = `rgba(170,90,220,${0.12 + 0.06 * z.hard})`; ctx.beginPath(); ctx.ellipse(z.x, z.y - 9 * t.scale, 7 * t.scale, 11 * t.scale, 0, 0, Math.PI * 2); ctx.fill(); }
     L.flash = time - (hitAt.get(z.id) ?? -9) < 0.08;
     drawHuman(z.x, z.y, L);
     if (z.maxHp > 1.5 && z.hp < z.maxHp) {
@@ -1371,19 +1427,32 @@ const Scene = (() => {
   function drawReticle() {
     if (!S.horde.active || !ptr.in || paused) return;
     const k = Weapons.current(), w = LWEAPONS[k], st = Weapons.stat(k);
-    const dry = Weapons.ammoOf(k) < 1;
+    const far = Weapons.reach(k), out = ptr.x > far + 4, R_ = S.reload;
+    const dry = Weapons.ammoOf(k) < 1 && !R_;
     const r = Math.max(4, st.spread * 1.2, w.radius ? st.radius * 0.6 : 0);
-    const col = dry ? '255,90,80' : S.clickCd > 0 ? '255,220,120' : '255,255,255';
+    const col = dry || out ? '255,90,80' : R_ ? '150,190,255' : S.clickCd > 0 ? '255,220,120' : '255,255,255';
     ctx.save();
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    // limite do alcance da arma: linha tracejada no chão
+    ctx.strokeStyle = out ? 'rgba(255,90,80,0.55)' : 'rgba(255,255,255,0.22)'; ctx.lineWidth = 0.7;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(far, 138); ctx.lineTo(far, 198); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'center';
+    if (out) { ctx.fillStyle = 'rgba(255,120,100,0.95)'; ctx.fillText('fora de alcance', ptr.x, ptr.y - r - 5); }
+    else if (R_) { ctx.fillStyle = 'rgba(170,205,255,0.95)'; ctx.fillText('recarregando...', ptr.x, ptr.y - r - 9); }
+    else if (dry) { ctx.fillStyle = 'rgba(255,120,100,0.95)'; ctx.fillText('sem munição no abrigo', ptr.x, ptr.y - r - 5); }
     ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 0.8;
     ctx.beginPath(); ctx.arc(ptr.x, ptr.y, r, 0, 7); ctx.stroke();
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       ctx.beginPath(); ctx.moveTo(ptr.x + dx * (r - 2), ptr.y + dy * (r - 2)); ctx.lineTo(ptr.x + dx * (r + 3), ptr.y + dy * (r + 3)); ctx.stroke();
     }
     ctx.fillStyle = `rgba(${col},1)`; ctx.fillRect(ptr.x - 0.5, ptr.y - 0.5, 1, 1);
-    // recarga: arco que se completa
-    if (S.clickCd > 0 && st.cd > 0.3) {
+    // recarga do pente: arco azul que se completa
+    if (R_) {
+      ctx.strokeStyle = 'rgba(150,190,255,0.95)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(ptr.x, ptr.y, r + 5, -Math.PI / 2, -Math.PI / 2 + (1 - R_.t / R_.dur) * Math.PI * 2); ctx.stroke();
+    } else if (S.clickCd > 0 && st.cd > 0.3) {
       ctx.strokeStyle = 'rgba(255,220,120,0.9)'; ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.arc(ptr.x, ptr.y, r + 4, -Math.PI / 2, -Math.PI / 2 + (1 - S.clickCd / st.cd) * Math.PI * 2); ctx.stroke();
     }
@@ -1416,7 +1485,7 @@ const Scene = (() => {
     const Hd = S.horde;
     ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'left';
     const line = Hd.active
-      ? `🧟 ONDA ${Hd.n}: ${Hd.queue.length + Hd.zs.length} zumbis restantes`
+      ? `${Hd.zs.some(z => ZTYPES[z.type].human) || (Hd.queue[0] && ZTYPES[Hd.queue[0]].human) ? '🏴‍☠️' : '🧟'} ONDA ${Hd.n}: ${Hd.queue.length + Hd.zs.length + (Hd.rush ? Hd.rush.length : 0)} ${foeWord(Hd.queue[0] || (Hd.zs[0] && Hd.zs[0].type))} restantes`
       : `☀️ Próxima horda em ${Math.ceil(S.waveTimer)}s (onda ${S.wave})`;
     const w = ctx.measureText(line).width + 10;
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(4, 4, w, 14);
@@ -1443,6 +1512,23 @@ const Scene = (() => {
     if (Hd.active) {
       ctx.fillStyle = '#ffd070'; ctx.fillText('🎯 Mire e clique para atirar · (Q) (W) (E) trocam de arma', W - 6, 14);
     }
+  }
+
+  // "⚠ INVESTIDA EM 7s": antes de uma onda perigosa e antes da massa da Investida
+  function drawAlert() {
+    const Hd = S.horde;
+    let label = null, secs = 0;
+    if (!Hd.active && S.pending !== undefined && S.waveTimer <= WARN_TIME) {
+      const dg = Endgame.danger(S.pending, S.wave);
+      if (dg) { label = `${dg.icon} ${dg.nome.toUpperCase()}`; secs = S.waveTimer; }
+    } else if (Hd.active && Hd.rush && Hd.rushT <= 8) { label = '⚠️ INVESTIDA'; secs = Hd.rushT; }
+    if (!label) return;
+    const pulse = 0.65 + 0.35 * Math.abs(Math.sin(time * 6));
+    ctx.textAlign = 'center';
+    ctx.fillStyle = `rgba(120,10,10,${0.45 * pulse})`; ctx.fillRect(W / 2 - 110, 26, 220, 26);
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText(`🚨 ${label} EM ${Math.ceil(secs)}s`, W / 2 + 1, 44);
+    ctx.fillStyle = `rgba(255,${Math.round(120 + 100 * pulse)},90,1)`; ctx.fillText(`🚨 ${label} EM ${Math.ceil(secs)}s`, W / 2, 43);
   }
 
   function drawBanner() {
@@ -1633,6 +1719,7 @@ const Scene = (() => {
     drawBossBar();
     drawToasts();
     drawBanner();
+    drawAlert();
     if (redFlash > 0) { ctx.fillStyle = `rgba(200,20,20,${redFlash * 0.35})`; ctx.fillRect(0, 0, W, H); }
   }
 

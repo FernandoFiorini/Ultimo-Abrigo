@@ -25,13 +25,14 @@ const Invasion = (() => {
   }
 
   // Alguém foi alcançado por um zumbi dentro do abrigo. Devolve o destino: 'dead' | 'hurt' | 'bitten' | null
-  function victim(x, y) {
+  function victim(x, y, human) {
     if (home() <= 0 || !S.people.length) return null;
     const healthy = S.people.filter(n => !isHurt(n));
     const H = S.horde, name = pick(healthy.length && Math.random() < INV.shield ? healthy : S.people);
     const wounded = isHurt(name), r = Math.random();
     let fate = wounded ? (r < INV.hurtDead ? 'dead' : 'bitten')
       : r < INV.dead ? 'dead' : r < INV.dead + INV.bitten ? 'bitten' : 'hurt';
+    if (human && fate === 'bitten') fate = 'hurt';   // saqueadores ferem, mas não infectam
 
     if (fate === 'dead') {
       let savedBy = null;
@@ -90,7 +91,7 @@ const Invasion = (() => {
     if (z.t >= INV.atkCd) {
       z.t = 0; z.hits++;
       for (let i = 0; i < (Z.boss ? 2 : 1); i++) {
-        if (Math.random() < INV.hit) { victim(z.x - 6, z.y); if (S !== st) return false; }
+        if (Math.random() < INV.hit) { victim(z.x - 6, z.y, Z.human); if (S !== st) return false; }
         else emit('dodge', { x: z.x - 6, y: z.y });
       }
       // depois de alguns ataques o grupo consegue derrubar o zumbi

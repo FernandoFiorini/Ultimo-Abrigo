@@ -226,7 +226,7 @@ const Menu = (() => {
           <p><b>Criação, design e programação</b><br>Fernando Fiorini</p>
           <p><b>Arte e trilha sonora</b><br>Pixel art desenhada em código no Canvas 2D<br>Música e efeitos sintetizados em tempo real com a Web Audio API</p>
           <p><b>Tecnologia</b><br>JavaScript puro, sem frameworks, bibliotecas ou arquivos de imagem e áudio</p>
-          <p><b>Agradecimentos</b><br>A todos que testaram, deram ideias e sobreviveram mais uma noite.${HALL_OF_FAME.length ? `<br>E às lendas do Hall da Fama: ${HALL_OF_FAME.map(w => escHtml(w.n)).join(', ')}.` : ''}</p>
+          <p><b>Agradecimentos</b><br>A todos que testaram, deram ideias e sobreviveram mais uma noite. (Roney)${HALL_OF_FAME.length ? `<br>E às lendas do Hall da Fama: ${HALL_OF_FAME.map(w => escHtml(w.n)).join(', ')}.` : ''}</p>
           <p><a href="${REPO_URL}" target="_blank" rel="noopener">Código-fonte no GitHub</a></p>
           <p class="hint">v${VERSION}</p>
         </div>

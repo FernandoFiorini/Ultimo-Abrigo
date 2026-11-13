@@ -9,7 +9,7 @@ const Tutorial = (() => {
     { id: 'noite', icon: '🌙', title: 'A horda chegou', when: () => S.horde.active,
       text: 'Mire e clique para atirar com o líder: tiros fora do zumbi erram. Os guardas atiram sozinhos enquanto houver munição; sem ela, jogam pedras. Se o muro cair, sobreviventes morrem.' },
     { id: 'armas', icon: '🔫', title: 'Armas do líder', tab: 'armas', when: () => !S.horde.active && Math.max(S.best, S.meta.stats.bestWave) >= 4,
-      text: 'Na aba <b>Armas</b> você compra e melhora armas para o líder. Elas ficam para sempre, têm munição própria a cada noite e você leva até 3 por noite, nos espaços <b>(Q) (W) (E)</b>.' },
+      text: 'Na aba <b>Armas</b> você compra e melhora armas para o líder. Elas ficam para sempre, têm pente, recarga (R) e alcance, gastam a munição do abrigo (menos a pistola) e você leva até 3 por noite, nos espaços <b>(Q) (W) (E)</b>.' },
     { id: 'vasculhar', icon: '🔍', title: 'Mãos à obra', when: () => seen('equipe'),
       text: 'Use o botão <b>Vasculhar</b> para juntar comida e sucata por conta própria. Atalho: <b>(V)</b>.' },
     { id: 'construir', icon: '🏗️', title: 'Construa', tab: 'construir', when: () => S.res.sucata >= 25,
@@ -92,7 +92,8 @@ const SHORTCUTS = [
   ['Clique', 'Atirar durante a horda (segure para as armas automáticas)'],
   ['Espaço', 'Pausar / continuar'],
   ['V', 'Vasculhar'],
-  ['R', 'Recrutar'],
+  ['R', 'Recarregar a arma durante a horda (de dia, recrutar)'],
+  ['G', 'Recrutar'],
   ['C', 'Consertar o muro'],
   ['F', 'Velocidade 2x de dia (liga / desliga)'],
   ['M', 'Ligar / desligar todo o som'],
@@ -160,7 +161,8 @@ function setupKeys() {
         if (!e.repeat) togglePause();
         break;
       case 'v': if (!e.repeat) click('btn-scavenge'); break;
-      case 'r': case 'g': click('btn-recruit', recruitWhy); break;
+      case 'r': if (S.horde.active) { Weapons.startReload(); render(); } else click('btn-recruit', recruitWhy); break;
+      case 'g': click('btn-recruit', recruitWhy); break;
       case 'q': case 'w': case 'e': Weapons.select('qwe'.indexOf(k)); render(); break;
       case 'c': click('btn-repair'); break;
       case 'f': Settings.set('speed2x', !Settings.get('speed2x')); render(); break;

@@ -11,6 +11,10 @@ const Endgame = (() => {
   };
   // valor < 1 = chance de 1 amostra · valor >= 1 = quantidade garantida
   const DROPS = {
+    arremessador: { acido: 0.3 },
+    uivador:   { gas: 0.4 },
+    hospedeiro: { tecido: 0.5 },
+    blindado:  { tecido: 0.4, acido: 0.3 },
     cuspidor:  { acido: 0.6 },
     explosivo: { gas: 0.6 },
     tanque:    { tecido: 0.4 },
@@ -66,6 +70,13 @@ const Endgame = (() => {
     dupla:    { nome: 'Horda Dupla',          icon: '👥', desc: 'O dobro de zumbis. Amostras garantidas no fim.', count: 2, bonus: { tecido: 2, acido: 1, gas: 1 } },
     acida:    { nome: 'Chuva Ácida',          icon: '☔', desc: 'A chuva corrói o muro, mas os zumbis ficam 25% mais fracos. +3 de ácido.', hp: 0.75, wallDot: 0.4, bonus: { acido: 3 } },
     corrida:  { nome: 'Noite dos Corredores', icon: '🏃', desc: 'Só corredores, mas em menor número. +30% de sucata.', count: 0.7, runners: true, loot: 1.3 },
+    // danger: noites perigosas têm alarme e contagem regressiva antes de começar · min: onda mínima
+    investida: { nome: 'Investida',           icon: '⚠️', desc: 'No meio da noite, uma massa de pelo menos 20 zumbis chega TODA DE UMA VEZ, depois de um alarme. +50% de sucata.',
+                 short: 'Uma massa de zumbis vai chegar de uma vez!', rush: true, loot: 1.5, danger: true },
+    furiosa:  { nome: 'Horda Furiosa',        icon: '😡', desc: 'Zumbis 40% mais resistentes e 30% mais rápidos. Sucata em dobro, comida a cada abate e um prêmio de comida e munição no fim.',
+                short: 'Mais fortes e rápidos, mas rendem comida e sucata!', hp: 1.4, speed: 1.3, count: 1.15, loot: 2, food: 1, reward: { comida: 6, municao: 3 }, danger: true },
+    saque:    { nome: 'Noite dos Saqueadores', icon: '🏴‍☠️', desc: 'Humanos no lugar dos zumbis: correm, golpeiam o muro sem parar e jogam coquetéis molotov de longe. Carregam comida e munição.',
+                short: 'Humanos armados atacam o abrigo!', humans: true, count: 0.6, danger: true, min: 6 },
   };
   const EVENT_CHANCE = 0.25, EVENT_MIN_WAVE = 5;
 
@@ -224,7 +235,13 @@ const Endgame = (() => {
 
   function rollEvent(n) {
     if (n < EVENT_MIN_WAVE || n % 10 === 0 || Math.random() > EVENT_CHANCE) return null;
-    return pick(Object.keys(EVENTS));
+    return pick(Object.keys(EVENTS).filter(k => n >= (EVENTS[k].min || 0)));
+  }
+  // Onda perigosa (alarme e contagem regressiva): noites marcadas como perigosas e ondas da Abominação
+  function danger(ev, n) {
+    if (ev && EVENTS[ev] && EVENTS[ev].danger) return { icon: EVENTS[ev].icon, nome: EVENTS[ev].nome };
+    if (n % 10 === 0) return { icon: '👹', nome: 'Abominação' };
+    return null;
   }
 
   function modifyQueue(queue, ev) {
@@ -232,10 +249,11 @@ const Endgame = (() => {
     const E = EVENTS[ev];
     let q = queue;
     if (E.runners) q = q.map(t => (t === 'normal' ? 'corredor' : t));
+    if (E.humans) q = q.map(() => (Math.random() < 0.3 ? 'incendiario' : 'saqueador'));
     if (E.count && E.count !== 1) {
       const target = Math.max(1, Math.round(q.length * E.count));
       if (target < q.length) q = q.slice(0, target);
-      else while (q.length < target) q.splice(Math.floor(Math.random() * q.length), 0, E.runners ? 'corredor' : 'normal');
+      else while (q.length < target) q.splice(Math.floor(Math.random() * q.length), 0, E.runners ? 'corredor' : E.humans ? 'saqueador' : 'normal');
     }
     return q;
   }
@@ -464,7 +482,13 @@ const Endgame = (() => {
       const E = EVENTS[H.event];
       count('evNights', 1);
       if (E.bonus) for (const k in E.bonus) addSample(k, E.bonus[k]);
-      addLog(`${E.icon} Você sobreviveu à ${E.nome}!`, 'good');
+      let prize = '';
+      if (E.reward) {
+        const got = Object.entries(E.reward).map(([r, v]) => { const n = Math.round(v * H.n); S.res[r] += n; return `+${n} ${RES[r].icon}`; });
+        prize = ` Prêmio: ${got.join(' ')}.`;
+      }
+      if (E.humans) m.stats.raids = (m.stats.raids || 0) + 1;
+      addLog(`${E.icon} Você sobreviveu à ${E.nome}!${prize}`, 'good');
     }
     if (ab('medwave')) S.res.remedio += ab('medwave');
     // XP dos heróis ativos
@@ -507,7 +531,17 @@ const Endgame = (() => {
     addLog(`🔧 ${w.nome} desmontada: +${rp} 🔬 de pesquisa.`);
   }
 
-  function hit(z, base, src) {
+  // opts.head: o tiro pegou na cabeça · opts.blast: explosão (o blindado sofre só uma parte)
+  function hit(z, base, src, opts = {}) {
+    if (ZTYPES[z.type].armor) {
+      let head = !!opts.head;
+      if (!head && (src === 'guard' || src === 'tower')) head = Math.random() < ARMOR_HEAD[src];
+      if (head) {
+        M().stats.headshots = (M().stats.headshots || 0) + 1;
+        emit('headshot', { x: z.x, y: zy(z) - 7 * ZTYPES[z.type].scale, src });
+      } else if (opts.blast) base *= ARMOR_BLAST;
+      else { emit('armor', { x: z.x, y: zy(z), src }); return; }
+    }
     const crit = Math.random() < critChance();
     const dmg = base * (crit ? 2 : 1) * (ZTYPES[z.type] && ZTYPES[z.type].boss ? 1 + ab('boss') : 1);
     if (crit) emit('crit', { x: z.x, y: zy(z) });
@@ -516,7 +550,7 @@ const Endgame = (() => {
         .sort((a, b) => a.x - b.x).slice(0, tl('perfuracao'))
       : [];
     damageZombie(z, dmg, src);
-    for (const o of behind) damageZombie(o, dmg * 0.6, src);
+    for (const o of behind) if (!ZTYPES[o.type].armor) damageZombie(o, dmg * 0.6, src);
   }
 
   function hordeTick(dt) {
@@ -774,7 +808,7 @@ const Endgame = (() => {
   return {
     SAMPLES, TECH, CURE, EVENTS, DISTRICTS, HCLASS, HEROES,
     newMetaExtra, mult, accBonus, sciCap, durMult, riskMult, scoutLoot, hb, ab, heroLook, migrateHeroes,
-    rollEvent, modifyQueue, hpMultEv, speedMultEv, lootMult, range, event,
+    rollEvent, danger, modifyQueue, hpMultEv, speedMultEv, lootMult, range, event,
     onKill, onWaveEnd, hit, hordeTick, offlineMult, offlineTrap, tick, gainHero, gainWeapon,
     buildUI, render, count,
   };
@@ -791,6 +825,8 @@ ACH.push(
   { id: 'legendary',  icon: '🟧', nome: 'Arma lendária',       desc: 'Encontre uma arma Lendária',    val: () => (S.meta.weapons.some(w => w.rar === 3) || S.meta.heroes.some(h => h.weapon && h.weapon.rar === 3)) ? 1 : 0, goal: 1, cash: 5 },
   { id: 'cure',       icon: '💉', nome: 'A Cura',              desc: 'Encontre a cura da infecção',   val: () => S.meta.cured || S.meta.worlds > 1 ? 1 : 0, goal: 1, cash: 25 },
   { id: 'world2',     icon: '🌍', nome: 'Novo Mundo',          desc: 'Comece um Novo Mundo',          val: () => S.meta.worlds - 1, goal: 1, cash: 10 },
+  { id: 'headshot',   icon: '🪖', nome: 'Na cabeça',           desc: 'Acerte 100 tiros na cabeça de policiais blindados', val: () => S.meta.stats.headshots || 0, goal: 100, cash: 4 },
+  { id: 'raid3',      icon: '🏴‍☠️', nome: 'Daqui não passa',    desc: 'Repila 3 ataques de saqueadores', val: () => S.meta.stats.raids || 0, goal: 3, cash: 4 },
   { id: 'apoc10',     icon: '🔥', nome: 'Fogo cruzado',        desc: 'Sobreviva à onda 10 no Apocalipse', val: () => (S.meta.records && S.meta.records.apocalipse) || 0, goal: 10, cash: 15 },
   { id: 'apoc30',     icon: '🌋', nome: 'Inferno na Terra',    desc: 'Sobreviva à onda 30 no Apocalipse', val: () => (S.meta.records && S.meta.records.apocalipse) || 0, goal: 30, cash: 40 },
   { id: 'apocwin',    icon: '👑', nome: 'Lenda do Apocalipse', desc: 'Encontre a Cura no Apocalipse',     val: () => (S.meta.wins && S.meta.wins.apocalipse) ? 1 : 0, goal: 1, cash: 100 },

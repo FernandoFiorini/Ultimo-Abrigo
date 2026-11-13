@@ -8,11 +8,16 @@ function waveComposition(n) {
     cuspidor: e >= 6 ? Math.floor((e - 3) / 3) : 0,
     explosivo: e >= 8 ? Math.floor((e - 5) / 3) : 0,
     corredor: e >= 3 ? Math.floor(total * (0.25 + 0.03 * D().early)) : 0,
+    arremessador: e >= 5 ? Math.floor((e - 1) / 4) : 0,
+    uivador: e >= 7 ? Math.floor((e - 3) / 4) : 0,
+    hospedeiro: e >= 9 ? Math.floor((e - 5) / 4) : 0,
+    blindado: e >= 11 ? Math.floor((e - 8) / 3) : 0,
   };
-  const specials = count.chefe + count.tanque + count.cuspidor + count.explosivo;
+  const SPECIAL = ['tanque', 'cuspidor', 'explosivo', 'arremessador', 'uivador', 'hospedeiro', 'blindado'];
+  const specials = count.chefe + SPECIAL.reduce((a, t) => a + count[t], 0);
   const q = [...Array(Math.max(0, total - specials - count.corredor)).fill('normal'), ...Array(count.corredor).fill('corredor')];
   for (let i = q.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [q[i], q[j]] = [q[j], q[i]]; }
-  for (const t of ['tanque', 'cuspidor', 'explosivo'])
+  for (const t of SPECIAL)
     for (let i = 0; i < count[t]; i++) q.splice(Math.floor(q.length * (0.3 + Math.random() * 0.7)), 0, t);
   for (let i = 0; i < count.chefe; i++) q.push('chefe');
   return q;
@@ -20,17 +25,45 @@ function waveComposition(n) {
 
 function startWave(quiet) {
   const n = S.wave;
-  const event = Endgame.rollEvent(n);
+  // o evento pode ter sido sorteado antes, para o alarme de onda perigosa
+  const event = S.pending !== undefined ? S.pending : Endgame.rollEvent(n);
+  delete S.pending;
   const queue = Endgame.modifyQueue(waveComposition(n), event);
-  // quem foi liberado depois de uma mordida e não resistiu volta com a horda
-  const turned = Invasion.addTurned(queue);
-  S.horde = { active: true, n, queue, event, spawnT: 1.5, zs: [], kills: 0, loot: 0, dmg: 0, gcd: [], tcd: [], mcd: [], turned,
+  // quem foi liberado depois de uma mordida e não resistiu volta com a horda (saqueadores não trazem ninguém)
+  const turned = Endgame.EVENTS[event] && Endgame.EVENTS[event].humans ? [] : Invasion.addTurned(queue);
+  S.horde = { active: true, n, queue, event, spawnT: 1.5, zs: [], kills: 0, loot: 0, food: 0, ammo: 0, dmg: 0, gcd: [], tcd: [], mcd: [], turned,
     deaths: 0, deathCap: Math.max(1, Math.ceil(home() * DEATH_CAP)) };
-  if (!quiet) addLog(`🌙 A noite caiu. Onda ${n}: ${queue.length} zumbis se aproximam!` +
+  // Investida: uma massa chega toda de uma vez no meio da noite (offline, entra direto na fila)
+  if (Endgame.EVENTS[event] && Endgame.EVENTS[event].rush) {
+    const mass = rushComposition(n);
+    if (quiet) queue.push(...mass); else Object.assign(S.horde, { rush: mass, rushT: RUSH_DELAY });
+  }
+  const word = foeWord(queue[0]);
+  if (!quiet) addLog(`🌙 A noite caiu. Onda ${n}: ${queue.length + (S.horde.rush ? S.horde.rush.length : 0)} ${word} se aproximam!` +
     (queue.includes('chefe') ? ' Algo ENORME vem junto...' : ''), 'warn');
   if (event && !quiet) addLog(`${Endgame.EVENTS[event].icon} NOITE ESPECIAL: ${Endgame.EVENTS[event].nome}! ${Endgame.EVENTS[event].desc}`, 'bad');
   Weapons.refill();
-  emit('waveStart', { n, count: queue.length, boss: queue.includes('chefe'), event });
+  emit('waveStart', { n, count: queue.length + (S.horde.rush ? S.horde.rush.length : 0), boss: queue.includes('chefe'), event, word });
+}
+
+// A massa da Investida: no mínimo 20, cresce com a onda, com alguns brutamontes no meio
+function rushComposition(n) {
+  const k = Math.max(20, Math.round(waveSize(n) * 0.6));
+  return Array.from({ length: k }, (_, i) => (i % 9 === 4 && n >= 6 ? 'tanque' : Math.random() < 0.35 ? 'corredor' : 'normal'));
+}
+
+function spawnZombie(type, H, opts = {}) {
+  const Z = ZTYPES[type], hp = Z.hp * hpMult(H.n) * Endgame.hpMultEv();
+  const z = {
+    id: S.zid++, type, hp, maxHp: hp, state: 'walk', t: 0, hits: 0, spits: 0,
+    x: (opts.x ?? WORLD.SPAWN_X + Math.random() * 10) + (Z.boss ? 15 : 0),
+    y: Z.boss ? 178 : WORLD.LANE_MIN + Math.random() * (WORLD.LANE_MAX - WORLD.LANE_MIN),
+    speed: Z.speed * D().speed * Endgame.speedMultEv() * (0.85 + Math.random() * 0.3),
+  };
+  z.speed0 = z.speed;
+  if (type === 'mordido') z.name = (H.turned || []).shift() || null;
+  H.zs.push(z);
+  return z;
 }
 
 const zy = z => z.y - 9 * ZTYPES[z.type].scale;
@@ -55,7 +88,9 @@ function killZombie(z, src) {
   z.hp = 0; z.dead = true;
   S.res.sucata += loot;
   S.kills++; H.kills++; H.loot += loot;
+  if (src !== 'wall') bountyOf(z.type, H);
   emit('zdeath', { id: z.id, x: z.x, y: z.y, type: z.type, loot, src });
+  if (Z.onDeath) zombieBuff(z, Z.onDeath);
   countKill(z.type);
   Endgame.onKill(z, src);
   if (src === 'player') Weapons.onKill(z);
@@ -68,6 +103,34 @@ function killZombie(z, src) {
       for (const o of H.zs)
         if (!o.dead && Math.abs(o.x - z.x) < 26 && Math.abs(o.y - z.y) < 14) damageZombie(o, 2, 'explode');
   }
+}
+
+// Comida e munição de quem foi abatido: saqueadores carregam suprimentos; a Horda Furiosa rende comida
+function bountyOf(type, H) {
+  const Z = ZTYPES[type], ev = Endgame.event(), m = Endgame.lootMult();
+  const food = Math.round(((Z.food || 0) + ((ev && ev.food) || 0)) * m), ammo = Math.round((Z.ammo || 0) * m);
+  if (food) { S.res.comida += food; H.food = (H.food || 0) + food; }
+  if (ammo) { S.res.municao += ammo; H.ammo = (H.ammo || 0) + ammo; }
+}
+
+// Uivador (grito: mais velocidade) e Hospedeiro (esporos: mais vida) fortalecem quem está por perto ao morrer
+function zombieBuff(z, kind) {
+  const B = ZBUFF[kind];
+  let n = 0;
+  for (const o of S.horde.zs) {
+    if (o.dead || o === z || ZTYPES[o.type].boss || Math.abs(o.x - z.x) > B.r || Math.abs(o.y - z.y) > B.r * 0.6) continue;
+    if (kind === 'haste') {
+      const max = (o.speed0 || o.speed) * B.max;
+      if (o.speed >= max) continue;
+      o.speed = Math.min(max, o.speed * B.mult); o.haste = true;
+    } else {
+      if ((o.hard || 0) >= B.max) continue;
+      o.hard = (o.hard || 0) + 1;
+      o.maxHp *= B.mult; o.hp *= B.mult;
+    }
+    n++;
+  }
+  emit('zbuff', { kind, x: z.x, y: zy(z), n });
 }
 
 // Ataque aéreo comprado na loja: atinge todos os zumbis na tela
@@ -92,17 +155,24 @@ function updateHorde(dt) {
 
   H.spawnT -= dt;
   if (H.queue.length && H.spawnT <= 0) {
-    const type = H.queue.shift(), Z = ZTYPES[type];
-    const z = {
-      id: S.zid++, type, hp: Z.hp * hpMult(H.n) * Endgame.hpMultEv(), maxHp: Z.hp * hpMult(H.n) * Endgame.hpMultEv(), state: 'walk', t: 0, hits: 0, spits: 0,
-      x: WORLD.SPAWN_X + Math.random() * 10 + (Z.boss ? 15 : 0),
-      y: Z.boss ? 178 : WORLD.LANE_MIN + Math.random() * (WORLD.LANE_MAX - WORLD.LANE_MIN),
-      speed: Z.speed * D().speed * Endgame.speedMultEv() * (0.85 + Math.random() * 0.3),
-    };
-    if (type === 'mordido') z.name = (H.turned || []).shift() || null;
-    H.zs.push(z);
+    const type = H.queue.shift(), z = spawnZombie(type, H);
     H.spawnT = spawnGap(H.n) * (0.6 + Math.random() * 0.8);
-    if (Z.boss) { emit('bossSpawn', { id: z.id }); addLog('👹 Uma ABOMINAÇÃO surgiu na horda!', 'bad'); }
+    if (ZTYPES[type].boss) { emit('bossSpawn', { id: z.id }); addLog('👹 Uma ABOMINAÇÃO surgiu na horda!', 'bad'); }
+  }
+
+  // Investida: contagem regressiva com alarme e a massa inteira surgindo de uma vez
+  if (H.rush) {
+    const before = Math.ceil(H.rushT);
+    H.rushT -= dt;
+    const now = Math.ceil(H.rushT);
+    if (now !== before && now <= 5 && now > 0) emit('countdown', { n: now, rush: true });
+    if (H.rushT <= 0) {
+      const mass = H.rush;
+      H.rush = null;
+      mass.forEach((t, i) => spawnZombie(t, H, { x: WORLD.SPAWN_X - 10 + (i % 6) * 6 + Math.random() * 8 }));
+      addLog(`⚠️ INVESTIDA! ${mass.length} zumbis chegaram todos de uma vez!`, 'bad');
+      emit('rush', { n: mass.length });
+    }
   }
 
   // Armadilhas, cerca elétrica e chuva ácida
@@ -127,7 +197,7 @@ function updateHorde(dt) {
       z.t += dt;
       if (z.t >= Z.spit.cd) {
         z.t = 0; z.spits++;
-        emit('spit', { x: z.x - 4, y: zy(z) - 4, ty: z.y });
+        emit('spit', { x: z.x - 4, y: zy(z) - 4, ty: z.y, proj: Z.spit.proj });
         H.dmg += wallDamage(Z.spit.dmg * dmgMult(H.n), z.y);
         if (S !== st) return;
         if (z.spits >= Z.spit.count || S.wallDown) z.state = 'walk';
@@ -136,8 +206,8 @@ function updateHorde(dt) {
       z.t += dt;
       if (Z.explode) {
         if (z.t >= 0.6) { H.dmg += wallDamage(Z.dmg * dmgMult(H.n), z.y); if (S !== st) return; killZombie(z, 'wall'); }
-      } else if (z.t >= 1) {
-        z.t -= 1; z.hits++;
+      } else if (z.t >= (Z.atk || 1)) {
+        z.t -= Z.atk || 1; z.hits++;
         H.dmg += wallDamage(Z.dmg * dmgMult(H.n), z.y);
         if (S !== st) return;
         if (z.hits >= Z.hits) killZombie(z, 'melee');
@@ -181,7 +251,7 @@ function updateHorde(dt) {
   }
 
   H.zs = H.zs.filter(z => !z.dead);
-  if (!H.queue.length && !H.zs.length) endWave();
+  if (!H.queue.length && !H.zs.length && !H.rush) endWave();
 }
 
 // Dano total que a defesa causa numa onda resolvida de uma vez (offline).
@@ -203,14 +273,18 @@ function flushWave() {
   const st = S, H = S.horde;
   const list = [
     ...H.zs.filter(z => !z.dead).map(z => ({ type: z.type, hp: z.hp })),
-    ...H.queue.map(t => ({ type: t, hp: Math.max(0.1, ZTYPES[t].hp * hpMult(H.n) * Endgame.hpMultEv() - Endgame.offlineTrap()) })),
+    ...[...H.queue, ...(H.rush || [])].map(t => ({ type: t, hp: Math.max(0.1, ZTYPES[t].hp * hpMult(H.n) * Endgame.hpMultEv() - Endgame.offlineTrap()) })),
   ];
+  // o blindado só cai com tiros na cabeça: custa bem mais tiros
+  for (const z of list) if (ZTYPES[z.type].armor) z.hp *= ARMOR_OFFLINE;
+  H.rush = null;
   let pool = offlineDefense(list.length) * Endgame.mult('dmg') * Endgame.offlineMult(), leak = 0;
   for (const z of list) {
     if (pool >= z.hp) {
       pool -= z.hp;
       const loot = Math.round(ZTYPES[z.type].loot * Endgame.lootMult());
       S.res.sucata += loot; S.kills++; H.kills++; H.loot += loot;
+      bountyOf(z.type, H);
       countKill(z.type);
       Endgame.onKill({ type: z.type }, 'offline');
       if (ZTYPES[z.type].boss) gainCash(D().bossCash, 'a Abominação foi derrotada!');
@@ -230,7 +304,9 @@ function endWave() {
   S.best = Math.max(S.best, H.n);
   S.wave = H.n + 1;
   S.waveTimer = waveInterval();
-  addLog(`☀️ Onda ${H.n} sobrevivida! ${H.kills} zumbis abatidos (+${H.loot} sucata)` +
+  const extra = (H.food ? `, +${H.food} comida` : '') + (H.ammo ? `, +${H.ammo} munição` : '');
+  const ev = Endgame.EVENTS[H.event];
+  addLog(`☀️ Onda ${H.n} sobrevivida! ${H.kills} ${ev && ev.humans ? 'saqueadores repelidos' : 'zumbis abatidos'} (+${H.loot} sucata${extra})` +
     (H.inv ? '. Os zumbis invadiram o abrigo.' : H.dmg > 0 ? `. O muro sofreu ${Math.round(H.dmg)} de dano.` : '. Nenhum dano ao muro!'),
     H.dmg > 0 || H.inv ? 'warn' : 'good');
   const st = S.meta.stats;
@@ -239,7 +315,7 @@ function endWave() {
   Invasion.onWaveEnd(H);
   if (H.dmg === 0 && !H.inv && !S.wallDown && H.n >= 5) st.flawless++;
   if (H.n === EVAC_WAVE) addLog('🚁 Um helicóptero respondeu ao rádio! Agora você pode EVACUAR para outra cidade (painel Evacuação).', 'good');
-  emit('waveEnd', { n: H.n, kills: H.kills });
+  emit('waveEnd', { n: H.n, kills: H.kills, humans: !!(ev && ev.humans) });
 }
 
 function wallDamage(d, y) {

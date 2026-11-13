@@ -19,7 +19,7 @@ const MERCHANT_FIRST = 240;         // segundos até o primeiro comerciante
 const MERCHANT_GAP = [300, 480];    // intervalo entre visitas do comerciante
 const MERCHANT_STAY = 100;          // quanto tempo ele fica no abrigo
 
-const WORLD = { W: 480, H: 200, GY: 150, WALL_X: 190, SPAWN_X: 492, RANGE_X: 400, LANE_MIN: 160, LANE_MAX: 192 };
+const WORLD = { W: 480, H: 200, GY: 150, WALL_X: 190, SPAWN_X: 492, RANGE_X: 350, LANE_MIN: 160, LANE_MAX: 192 };
 const GUARD_CD = 2.4;     // segundos entre tiros do guarda
 const ROCK_CD = 3;        // guarda sem munição joga pedras
 const ROCK_HIT = 0.35;
@@ -62,8 +62,27 @@ const ZTYPES = {
   chefe:     { nome: 'Abominação',  hp: 30, speed: 5,  scale: 2.2,  dmg: 10,  hits: 4, loot: 40, boss: true },
   // alguém do grupo que foi liberado depois de uma mordida e voltou transformado
   mordido:   { nome: 'Transformado', hp: 3, speed: 17, scale: 1.05, dmg: 4,   hits: 3, loot: 6 },
+  // onDeath: ao morrer, o grito acelera os zumbis em volta (haste) ou os esporos os deixam mais resistentes (harden)
+  uivador:   { nome: 'Uivador',     hp: 2,  speed: 12, scale: 1,    dmg: 2.5, hits: 2, loot: 3, onDeath: 'haste' },
+  hospedeiro:{ nome: 'Hospedeiro',  hp: 3,  speed: 9,  scale: 1.1,  dmg: 3,   hits: 2, loot: 4, onDeath: 'harden' },
+  // ataca o muro de longe (spit.proj: o que ele arremessa)
+  arremessador: { nome: 'Arremessador', hp: 2, speed: 12, scale: 1.05, dmg: 2.5, hits: 2, loot: 3,
+               spit: { range: 130, cd: 2, dmg: 1.5, count: 7, proj: 'rock' } },
+  // armadura de choque: tiros no corpo ricocheteiam. Só tiros na cabeça, explosões (metade) e fogo ferem
+  blindado:  { nome: 'Policial blindado', hp: 3, speed: 9, scale: 1.05, dmg: 3, hits: 3, loot: 6, armor: true },
+  // humanos (Ataque de Saqueadores): rápidos, atk = segundos entre golpes no muro, deixam comida e munição
+  saqueador: { nome: 'Saqueador',   hp: 1.5, speed: 30, scale: 1,  dmg: 1.8, hits: 5, atk: 0.5, loot: 2, human: true, food: 4, ammo: 2 },
+  incendiario: { nome: 'Incendiário', hp: 1.5, speed: 26, scale: 1, dmg: 2, hits: 3, atk: 0.5, loot: 2, human: true, food: 3, ammo: 3,
+               spit: { range: 110, cd: 1.4, dmg: 2, count: 5, proj: 'molotov' } },
 };
+// Armadura: chance de guardas e torres acertarem a cabeça; no progresso offline o blindado vale por ARMOR_OFFLINE zumbis
+const ARMOR_HEAD = { guard: 0.2, tower: 0.3 }, ARMOR_BLAST = 0.5, ARMOR_OFFLINE = 3;
+// Efeito de quem morre gritando (haste) ou soltando esporos (harden): alcance, multiplicador e limite de acúmulo
+const ZBUFF = { haste: { r: 60, mult: 1.3, max: 2 }, harden: { r: 45, mult: 1.3, max: 3 } };
+const WARN_TIME = 10;   // segundos de alarme e contagem regressiva antes de uma onda perigosa
+const RUSH_DELAY = 14;  // Investida: segundos depois do início da onda até a massa chegar (os últimos 5 com contagem)
 const leakOf = (t, n) => { const Z = ZTYPES[t]; return (Z.dmg * Z.hits + (Z.spit ? Z.spit.dmg * Z.spit.count : 0)) * dmgMult(n); };
+const foeWord = t => (ZTYPES[t] && ZTYPES[t].human ? 'saqueadores' : 'zumbis');
 
 // count/grow: tamanho das hordas · hp/hpGrow/dmg/speed: força dos zumbis · early: especiais chegam N ondas antes
 // interval: segundos entre hordas · food: consumo por pessoa · prod: produção · hope/bossCash: recompensas
@@ -146,7 +165,7 @@ const PERKS = {
   sucateiros:  { nome: 'Sucateiros',          icon: '🧰', desc: '+15% de produção de sucata',                  cost: 2, mult: 1.5, max: 20 },
   treino:      { nome: 'Treinamento de tiro', icon: '🎯', desc: '+12% de velocidade de tiro e +3% de precisão (guardas e torres)', cost: 3, mult: 1.6, max: 10 },
   engenharia:  { nome: 'Engenharia',          icon: '📐', desc: '+20% de resistência do muro',                 cost: 2, mult: 1.5, max: 10 },
-  mira:        { nome: 'Mira do líder',       icon: '🔭', desc: '+40% de dano das suas armas',                 cost: 3, mult: 1.8, max: 5 },
+  mira:        { nome: 'Mira do líder',       icon: '🔭', desc: '+20% de dano das suas armas',                 cost: 3, mult: 1.8, max: 5 },
 };
 
 // Efeito total de cada nível (mostrado no registro e no painel)
@@ -166,7 +185,7 @@ const PERK_FX = {
   sucateiros:  lv => `+${15 * lv}% de produção de sucata`,
   treino:      lv => `+${12 * lv}% de velocidade de tiro e +${3 * lv}% de precisão`,
   engenharia:  lv => `+${20 * lv}% de resistência do muro`,
-  mira:        lv => `+${40 * lv}% de dano das suas armas`,
+  mira:        lv => `+${20 * lv}% de dano das suas armas`,
 };
 
 // Desafios de prestígio: escolhidos ao evacuar, valem para a cidade inteira e aumentam a Esperança ganha nela
@@ -207,29 +226,33 @@ const NAMES = ['Ana', 'Jorge', 'Marta', 'Paulo', 'Cláudia', 'Diego', 'Fernanda'
   'Seu Jair', 'Pietra', 'Caetano', 'Vânia', 'Benedito', 'Kelly', 'Osvaldo', 'Rita', 'Ivan'];
 
 // Armas do líder (mira manual durante a horda). Ficam para sempre depois de compradas.
+// Escala: a vida e o dano aparecem multiplicados por PTS (um zumbi comum tem ~10 de vida no começo do jogo).
 // type: bullet (projéteis instantâneos) · grenade/rocket (explodem no ponto mirado) · flame (incendeia a área)
-// dmg: por projétil · cd: segundos entre tiros · ammo: munição própria por noite (Infinity = sem limite)
-// spread: espalhamento em pixels · pierce: zumbis atravessados · radius: área · auto: segurar para atirar
+// dmg: por projétil · cd: segundos entre tiros · mag: tiros por pente · reload: segundos para recarregar
+// use: 🔫 munição do abrigo gasta por tiro ao recarregar (a pistola não gasta) · range: alcance em pixels além do muro
+// spread: espalhamento em pixels · pierce: zumbis atravessados · radius: área · auto: segurar para atirar · falloff: perde dano com a distância
 // wave: melhor onda (de todas as cidades) para liberar · cost: preço da compra; cada melhoria custa ×LW_UP_MULT
 const LWEAPONS = {
-  pistola:    { nome: 'Pistola',         icon: '🔫', type: 'bullet', dmg: 1.5, cd: 0.4,  ammo: Infinity, spread: 0,  wave: 1,
-                cost: { sucata: 60 }, desc: 'Precisa e sem limite de munição. Sempre com você.' },
-  espingarda: { nome: 'Espingarda',      icon: '💥', type: 'bullet', dmg: 0.8, cd: 0.9,  ammo: 14, pellets: 5, spread: 9, wave: 4,
-                cost: { sucata: 150 }, desc: 'Cinco projéteis em leque. Devastadora contra grupos perto do muro.' },
-  rifle:      { nome: 'Rifle de caça',   icon: '🎯', type: 'bullet', dmg: 4,   cd: 1.1,  ammo: 10, pierce: 2, spread: 0, wave: 6,
-                cost: { sucata: 250, municao: 40 }, desc: 'Tiro lento e forte que atravessa os zumbis em fila.' },
-  smg:        { nome: 'Submetralhadora', icon: '🔥', type: 'bullet', dmg: 0.7, cd: 0.09, ammo: 70, spread: 5, auto: true, wave: 9,
-                cost: { sucata: 400, municao: 80 }, desc: 'Segure o clique para despejar balas. Pouco dano por tiro.' },
-  granadas:   { nome: 'Lança-granadas',  icon: '💣', type: 'grenade', dmg: 3,  cd: 1.4,  ammo: 6, radius: 22, wave: 12,
+  pistola:    { nome: 'Pistola',         icon: '🔫', type: 'bullet', dmg: 0.35, cd: 0.3,  mag: 5,  reload: 1.5, use: 0,   range: 120, spread: 0,  wave: 1,
+                cost: { sucata: 60 }, desc: 'Fraca, mas nunca gasta munição do abrigo. 5 tiros por pente.' },
+  espingarda: { nome: 'Espingarda',      icon: '💥', type: 'bullet', dmg: 0.3,  cd: 0.75, mag: 2,  reload: 2,   use: 2,   range: 70,  pellets: 5, spread: 9, falloff: true, wave: 4,
+                cost: { sucata: 150 }, desc: 'Cinco projéteis em leque, de cano duplo. Devastadora colada no muro, inútil de longe.' },
+  rifle:      { nome: 'Rifle de caça',   icon: '🎯', type: 'bullet', dmg: 1.8,  cd: 1.1,  mag: 5,  reload: 2.6, use: 3,   range: 270, pierce: 2, spread: 0, wave: 6,
+                cost: { sucata: 250, municao: 40 }, desc: 'Tiro pesado e de longo alcance que atravessa os zumbis em fila.' },
+  smg:        { nome: 'Submetralhadora', icon: '🔥', type: 'bullet', dmg: 0.18, cd: 0.09, mag: 30, reload: 2.2, use: 0.5, range: 110, spread: 5, auto: true, wave: 9,
+                cost: { sucata: 400, municao: 80 }, desc: 'Segure o clique para despejar balas. Pouco dano por tiro e pente que acaba rápido.' },
+  granadas:   { nome: 'Lança-granadas',  icon: '💣', type: 'grenade', dmg: 1.4, cd: 1,    mag: 4,  reload: 3,   use: 8,   range: 200, radius: 22, wave: 12,
                 cost: { sucata: 700, municao: 120 }, desc: 'Explode onde você mirar e fere todos em volta.' },
-  chamas:     { nome: 'Lança-chamas',    icon: '🌋', type: 'flame', dmg: 1.2,  cd: 0.12, ammo: 50, radius: 16, burn: 3, auto: true, wave: 16,
-                cost: { sucata: 1200, municao: 200 }, desc: 'Segure para incendiar uma área. O fogo queima por alguns segundos.' },
-  bazuca:     { nome: 'Bazuca',          icon: '🚀', type: 'rocket', dmg: 0,   cd: 3,    ammo: 2, radius: 36, wave: 25, bosses: 5,
+  chamas:     { nome: 'Lança-chamas',    icon: '🌋', type: 'flame', dmg: 1,     cd: 0.12, mag: 40, reload: 3,   use: 0.4, range: 50,  radius: 16, burn: 3, auto: true, wave: 16,
+                cost: { sucata: 1200, municao: 200 }, desc: 'Segure para incendiar uma área perto do muro. O fogo queima por alguns segundos.' },
+  bazuca:     { nome: 'Bazuca',          icon: '🚀', type: 'rocket', dmg: 0,    cd: 1,    mag: 1,  reload: 4,   use: 40,  range: 230, radius: 36, wave: 25, bosses: 5,
                 cost: { sucata: 5000, municao: 600, remedio: 10 }, desc: 'Mata qualquer zumbi comum da área com um tiro. A Abominação perde 40% da vida.' },
 };
 const LW_MAX_LVL = 5, LW_UP_MULT = 1.7;
-const LW_KEYS = ['Q', 'W', 'E'];   // até 3 armas por noite (R é o atalho de Recrutar)
-const LW_DROP = 0.2;   // chance de um zumbi abatido por você deixar munição para suas armas
+const LW_KEYS = ['Q', 'W', 'E'];   // até 3 armas por noite (R recarrega durante a horda; de dia, recruta)
+const LW_DROP = 0.15;  // chance de um zumbi abatido por você deixar um pouco de 🔫 munição para o abrigo
+const PTS = 10;        // vida e dano aparecem ×10, em números inteiros
+const pts = v => Math.max(0, Math.round(v * PTS));
 
 // ---------- vitória (Cura concluída) ----------
 // Cash ganho na primeira vitória de cada save, por dificuldade

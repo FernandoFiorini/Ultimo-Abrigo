@@ -1,7 +1,8 @@
 'use strict';
 
-// Armas do líder: mira manual durante a horda, até 3 armas por noite (Q W E), munição própria por noite.
-// Compra e melhorias ficam no metajogo (sobrevivem a evacuações); a munição é recarregada a cada horda.
+// Armas do líder: mira manual durante a horda, até 3 armas por noite (Q W E).
+// Cada arma tem pente, tempo de recarga e alcance. Recarregar gasta 🔫 munição do abrigo (a pistola não gasta).
+// Compra e melhorias ficam no metajogo (sobrevivem a evacuações).
 const Weapons = (() => {
   const MUZZLE = { x: 61, y: 88 };   // ponta da arma do líder no telhado
   const projectiles = [];
@@ -31,7 +32,10 @@ const Weapons = (() => {
     return {
       dmg: w.dmg * (1 + 0.25 * up),
       cd: w.cd * (1 - 0.06 * up),
-      ammo: w.ammo === Infinity ? Infinity : Math.round(w.ammo * (1 + 0.25 * up)),
+      mag: Math.round(w.mag * (1 + 0.2 * up)),
+      reload: w.reload * (1 - 0.08 * up),
+      range: w.range * (1 + 0.08 * up),
+      use: w.use || 0,
       pellets: (w.pellets || 1) + (w.pellets ? Math.floor(up / 2) : 0),
       spread: w.spread ? w.spread * (1 - 0.08 * up) : 0,
       pierce: (w.pierce || 0) + (w.pierce ? Math.floor(up / 2) : 0),
@@ -42,14 +46,25 @@ const Weapons = (() => {
   const fx = k => {
     const s = stat(k), w = LWEAPONS[k], out = [];
     if (w.type === 'rocket') out.push('mata zumbis comuns com 1 tiro');
-    else out.push(`dano ${fmt(s.dmg)}${s.pellets > 1 ? ` ×${s.pellets} projéteis` : ''}${w.type === 'flame' ? '/s' : ''}`);
+    else out.push(`dano ${pts(s.dmg)}${s.pellets > 1 ? ` ×${s.pellets} projéteis` : ''}${w.type === 'flame' ? '/s' : ''}`);
     out.push(`${fmt(1 / s.cd)} tiros/s`);
+    out.push(`pente ${s.mag} · recarga ${fmt(s.reload)}s`);
+    out.push(`alcance ${Math.round(s.range)}`);
     if (s.pierce) out.push(`atravessa ${s.pierce}`);
     if (s.radius) out.push(`raio ${Math.round(s.radius)}`);
     if (s.burn) out.push(`queima ${fmt(s.burn)}s`);
-    out.push(s.ammo === Infinity ? 'munição infinita' : `${s.ammo} por noite`);
+    out.push(s.use ? `${fmt(s.use)} 🔫 por tiro` : 'não gasta munição');
     return out.join(' · ');
   };
+  // Quantos tiros (ou disparos) derrubam um zumbi comum na onda atual, com todos os bônus
+  function shotsToKill(k) {
+    const w = LWEAPONS[k], s = stat(k);
+    if (w.type === 'rocket') return 1;
+    const per = baseDmg(k) * (w.type === 'flame' ? s.burn : s.pellets);
+    return Math.max(1, Math.ceil(ZTYPES.normal.hp * hpMult(S.wave) / per - 1e-9));
+  }
+  // x máximo que a arma alcança (zumbis além disso estão fora de alcance)
+  const reach = (k = current()) => WORLD.WALL_X + stat(k).range;
 
   const unlocked = k => {
     const w = LWEAPONS[k], st = S.meta.stats;
@@ -64,7 +79,8 @@ const Weapons = (() => {
   const cost = k => scaledCost(LWEAPONS[k].cost, LW_UP_MULT, lvl(k));
 
   const current = () => { const k = M().slots[M().cur]; return k && owned(k) ? k : 'pistola'; };
-  const ammoOf = k => (stat(k).ammo === Infinity ? Infinity : (S.lwAmmo[k] || 0));
+  const mags = () => (S.lwMag && typeof S.lwMag === 'object' ? S.lwMag : (S.lwMag = {}));
+  const ammoOf = k => mags()[k] || 0;   // tiros no pente
 
   // ---------- compra, melhoria e espaços ----------
   function buy(k) {
@@ -78,10 +94,9 @@ const Weapons = (() => {
       // vai para o primeiro espaço livre
       const free = M().slots.indexOf(null);
       if (free >= 0) M().slots[free] = k;
-      if (stat(k).ammo !== Infinity) S.lwAmmo[k] = stat(k).ammo;
+      mags()[k] = stat(k).mag;   // o primeiro pente vem junto
       addLog(`🔫 Nova arma: ${LWEAPONS[k].icon} ${LWEAPONS[k].nome}! ${free >= 0 ? `Equipada no espaço ${LW_KEYS[free]}.` : 'Equipe na aba Armas.'}`, 'good');
     } else {
-      if (stat(k).ammo !== Infinity) S.lwAmmo[k] = Math.max(S.lwAmmo[k] || 0, stat(k).ammo);
       addLog(`⬆️ ${LWEAPONS[k].icon} ${LWEAPONS[k].nome} nível ${lvl(k)}: ${fx(k)}.`, 'good');
     }
     emit('weapon', { rar: Math.min(3, lvl(k) - 1) });
@@ -100,6 +115,7 @@ const Weapons = (() => {
     if (!M().slots[i] || !owned(M().slots[i])) return;
     if (M().cur === i) { if (S.horde.active) flash(); return; }
     M().cur = i;
+    if (S.reload && S.reload.k !== current()) S.reload = null;   // trocar de arma interrompe a recarga
     emit('weaponSwap', { k: current() });
     if (S.horde.active) flash();
   }
@@ -111,9 +127,29 @@ const Weapons = (() => {
     }
   }
 
+  // Completa o pente pagando a munição do abrigo. Devolve quantos tiros entraram.
+  function topUp(k) {
+    const st = stat(k), cur = Math.min(ammoOf(k), st.mag), need = st.mag - cur;
+    if (need <= 0) return 0;
+    const n = st.use ? Math.min(need, Math.floor(S.res.municao / st.use + 1e-9)) : need;
+    S.res.municao -= n * st.use;
+    mags()[k] = cur + n;
+    return n;
+  }
+  // Início da noite: as armas levadas chegam com o pente cheio (se houver munição no abrigo)
   function refill() {
-    for (const k in LWEAPONS) if (owned(k) && stat(k).ammo !== Infinity) S.lwAmmo[k] = Math.max(S.lwAmmo[k] || 0, stat(k).ammo);
+    for (const k of M().slots) if (k && owned(k)) topUp(k);
+    S.reload = null;
     projectiles.length = 0;
+  }
+  // Recarga (automática com o pente vazio, ou manual com R). Leva stat.reload segundos.
+  function startReload() {
+    const k = current(), st = stat(k);
+    if (!S.horde.active || S.reload || ammoOf(k) >= st.mag) return false;
+    if (st.use && S.res.municao < st.use) { emit('noAmmo', { k }); return false; }
+    S.reload = { k, t: st.reload, dur: st.reload };
+    emit('reload', { k, phase: 'start' });
+    return true;
   }
 
   // ---------- tiro ----------
@@ -131,15 +167,15 @@ const Weapons = (() => {
     return best;
   }
 
-  const baseDmg = k => stat(k).dmg * (1 + 0.4 * perk('mira')) * (furia() ? 2 : 1) * Endgame.mult('dmg') * (1 + Endgame.ab('leader'));
+  const baseDmg = k => stat(k).dmg * (1 + 0.2 * perk('mira')) * (furia() ? 2 : 1) * Endgame.mult('dmg') * (1 + Endgame.ab('leader'));
 
   function fire(x, y) {
     if (!S.horde.active || paused || S.clickCd > 0) return false;
-    const k = current(), w = LWEAPONS[k], st = stat(k);
-    if (st.ammo !== Infinity) {
-      if ((S.lwAmmo[k] || 0) < 1) { S.clickCd = 0.3; emit('noAmmo', { k }); return false; }
-      S.lwAmmo[k]--;
-    }
+    const k = current(), w = LWEAPONS[k], st = stat(k), far = reach(k);
+    if (S.reload) return false;
+    if (ammoOf(k) < 1) { S.clickCd = 0.2; startReload(); return false; }
+    if (x > far + 4) { S.clickCd = 0.15; emit('outOfRange', { x, y }); return false; }
+    mags()[k] = ammoOf(k) - 1;
     S.clickCd = st.cd;
     const dmg = baseDmg(k);
     let hits = 0;
@@ -147,14 +183,18 @@ const Weapons = (() => {
     if (w.type === 'bullet') {
       for (let i = 0; i < st.pellets; i++) {
         const px = x + gauss() * st.spread, py = y + gauss() * st.spread * 0.6;
-        const z = zombieAt(px, py);
+        let z = zombieAt(px, py);
+        if (z && z.x > far + 4) z = null;   // o projétil não chega até lá
         emit('shot', { src: 'player', w: k, x: px, y: py, exact: true, miss: !z, quiet: i > 0 });
         if (!z) continue;
         hits++;
-        Endgame.hit(z, dmg, 'player');
+        // espingarda: perde força com a distância do muro
+        const d = w.falloff ? dmg * Math.max(0.25, 1 - 0.75 * Math.max(0, z.x - WORLD.WALL_X) / st.range) : dmg;
+        // a cabeça fica no topo do boneco (só faz diferença contra o blindado)
+        Endgame.hit(z, d, 'player', { head: py < z.y - 12.5 * ZTYPES[z.type].scale });
         if (st.pierce) {
-          // atravessa os zumbis atrás, na mesma faixa
-          const behind = S.horde.zs.filter(o => !o.dead && o !== z && o.x > z.x && o.x - z.x < 90 && Math.abs(o.y - z.y) < 10)
+          // atravessa os zumbis atrás, na mesma faixa, até o limite do alcance
+          const behind = S.horde.zs.filter(o => !o.dead && o !== z && o.x > z.x && o.x <= far && o.x - z.x < 90 && Math.abs(o.y - z.y) < 10)
             .sort((a, b) => a.x - b.x).slice(0, st.pierce);
           for (const o of behind) { Endgame.hit(o, dmg * 0.8, 'player'); hits++; }
           if (behind.length) emit('pierce', { x1: z.x, y1: zy(z), x2: behind[behind.length - 1].x, y2: zy(behind[behind.length - 1]) });
@@ -176,6 +216,7 @@ const Weapons = (() => {
       }
     }
     if (hits) S.meta.stats.shots += hits;
+    if (ammoOf(k) < 1) startReload();
     return true;
   }
 
@@ -189,7 +230,7 @@ const Weapons = (() => {
         if (ZTYPES[z.type].boss) damageZombie(z, z.maxHp * 0.4, 'player');
         else killZombie(z, 'player');
       } else {
-        Endgame.hit(z, p.dmg * (1 - 0.5 * d / p.r), 'player');
+        Endgame.hit(z, p.dmg * (1 - 0.5 * d / p.r), 'player', { blast: true });
       }
       S.meta.stats.shots++;
     }
@@ -197,6 +238,11 @@ const Weapons = (() => {
 
   // projéteis em voo e zumbis queimando (só no combate ao vivo)
   function hordeTick(dt) {
+    const R = S.reload;
+    if (R) {
+      if (R.k !== current()) S.reload = null;
+      else if ((R.t -= dt) <= 0) { S.reload = null; topUp(R.k); emit('reload', { k: R.k, phase: 'end' }); }
+    }
     for (const p of projectiles) {
       p.t += dt;
       if (p.t >= p.dur && !p.done) { p.done = true; explode(p); }
@@ -211,15 +257,12 @@ const Weapons = (() => {
     }
   }
 
-  // zumbi abatido pelo líder pode deixar munição para as armas equipadas
+  // zumbi abatido pelo líder às vezes deixa um pouco de munição para o abrigo
   function onKill(z) {
     if (Math.random() >= LW_DROP) return;
-    const opts = M().slots.filter(k => k && owned(k) && stat(k).ammo !== Infinity && (k !== 'bazuca' || Math.random() < 0.1));
-    if (!opts.length) return;
-    const k = opts[Math.floor(Math.random() * opts.length)], st = stat(k);
-    const n = Math.max(1, Math.round(st.ammo * 0.15));
-    S.lwAmmo[k] = Math.min(Math.ceil(st.ammo * 1.5), (S.lwAmmo[k] || 0) + n);
-    emit('lwAmmo', { x: z.x, y: z.y - 26, text: `+${n} ${LWEAPONS[k].icon}` });
+    const n = 1 + Math.floor(Math.random() * 3);
+    S.res.municao += n;
+    emit('lwAmmo', { x: z.x, y: z.y - 26, text: `+${n} 🔫` });
   }
 
   // ---------- interface ----------
@@ -244,8 +287,8 @@ const Weapons = (() => {
   // aviso grande no cenário ao trocar de arma
   let flashT = 0;
   function flash() {
-    const el = $('weapon-flash'), k = current(), a = ammoOf(k);
-    el.innerHTML = `<span class="hk">(${LW_KEYS[M().cur]})</span> ${LWEAPONS[k].icon} <b>${LWEAPONS[k].nome}</b> <small>equipada · ${a === Infinity ? '∞' : a} tiros</small>`;
+    const el = $('weapon-flash'), k = current(), st = stat(k);
+    el.innerHTML = `<span class="hk">(${LW_KEYS[M().cur]})</span> ${LWEAPONS[k].icon} <b>${LWEAPONS[k].nome}</b> <small>equipada · ${ammoOf(k)}/${st.mag} no pente · alcance ${Math.round(st.range)}</small>`;
     el.classList.remove('hidden', 'out');
     void el.offsetWidth;   // reinicia a animação
     el.classList.add('show');
@@ -262,7 +305,7 @@ const Weapons = (() => {
       $('lwr-' + k).classList.toggle('locked', !open && !l);
       $('lwr-' + k).classList.toggle('equipped', si >= 0);
       $('lwl-' + k).innerHTML = (l ? ` nv. ${l}/${LW_MAX_LVL}` : '') + (si >= 0 ? ` <span class="lw-tag">✔ Equipada (${LW_KEYS[si]})</span>` : '');
-      $('lwn-' + k).textContent = l ? fx(k) : open ? 'No nível 1: ' + fx(k) : lockText(k);
+      $('lwn-' + k).textContent = l ? `${fx(k)} · ~${shotsToKill(k)} tiro(s) por zumbi comum na onda ${S.wave}` : open ? 'No nível 1: ' + fx(k) : lockText(k);
       $('lwc-' + k).innerHTML = max || (!open && !l) ? '' : costHtml(c);
       const b = $('lwb-' + k);
       b.textContent = max ? 'Máximo' : l ? `Melhorar (nv. ${l + 1})` : 'Comprar';
@@ -274,23 +317,23 @@ const Weapons = (() => {
     const bar = $('weapon-bar');
     bar.classList.toggle('hidden', !S.horde.active);
     if (!S.horde.active) { $('weapon-flash').classList.add('hidden'); return; }
-    const sig = sl.join() + M().cur + sl.map(k => k ? ammoOf(k) : '').join() + (S.clickCd > 0);
+    const sig = sl.join() + M().cur + sl.map(k => k ? ammoOf(k) : '').join() + (S.clickCd > 0) + (S.reload ? S.reload.k : '');
     if (sig === barSig) return;
     barSig = sig;
     for (let i = 0; i < N; i++) {
       const k = sl[i], el = $('wsl-' + i), key = `<span class="hk">(${LW_KEYS[i]})</span>`;
       el.removeAttribute('aria-pressed');
       if (!k || !owned(k)) { el.innerHTML = `${key}<span class="wname">vazio</span>`; el.className = 'wslot empty'; el.title = 'Espaço vazio: equipe uma arma na aba Armas'; continue; }
-      const a = ammoOf(k), on = M().cur === i;
-      el.className = 'wslot' + (on ? ' active' : '') + (a < 1 ? ' dry' : '');
+      const a = ammoOf(k), on = M().cur === i, rl = S.reload && S.reload.k === k;
+      el.className = 'wslot' + (on ? ' active' : '') + (a < 1 && !rl ? ' dry' : '');
       el.setAttribute('aria-pressed', on);
       el.title = on ? `${LWEAPONS[k].nome}: equipada agora` : `Trocar para ${LWEAPONS[k].nome} (${LW_KEYS[i]})`;
-      el.innerHTML = `${on ? '<span class="wtag">EM MÃOS</span>' : ''}${key}<span class="wicon">${LWEAPONS[k].icon}</span><span class="wname">${LWEAPONS[k].nome}</span><span class="wammo">${a === Infinity ? '∞' : a}</span>`;
+      el.innerHTML = `${on ? '<span class="wtag">EM MÃOS</span>' : ''}${key}<span class="wicon">${LWEAPONS[k].icon}</span><span class="wname">${LWEAPONS[k].nome}</span><span class="wammo">${rl ? '⟳' : `${a}/${stat(k).mag}`}</span>`;
     }
   }
 
   const isAuto = () => !!LWEAPONS[current()].auto;
   const tabBadge = () => Object.keys(LWEAPONS).filter(k => unlocked(k) && lvl(k) < LW_MAX_LVL && canAfford(cost(k))).length;
 
-  return { fire, hordeTick, refill, onKill, select, cycle, current, isAuto, ammoOf, stat, buildUI, render, tabBadge, projectiles, MUZZLE };
+  return { fire, hordeTick, refill, onKill, select, cycle, current, isAuto, ammoOf, stat, reach, startReload, shotsToKill, buildUI, render, tabBadge, projectiles, MUZZLE };
 })();
