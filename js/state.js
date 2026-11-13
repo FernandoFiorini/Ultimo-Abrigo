@@ -21,7 +21,7 @@ function newState(meta = newMeta(), diff = 'normal') {
     diff,
     res: { comida: 25 + extra, sucata: 15 + extra, municao: 40 + extra, remedio: 0 },
     survivors: 3 + P.veteranos,
-    recruits: 0,     // recrutados pagando comida: só eles encarecem o próximo recrutamento
+    recruits: 0,     // peso de recrutamento: pago conta 1, quem chega de graça conta 0,5
     people,
     traits,
     mods: [],
@@ -92,10 +92,14 @@ const scavGain = () => {
     sucata: Math.max(base, Math.round(S.jobs.coletor * 0.5 * scrapMult() * 5)),
   };
 };
-// Só quem foi recrutado com comida encarece o próximo: rádio, eventos e expedições trazem gente de graça.
-// Limitado ao tamanho do grupo, para o preço cair quando recrutados morrem (saves antigos usam o grupo todo).
+// Cada recrutado com comida encarece o próximo em ×1,3; quem chega de graça (rádio, eventos, expedições)
+// encarece só meio passo (FREE_JOIN_WEIGHT), para essas chegadas continuarem sendo vantagem.
+// Limitado ao tamanho do grupo, para o preço cair quando gente morre (saves antigos usam o grupo todo).
+const FREE_JOIN_WEIGHT = 0.5;
 const recruitCost = () => Math.round(12 * Math.pow(1.3, Math.max(0, Math.min(S.recruits ?? Infinity, S.survivors - 3))));
-const countRecruit = () => { S.recruits = Math.min((S.recruits ?? Math.max(0, S.survivors - 3)) + 1, S.survivors); };
+const bumpRecruit = w => { S.recruits = Math.min((S.recruits ?? Math.max(0, S.survivors - 4)) + w, S.survivors); };
+// Chamado depois de addSurvivor quando a pessoa foi paga com comida: completa o passo inteiro
+const countRecruit = () => bumpRecruit(1 - FREE_JOIN_WEIGHT);
 const waveSize = n => Math.round((6 * D().count * Math.pow(D().grow, n - 1) + n) * (hasMod('horda') ? 1.25 : 1));
 const hopeGain = () => S.best >= EVAC_WAVE ? Math.floor((Math.pow(S.best - 5, 1.25) + S.kills / 200) * D().hope * (1 + modBonus())) : 0;
 // Zumbis ficam mais resistentes e mais fortes a cada onda.
@@ -179,6 +183,7 @@ function personLabel(name) {
 // Toda entrada no grupo passa por aqui, para o novo sobrevivente ganhar um nome (e talvez um talento)
 function addSurvivor() {
   S.survivors++;
+  bumpRecruit(FREE_JOIN_WEIGHT);
   const name = pickName(S.people);
   S.people.push(name);
   const t = rollTrait();

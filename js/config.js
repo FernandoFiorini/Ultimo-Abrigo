@@ -282,7 +282,7 @@ const LWEAPONS = {
                 cost: { sucata: 60 }, desc: 'Fraca, mas nunca gasta munição do abrigo. 5 tiros por pente.' },
   espingarda: { nome: 'Espingarda',      icon: '💥', type: 'bullet', dmg: 0.3,  cd: 0.75, mag: 2,  reload: 2,   use: 2,   range: 70,  pellets: 5, spread: 9, falloff: true, wave: 4,
                 cost: { sucata: 150 }, desc: 'Cinco projéteis em leque, de cano duplo. Devastadora colada no muro, inútil de longe.' },
-  rifle:      { nome: 'Rifle de caça',   icon: '🎯', type: 'bullet', dmg: 1.8,  cd: 1.1,  mag: 5,  reload: 2.6, use: 3,   range: 270, pierce: 2, spread: 0, wave: 6,
+  rifle:      { nome: 'Rifle de caça',   icon: '🎯', type: 'bullet', dmg: 1.35, cd: 1.6,  mag: 5,  reload: 2.6, use: 3,   range: 270, pierce: 2, spread: 0, wave: 6,
                 cost: { sucata: 250, municao: 40 }, desc: 'Tiro pesado e de longo alcance que atravessa os zumbis em fila.' },
   smg:        { nome: 'Submetralhadora', icon: '🔥', type: 'bullet', dmg: 0.18, cd: 0.09, mag: 30, reload: 2.2, use: 0.5, range: 110, spread: 5, auto: true, wave: 9,
                 cost: { sucata: 400, municao: 80 }, desc: 'Segure o clique para despejar balas. Pouco dano por tiro e pente que acaba rápido.' },
