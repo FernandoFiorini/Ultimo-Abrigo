@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Último Abrigo</title>
+  <meta name="description" content="Jogo idle de sobrevivência zumbi feito em JavaScript puro, com cena em pixel art no Canvas e trilha sonora gerada pela Web Audio API.">
+  <meta name="theme-color" content="#0d0f0d">
+  <meta property="og:title" content="Último Abrigo">
+  <meta property="og:description" content="Defenda seu abrigo de hordas de zumbis, pesquise a cura e reconstrua o mundo.">
+  <meta property="og:image" content="assets/screenshot.png">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☣️</text></svg>">
+  <link rel="stylesheet" href="css/style.css?v=1.00.000">
+</head>
+<body>
+  <header>
+    <h1>☣ Último Abrigo</h1>
+    <button id="diff-chip" class="diff-chip" title="Dificuldade (clique para mudar)"></button>
+    <div id="resources" class="resources"></div>
+    <div class="audio-ctl">
+      <button id="snd-music" title="Música">🎵</button>
+      <button id="snd-sfx" title="Efeitos">🔊</button>
+      <input id="snd-vol" type="range" min="0" max="100" title="Volume">
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="left">
+      <div class="stage"><canvas id="scene"></canvas></div>
+
+      <div class="quick">
+        <button id="btn-scavenge" class="primary">🔍 Vasculhar</button>
+        <button id="btn-recruit"></button>
+        <button id="btn-repair"></button>
+      </div>
+
+      <div class="strip">
+        <div class="card"><div id="surv-info" class="info"></div></div>
+        <div class="card" id="defense"></div>
+        <div class="card"><ul id="log" class="log"></ul></div>
+      </div>
+    </div>
+
+    <aside class="side">
+      <nav class="tabs">
+        <button class="tab" data-tab="equipe">👥 Equipe<span class="badge" id="tb-equipe"></span></button>
+        <button class="tab" data-tab="construir">🏗️ Construir<span class="badge" id="tb-construir"></span></button>
+        <button class="tab" data-tab="expedicoes">🎒 Expedições<span class="badge" id="tb-expedicoes"></span></button>
+        <button class="tab" data-tab="pesquisa">🧪 Pesquisa<span class="badge" id="tb-pesquisa"></span></button>
+        <button class="tab" data-tab="mapa">🗺️ Mapa<span class="badge" id="tb-mapa"></span></button>
+        <button class="tab" data-tab="herois">🦸 Heróis<span class="badge" id="tb-herois"></span></button>
+        <button class="tab" data-tab="evacuacao">🚁 Evacuar<span class="badge" id="tb-evacuacao"></span></button>
+        <button class="tab" data-tab="conquistas">🏆 Conquistas<span class="badge" id="tb-conquistas"></span></button>
+        <button class="tab" data-tab="loja">💵 Loja<span class="badge" id="tb-loja"></span></button>
+      </nav>
+
+      <div class="panes">
+        <section class="pane" data-pane="equipe">
+          <div id="jobs"></div>
+        </section>
+
+        <section class="pane" data-pane="construir">
+          <div id="buildings"></div>
+        </section>
+
+        <section class="pane" data-pane="expedicoes">
+          <p class="hint">Mande sobreviventes ociosos atrás de suprimentos. Mais gente traz mais recompensa, mas cada um corre o risco de não voltar.</p>
+          <div id="expeditions"></div>
+          <h3>Em andamento</h3>
+          <div id="exp-active"></div>
+        </section>
+
+        <section class="pane" data-pane="pesquisa">
+          <div id="lab-head" class="card lab-head"></div>
+          <div id="tech"></div>
+          <h3>💉 A Cura</h3>
+          <p class="hint">O objetivo final: 5 etapas de pesquisa. Ao concluir, você pode começar um <b>Novo Mundo</b> e ganhar Legado, um bônus permanente que sobrevive a tudo.</p>
+          <div id="cure"></div>
+        </section>
+
+        <section class="pane" data-pane="mapa">
+          <p class="hint">Mande esquadrões para libertar distritos da cidade. Cada distrito libertado dá um bônus até você evacuar, além de sucata, amostras e chance de armas e heróis. Se o ataque falhar, metade do esquadrão morre.</p>
+          <div id="districts"></div>
+          <h3>Operações em andamento</h3>
+          <div id="ops"></div>
+        </section>
+
+        <section class="pane" data-pane="herois">
+          <div class="ach-head"><span id="hero-count"></span></div>
+          <p class="hint">Heróis são permanentes (ficam mesmo após evacuar). Até 3 ficam ativos, dão bônus e ganham experiência a cada onda. Armas multiplicam o bônus do herói.</p>
+          <div id="heroes"></div>
+          <h3>🗡️ Arsenal</h3>
+          <div id="weapons"></div>
+        </section>
+
+        <section class="pane" data-pane="evacuacao">
+          <p class="hint">Ao sobreviver à onda 10, um helicóptero pode levar o grupo para outra cidade. Você recomeça do zero, mas ganha <b>✨ Esperança</b>: cada ponto dá +3% de produção para sempre e pode ser gasto em melhorias permanentes.</p>
+          <div id="prestige"></div>
+          <div class="actions"><button id="btn-evac" class="primary" data-act="evacuate"></button></div>
+          <div id="perks"></div>
+          <h3>🏅 Recordes (melhor onda)</h3>
+          <div id="records" class="card"></div>
+        </section>
+
+        <section class="pane" data-pane="conquistas">
+          <div class="ach-head">
+            <span id="ach-summary"></span>
+            <button id="btn-claim-all" class="cashbtn" data-act="claimAll"></button>
+          </div>
+          <h3>📅 Desafios da semana</h3>
+          <div id="weekly"></div>
+          <h3>🏆 Conquistas</h3>
+          <p class="hint">Complete desafios para ganhar 💵 cash. O progresso é permanente e continua mesmo depois de evacuar ou de o abrigo cair.</p>
+          <div id="achievements"></div>
+        </section>
+
+        <section class="pane" data-pane="loja">
+          <div class="cash-big">💵 <span id="shop-cash"></span> <small>cash</small></div>
+          <p class="hint">O cash é raro e nunca se perde, nem ao evacuar. Só há duas formas de ganhar: completando <b>🏆 conquistas</b> ou derrotando a <b>👹 Abominação</b> (+5), o zumbi mais forte, que aparece na horda a cada 10 ondas.</p>
+          <div id="shop"></div>
+        </section>
+      </div>
+
+      <footer>
+        <button id="btn-save">Salvar</button>
+        <button id="btn-reset" class="danger">Reiniciar</button>
+        <span id="save-status"></span>
+        <span id="version" class="version"></span>
+      </footer>
+    </aside>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <h2 id="modal-title"></h2>
+      <p id="modal-sub"></p>
+      <div id="diff-list" class="diff-list"></div>
+      <div class="modal-actions"><button id="modal-cancel">Cancelar</button></div>
+    </div>
+  </div>
+
+  <script src="js/config.js?v=1.00.000"></script>
+  <script src="js/state.js?v=1.00.000"></script>
+  <script src="js/achievements.js?v=1.00.000"></script>
+  <script src="js/shop.js?v=1.00.000"></script>
+  <script src="js/combat.js?v=1.00.000"></script>
+  <script src="js/simulation.js?v=1.00.000"></script>
+  <script src="js/progression.js?v=1.00.000"></script>
+  <script src="js/actions.js?v=1.00.000"></script>
+  <script src="js/save.js?v=1.00.000"></script>
+  <script src="js/ui.js?v=1.00.000"></script>
+  <script src="js/endgame.js?v=1.00.000"></script>
+  <script src="js/scene.js?v=1.00.000"></script>
+  <script src="js/audio.js?v=1.00.000"></script>
+  <script src="js/main.js?v=1.00.000"></script>
+</body>
+</html>
