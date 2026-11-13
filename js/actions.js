@@ -23,6 +23,7 @@ const actions = {
     if (hasMod('isolados') || S.survivors >= maxSurv() || S.res.comida < c) return;
     S.res.comida -= c;
     addLog(`🧍 ${addSurvivor()} se juntou ao grupo.`, 'good');
+    countRecruit();
     emit('recruit');
   },
   repair() {
@@ -32,8 +33,9 @@ const actions = {
     S.wallDown = false;
     S.overflow = 0;
   },
-  jobAdd(k) { if (k === 'cientista' && S.jobs.cientista >= Endgame.sciCap()) return; if (idle() > 0) { S.jobs[k]++; emit('assign', { k }); } },
-  jobSub(k) { if (S.jobs[k] > 0) { S.jobs[k]--; emit('unassign', { k }); } },
+  jobAdd(k) { if (k === 'cientista' && S.jobs.cientista >= Endgame.sciCap()) return; if (idle() > 0) { S.jobs[k]++; S.heldIdle = Math.max(0, (S.heldIdle || 0) - 1); emit('assign', { k }); } },
+  // Quem o jogador tira de uma função fica ocioso de propósito: a distribuição automática não mexe nele
+  jobSub(k) { if (S.jobs[k] > 0) { S.jobs[k]--; S.heldIdle = (S.heldIdle || 0) + 1; emit('unassign', { k }); } },
   build(k) {
     const c = buildCost(k);
     if (buildBlocked(k) || !canAfford(c)) return;

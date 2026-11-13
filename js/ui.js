@@ -189,8 +189,11 @@ function render() {
   }
   $('rr-hope').textContent = S.meta.hopeTotal ? `+${Math.round(S.meta.hopeTotal * 3)}% prod.` : '';
 
-  let info = `<b>${S.survivors}</b> / ${maxSurv()} sobreviventes · <b>${idle()}</b> ociosos`;
+  let info = `<b>${S.survivors}</b> / ${maxSurv()} sobreviventes · ${idle() > 0 ? `<b class="idle-warn">${idle()} ocioso(s): dê uma função</b>` : '<b>0</b> ociosos'}`;
   if (away()) info += ` · <b>${away()}</b> em expedição`;
+  if (Endgame.tl('autofuncao')) info += heldIdle() > 0
+    ? `<br>📋 Distribuição automática: os ${heldIdle()} ocioso(s) que você liberou ficam parados até você dar uma função`
+    : `<br>📋 Distribuição automática ativa: quem chega recebe uma função sozinho`;
   if (hurt()) info += ` · <b>${hurt()}</b> ferido(s)` + (treating() ? ` (${treating()} em tratamento)` : '');
   info += `<br>Consumo: ${fmt(home() * foodPer())} comida/s`;
   info += alertsHtml(r, left);
@@ -211,6 +214,8 @@ function render() {
     $('jc-' + k).textContent = S.jobs[k];
     $('ja-' + k).disabled = idle() <= 0;
     $('js-' + k).disabled = S.jobs[k] <= 0;
+    $('js-' + k).title = S.jobs[k] <= 0 ? 'Ninguém nesta função' : 'Tirar uma pessoa desta função (fica ociosa)';
+    $('ja-' + k).title = idle() > 0 ? 'Colocar um ocioso nesta função' : 'Sem ociosos: tire alguém de outra função, recrute ou espere os feridos se recuperarem';
   }
 
   for (const k in BUILD) {
@@ -285,6 +290,7 @@ function render() {
   const affordable = Object.keys(BUILD).filter(k => canAfford(buildCost(k))).length;
   const perkReady = Object.keys(PERKS).some(k => perk(k) < PERKS[k].max && S.meta.hope >= perkCost(k));
   $('tb-equipe').textContent = idle() > 0 ? idle() : '';
+  $('tb-equipe').classList.toggle('idle', idle() > 0);
   $('tb-construir').textContent = affordable || '';
   $('tb-expedicoes').textContent = S.exps.length ? `${S.exps.length} fora` : '';
   $('tb-evacuacao').textContent = hopeGain() || perkReady ? '!' : '';

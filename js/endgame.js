@@ -617,9 +617,11 @@ const Endgame = (() => {
     if (tl('autorecruta') && !hasMod('isolados') && S.survivors < maxSurv() && S.res.comida > recruitCost() * 1.5 + 20 && rates().comida > 0.1) {
       S.res.comida -= recruitCost();
       addLog(`📢 Recrutamento automático: ${addSurvivor()} chegou.`, 'good');
+      countRecruit();
     }
     if (tl('autofuncao')) {
-      for (let guard = 0; idle() > 0 && guard < 60; guard++) {
+      S.heldIdle = heldIdle();
+      for (let guard = 0; idle() > S.heldIdle && guard < 60; guard++) {
         const r = rates();
         let k;
         if (r.comida < 0.2) k = 'forrageiro';
@@ -695,6 +697,7 @@ const Endgame = (() => {
     const sciRow = $('jc-cientista') && $('jc-cientista').closest('.row');
     if (sciRow) sciRow.style.display = S.build.lab ? '' : 'none';
     if ($('ja-cientista')) $('ja-cientista').disabled = idle() <= 0 || S.jobs.cientista >= sciCap();
+    if ($('ja-cientista') && S.jobs.cientista >= sciCap()) $('ja-cientista').title = S.build.lab ? `Vagas de cientista cheias (${sciCap()}): melhore o laboratório ou conquiste distritos` : 'Construa um Laboratório para ter cientistas';
 
     const rpRate = S.jobs.cientista * 0.12 * (1 + 0.25 * Math.max(0, S.build.lab - 1)) * mult('rp');
     $('lab-head').innerHTML = `
@@ -826,7 +829,7 @@ const Endgame = (() => {
     newMetaExtra, mult, accBonus, sciCap, durMult, riskMult, scoutLoot, hb, ab, heroLook, migrateHeroes,
     rollEvent, danger, modifyQueue, hpMultEv, speedMultEv, lootMult, range, event,
     onKill, onWaveEnd, hit, hordeTick, offlineMult, offlineTrap, tick, gainHero, gainWeapon,
-    buildUI, render, count,
+    buildUI, render, count, tl,
   };
 })();
 

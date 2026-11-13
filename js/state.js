@@ -21,6 +21,7 @@ function newState(meta = newMeta(), diff = 'normal') {
     diff,
     res: { comida: 25 + extra, sucata: 15 + extra, municao: 40 + extra, remedio: 0 },
     survivors: 3 + P.veteranos,
+    recruits: 0,     // recrutados pagando comida: só eles encarecem o próximo recrutamento
     people,
     traits,
     mods: [],
@@ -73,6 +74,8 @@ const home = () => S.survivors - away();
 const hurt = () => Math.min((S.injured || []).length, Math.max(0, home()));
 const treating = () => Math.min(S.jobs.medico, hurt());
 const idle = () => S.survivors - assigned() - away() - hurt();
+// Ociosos liberados pelo jogador (a distribuição automática respeita esses)
+const heldIdle = () => Math.min(S.heldIdle || 0, Math.max(0, idle()));
 // Tira gente das funções até sobrar ninguém trabalhando sem existir (depois de mortes e ferimentos)
 function fixJobs() {
   while (idle() < 0) {
@@ -89,7 +92,10 @@ const scavGain = () => {
     sucata: Math.max(base, Math.round(S.jobs.coletor * 0.5 * scrapMult() * 5)),
   };
 };
-const recruitCost = () => Math.round(12 * Math.pow(1.3, Math.max(0, S.survivors - 3)));
+// Só quem foi recrutado com comida encarece o próximo: rádio, eventos e expedições trazem gente de graça.
+// Limitado ao tamanho do grupo, para o preço cair quando recrutados morrem (saves antigos usam o grupo todo).
+const recruitCost = () => Math.round(12 * Math.pow(1.3, Math.max(0, Math.min(S.recruits ?? Infinity, S.survivors - 3))));
+const countRecruit = () => { S.recruits = Math.min((S.recruits ?? Math.max(0, S.survivors - 3)) + 1, S.survivors); };
 const waveSize = n => Math.round((6 * D().count * Math.pow(D().grow, n - 1) + n) * (hasMod('horda') ? 1.25 : 1));
 const hopeGain = () => S.best >= EVAC_WAVE ? Math.floor((Math.pow(S.best - 5, 1.25) + S.kills / 200) * D().hope * (1 + modBonus())) : 0;
 // Zumbis ficam mais resistentes e mais fortes a cada onda.

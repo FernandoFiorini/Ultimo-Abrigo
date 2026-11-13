@@ -151,6 +151,8 @@ h3 { margin: 14px 0 8px; font-size: 13px; text-transform: uppercase; letter-spac
   line-height: 16px;
 }
 .badge:empty { display: none; }
+.badge.idle { background: #c98a1a; animation: pulse 1.2s infinite; }
+.idle-warn { color: #f0b040; }
 .badge.gold { background: #a07c1c; }
 .badge.cash { background: #2f7d4f; }
 
