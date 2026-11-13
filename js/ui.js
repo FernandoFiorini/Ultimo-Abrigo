@@ -209,6 +209,10 @@ function render() {
   $('btn-recruit').disabled = iso || full || S.res.comida < rc;
   $('btn-recruit').title = iso || full ? '' : `Recrutar custa ${exact(rc)} de comida (você tem ${exact(S.res.comida)})`;
 
+  const ji = $('jobs-idle'), nIdle = Math.max(0, idle());
+  ji.classList.toggle('has', nIdle > 0);
+  setHtml(ji, `<span>${nIdle > 0 ? 'Use + para dar uma função' : 'Use − para liberar alguém'}</span>` +
+    `<b>🪑 ${nIdle} ocioso${nIdle === 1 ? '' : 's'}</b>` + (hurt() ? ` <small>· 🤕 ${hurt()} ferido${hurt() === 1 ? '' : 's'}</small>` : ''));
   for (const k in JOBS) {
     $('jc-' + k).textContent = S.jobs[k];
     $('ja-' + k).disabled = idle() <= 0;

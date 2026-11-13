@@ -348,6 +348,11 @@ button.small { padding: 2px 9px; font-weight: 700; }
 .row .desc { font-size: 12px; color: var(--muted); }
 .row .desc.now { color: var(--accent); }
 .row .desc.now:empty { display: none; }
+.jobs-idle { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 6px; padding: 6px 10px; border: 1px solid var(--border, #2a2f2a); border-radius: 8px; background: var(--panel); font-size: 13px; }
+.jobs-idle span { flex: 1; color: var(--muted); font-size: 12px; }
+.jobs-idle small { color: var(--muted); }
+.jobs-idle.has { border-color: #c98a1a; }
+.jobs-idle.has b { color: #f0b040; }
 .row .count { min-width: 20px; text-align: center; font-weight: 700; font-size: 15px; }
 .row .cost { font-size: 12px; color: var(--muted); }
 .row .cost .missing { color: var(--bad); }
