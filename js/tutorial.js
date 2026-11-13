@@ -19,7 +19,7 @@ const Tutorial = (() => {
     { id: 'expedicoes', icon: '🎒', title: 'Expedições', tab: 'expedicoes', when: () => S.best >= 2 && !hasMod('semexp'),
       text: 'Mande sobreviventes ociosos atrás de suprimentos. Mais gente traz mais coisa, mas cada um corre o risco de não voltar.' },
     { id: 'atalhos', icon: '⌨️', title: 'Atalhos de teclado', when: () => S.best >= 3,
-      text: '<kbd>1</kbd>–<kbd>9</kbd> trocam de aba, <kbd>Espaço</kbd> pausa, <kbd>V</kbd> vasculha, <kbd>R</kbd> recruta, <kbd>C</kbd> conserta o muro e <kbd>M</kbd> tira o som. <kbd>H</kbd> mostra todos.' },
+      text: '<kbd>1</kbd>–<kbd>9</kbd> trocam de aba, <kbd>Espaço</kbd> pausa, <kbd>V</kbd> vasculha, <kbd>R</kbd> recruta, <kbd>C</kbd> conserta o muro, <kbd>F</kbd> acelera o dia e <kbd>M</kbd> tira o som. <kbd>H</kbd> mostra todos.' },
     { id: 'backup', icon: '💾', title: 'Guarde seu progresso', when: () => S.best >= 5,
       text: 'O jogo salva sozinho neste navegador. Use <b>Exportar</b>, no rodapé, para guardar um código do save e continuar em outro aparelho.' },
     { id: 'evacuar', icon: '🚁', title: 'Evacuação liberada', tab: 'evacuacao', when: () => S.best >= EVAC_WAVE,
@@ -89,6 +89,7 @@ const SHORTCUTS = [
   ['V', 'Vasculhar'],
   ['R', 'Recrutar'],
   ['C', 'Consertar o muro'],
+  ['F', 'Velocidade 2x de dia (liga / desliga)'],
   ['M', 'Ligar / desligar todo o som'],
   ['O', 'Abrir o comerciante (quando ele estiver no abrigo)'],
   ['H ou ?', 'Mostrar esta lista'],
@@ -135,6 +136,7 @@ function setupKeys() {
       case 'v': if (!e.repeat) click('btn-scavenge'); break;
       case 'r': click('btn-recruit'); break;
       case 'c': click('btn-repair'); break;
+      case 'f': Settings.set('speed2x', !Settings.get('speed2x')); render(); break;
       case 'o': if (S.merchant) Events.openMerchant(); break;
       case 'm': {
         const mb = $('snd-music'), sb = $('snd-sfx');

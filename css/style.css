@@ -515,3 +515,42 @@ table.keys td:first-child { white-space: nowrap; width: 1%; padding-right: 16px;
 .tip-actions button { padding: 4px 10px; font-size: 12px; }
 button.link { background: none; border: none; color: var(--muted); text-decoration: underline; padding: 4px 2px; }
 button.link:hover:not(:disabled) { background: none; color: var(--text); }
+
+/* ---------- 1.02: configurações, velocidade, talentos, memorial ---------- */
+body.cb {
+  --good: #4aa3ff;
+  --bad: #ff8c1a;
+  --warn: #f0e442;
+}
+
+button.speed.active { background: #12324a; border-color: #4aa3ff; color: #bfe0ff; }
+
+#dialog-body h3:first-child { margin-top: 0; }
+.opt { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; font-size: 13px; }
+.opt input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); flex: 0 0 auto; }
+.opt span { display: flex; flex-direction: column; gap: 1px; }
+.opt small { color: var(--muted); font-size: 11.5px; }
+.opt.range span { flex: 0 0 140px; }
+.opt.range input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.opt.range output { width: 40px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.opt-label { margin: 10px 0 6px; font-size: 13px; font-weight: 700; }
+.segs { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg { cursor: pointer; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: inline-block; padding: 6px 12px; font-size: 13px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2); }
+.seg input:checked + span { border-color: var(--accent); background: var(--accent-dim); color: #fff; font-weight: 700; }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.person.gifted { border-color: #6a5a1c; }
+.traits-sum { margin-top: 8px; }
+.memorial { list-style: none; margin: 0; padding: 0; font-size: 12px; max-height: 240px; overflow-y: auto; }
+.memorial li { padding: 4px 0; border-bottom: 1px solid var(--border); color: var(--muted); }
+.memorial li b { color: var(--text); }
+.memorial li span { display: block; font-size: 11px; opacity: 0.75; }
+.memorial li.more { border-bottom: none; font-style: italic; }
+#fallen-count { color: var(--muted); font-weight: 400; }
+
+@media (max-width: 600px) {
+  .opt.range { flex-wrap: wrap; }
+  .opt.range span { flex-basis: 100%; }
+}

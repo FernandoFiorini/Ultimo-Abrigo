@@ -5,17 +5,20 @@ let S;
 function newMeta() {
   const perks = {};
   for (const k in PERKS) perks[k] = 0;
-  return { hope: 0, hopeTotal: 0, city: 1, perks, cash: 0, boosts: { prod: 0, furia: 0 }, stats: newStats(), ach: {}, tutorial: {}, ...Endgame.newMetaExtra() };
+  return { hope: 0, hopeTotal: 0, city: 1, perks, cash: 0, boosts: { prod: 0, furia: 0 }, stats: newStats(), ach: {}, tutorial: {}, memorial: [], fallen: 0, ...Endgame.newMetaExtra() };
 }
 
 function newState(meta = newMeta(), diff = 'normal') {
   const P = meta.perks, extra = P.estoque * 40;
+  const people = makeNames(3 + P.veteranos), traits = {};
+  for (const n of people) { const t = rollTrait(); if (t) traits[n] = t; }
   return {
     meta,
     diff,
     res: { comida: 25 + extra, sucata: 15 + extra, municao: 30 + extra, remedio: 0 },
     survivors: 3 + P.veteranos,
-    people: makeNames(3 + P.veteranos),
+    people,
+    traits,
     mods: [],
     jobs: { forrageiro: 1, coletor: 1, armeiro: 0, guarda: 1, medico: 0, cientista: 0 },
     build: { muro: 0, horta: 0, oficina: 0, beliche: 0, torre: 0, radio: 0, lab: 0 },
@@ -46,11 +49,11 @@ const hopeMult = () => 1 + 0.03 * S.meta.hopeTotal;
 const boostMult = () => S.meta.boosts.prod > 0 ? 2 : 1;
 const prodMult = () => boostMult() * D().prod * Endgame.mult('prod');
 const furia = () => S.meta.boosts.furia > 0;
-const foodMult = () => (1 + 0.25 * S.build.horta) * (1 + 0.15 * perk('agricultura')) * hopeMult() * prodMult() * Endgame.mult('food');
-const scrapMult = () => (1 + 0.25 * S.build.oficina) * (1 + 0.15 * perk('sucateiros')) * hopeMult() * prodMult() * Endgame.mult('scrap');
+const foodMult = () => (1 + 0.25 * S.build.horta) * (1 + 0.15 * perk('agricultura')) * hopeMult() * prodMult() * Endgame.mult('food') * traitMult('verde');
+const scrapMult = () => (1 + 0.25 * S.build.oficina) * (1 + 0.15 * perk('sucateiros')) * hopeMult() * prodMult() * Endgame.mult('scrap') * traitMult('jeito');
 const fireMult = () => (1 + 0.12 * perk('treino')) * (furia() ? 2 : 1) * Endgame.mult('fire');
 const maxSurv = () => 4 + S.build.beliche * 2 + perk('veteranos');
-const maxWall = () => Math.round((100 + S.build.muro * 50) * (1 + 0.2 * perk('engenharia')) * Endgame.mult('wall') * (hasMod('murofraco') ? 0.6 : 1));
+const maxWall = () => Math.round((100 + S.build.muro * 50) * (1 + 0.2 * perk('engenharia')) * Endgame.mult('wall') * (hasMod('murofraco') ? 0.6 : 1) * traitMult('forca'));
 const assigned = () => Object.values(S.jobs).reduce((a, b) => a + b, 0);
 const away = () => S.exps.reduce((a, e) => a + e.n, 0) + S.ops.reduce((a, o) => a + o.n, 0);
 const home = () => S.survivors - away();
@@ -118,26 +121,70 @@ function joinNames(list) {
   if (list.length <= 1) return list[0] || '';
   return list.slice(0, -1).join(', ') + ' e ' + list[list.length - 1];
 }
-// Toda entrada no grupo passa por aqui, para o novo sobrevivente ganhar um nome
+// ---------- talentos ----------
+const rollTrait = () => Math.random() < TRAIT_CHANCE ? Object.keys(TRAITS)[Math.floor(Math.random() * Object.keys(TRAITS).length)] : null;
+let traitCache = null, traitCacheS = null;
+function traitCounts() {
+  if (traitCache && traitCacheS === S) return traitCache;
+  const c = {};
+  if (S && S.traits) for (const n of S.people) { const t = S.traits[n]; if (t) c[t] = (c[t] || 0) + 1; }
+  traitCache = c; traitCacheS = S;
+  return c;
+}
+const traitMult = k => (typeof S === 'undefined' || !S) ? 1 : 1 + TRAITS[k].v * Math.min(TRAIT_CAP, traitCounts()[k] || 0);
+const traitsChanged = () => { traitCache = null; };
+// "Ana (🎯 Boa mira)" para quem tem talento
+function personLabel(name) {
+  const t = S.traits && TRAITS[S.traits[name]];
+  return t ? `${name} (${t.icon} ${t.nome})` : name;
+}
+
+// Toda entrada no grupo passa por aqui, para o novo sobrevivente ganhar um nome (e talvez um talento)
 function addSurvivor() {
   S.survivors++;
   const name = pickName(S.people);
   S.people.push(name);
-  return name;
+  const t = rollTrait();
+  if (t) S.traits[name] = t;
+  traitsChanged();
+  return personLabel(name);
 }
-// Remove n sobreviventes do grupo e devolve os nomes de quem saiu
-function removeSurvivors(n) {
+// Tira uma pessoa específica da lista de nomes (e o talento dela)
+function forgetPerson(name) {
+  const i = S.people.indexOf(name);
+  if (i >= 0) S.people.splice(i, 1);
+  if (!S.people.includes(name)) delete S.traits[name];
+  traitsChanged();
+  S.wallHp = Math.min(S.wallHp, maxWall());
+}
+// Remove n sobreviventes do grupo e devolve os nomes de quem saiu.
+// Com uma causa, quem saiu vai para o memorial.
+function removeSurvivors(n, cause) {
   const out = [];
   for (let i = 0; i < n && S.survivors > 0; i++) {
     S.survivors--;
-    if (S.people.length) out.push(S.people.splice(Math.floor(Math.random() * S.people.length), 1)[0]);
+    if (S.people.length) {
+      const name = S.people[Math.floor(Math.random() * S.people.length)];
+      forgetPerson(name);
+      out.push(name);
+      if (cause) remember(name, cause);
+    } else if (cause) S.meta.fallen = (S.meta.fallen || 0) + 1;
   }
   syncPeople();
   return out;
 }
+function remember(name, cause) {
+  const m = S.meta;
+  m.fallen = (m.fallen || 0) + 1;
+  if (!Array.isArray(m.memorial)) m.memorial = [];
+  m.memorial.unshift({ n: name, c: cause, w: S.horde.active ? S.horde.n : S.wave, city: m.city, world: m.worlds || 1 });
+  if (m.memorial.length > MEMORIAL_MAX) m.memorial.length = MEMORIAL_MAX;
+}
 // Garante que a lista de nomes acompanhe a contagem (saves antigos e mudanças diretas em S.survivors)
 function syncPeople() {
   if (!Array.isArray(S.people)) S.people = [];
+  if (!S.traits || typeof S.traits !== 'object') S.traits = {};
+  traitsChanged();
   while (S.people.length < S.survivors) S.people.push(pickName(S.people));
   if (S.people.length > Math.max(0, S.survivors)) S.people.length = Math.max(0, S.survivors);
 }

@@ -2,10 +2,7 @@
 
 // Música e efeitos sonoros gerados na hora com a Web Audio API (sem arquivos de áudio).
 const Sound = (() => {
-  const PREF_KEY = 'ultimoAbrigo.audio';
-  const prefs = { music: true, sfx: true, vol: 0.7 };
-  try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREF_KEY) || '{}')); } catch (e) { /* sem armazenamento */ }
-  const savePrefs = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch (e) { /* sem armazenamento */ } };
+  const P = k => Settings.get(k);
 
   let ac = null, master, musicBus, sfxBus, musicVerb, sfxVerb, noiseBuf;
   const moodGain = {};
@@ -36,11 +33,11 @@ const Sound = (() => {
 
     const comp = ac.createDynamicsCompressor();
     comp.threshold.value = -14; comp.ratio.value = 4;
-    master = ac.createGain(); master.gain.value = prefs.vol;
+    master = ac.createGain(); master.gain.value = P('vol');
     comp.connect(master); master.connect(ac.destination);
 
-    musicBus = ac.createGain(); musicBus.gain.value = prefs.music ? 0.5 : 0; musicBus.connect(comp);
-    sfxBus = ac.createGain(); sfxBus.gain.value = prefs.sfx ? 1 : 0; sfxBus.connect(comp);
+    musicBus = ac.createGain(); musicBus.gain.value = P('music') ? 0.5 * P('musicVol') : 0; musicBus.connect(comp);
+    sfxBus = ac.createGain(); sfxBus.gain.value = P('sfx') ? P('sfxVol') : 0; sfxBus.connect(comp);
 
     musicVerb = ac.createConvolver(); musicVerb.buffer = impulse(3, 2.5);
     const mv = ac.createGain(); mv.gain.value = 0.4; musicVerb.connect(mv); mv.connect(musicBus);
@@ -120,7 +117,7 @@ const Sound = (() => {
 
   // Evita sobrecarga quando muitos sons acontecem juntos
   function allow(name, gap) {
-    if (!ac || ac.state !== 'running' || !prefs.sfx || voices > 48) return false;
+    if (!ac || ac.state !== 'running' || !P('sfx') || voices > 48) return false;
     const now = ac.currentTime;
     if (last[name] && now - last[name] < gap) return false;
     last[name] = now;
@@ -399,7 +396,7 @@ const Sound = (() => {
   }
 
   function ambient(dt) {
-    if (!ac || ac.state !== 'running' || !prefs.sfx || typeof S === 'undefined') return;
+    if (!ac || ac.state !== 'running' || !P('sfx') || typeof S === 'undefined') return;
     const H = S.horde;
     ambientT -= dt;
     if (ambientT <= 0) {
@@ -427,18 +424,66 @@ const Sound = (() => {
     if (Math.random() < dt * 1.5) noise({ type: 'highpass', f: 3000, d: 0.015, vol: 0.02, pan: -0.5 });
   }
 
+  // ======================= MÚSICA =======================
+  // Cada estilo tem uma trilha de dia e uma de noite, tocadas em passos de semicolcheia.
+  // v(o) toca uma nota no barramento do clima atual; o eco é feito repetindo a nota mais baixa.
+  const mv = (m, t) => o => tone({ bus: 'music', mood: m, t, ...o });
+  const mn = (m, t) => o => noise({ bus: 'music', mood: m, t, ...o });
+
+  // ---------- Clássica (a trilha original) ----------
+  const CL_DAY = { bpm: 76, chords: [[57, 60, 64], [57, 60, 65], [55, 60, 64], [55, 59, 62]], bass: [45, 41, 48, 43], penta: [69, 72, 74, 76, 79, 81] };
+  const CL_NIGHT = { bpm: 132, chords: [[62, 65, 69], [62, 65, 69], [58, 62, 65], [57, 61, 64]], bass: [38, 38, 34, 33] };
+
+  function classicDay(s, t) {
+    const D = CL_DAY, i = bar % 4, chord = D.chords[i], barLen = stepDur() * 16, v = mv('day', t);
+    if (s === 0) {
+      for (const n of chord) {
+        v({ type: 'triangle', f: mtof(n), a: 1.2, hold: barLen - 1.2, d: 1.5, vol: 0.022, filter: { f: 1300 }, send: 0.6 });
+        v({ type: 'sine', f: mtof(n), a: 1.2, hold: barLen - 1.2, d: 1.5, vol: 0.02, detune: 7, send: 0.6 });
+      }
+    }
+    if (s === 0 || s === 8) v({ type: 'sine', f: mtof(D.bass[i]), a: 0.03, d: 1.3, vol: 0.11 });
+    if ([0, 3, 6, 8, 11, 14].includes(s) && Math.random() < 0.75) {
+      const note = Math.random() < 0.7 ? pick(chord) + 12 : pick(D.penta);
+      v({ type: 'triangle', f: mtof(note), a: 0.005, d: 0.9, vol: 0.045, send: 0.6, pan: rand(-0.4, 0.4) });
+      if (Math.random() < 0.12) v({ type: 'sine', f: mtof(note + 12), a: 0.005, d: 1.4, vol: 0.02, send: 0.8 });
+    }
+  }
+
+  function classicNight(s, t) {
+    const N = CL_NIGHT, i = bar % 4, chord = N.chords[i], root = N.bass[i], barLen = stepDur() * 16, v = mv('night', t), nz = mn('night', t);
+    if (s === 0) {
+      for (const n of chord) v({ type: 'sawtooth', f: mtof(n - 12), a: 0.4, hold: barLen - 0.4, d: 0.6, vol: 0.016, filter: { f: 750 }, send: 0.3 });
+      if (bar % 4 === 0) nz({ type: 'highpass', f: 5000, d: 1.3, vol: 0.05 });
+    }
+    if (s % 2 === 0 || (s >= 14 && Math.random() < 0.5))
+      v({ type: 'sawtooth', f: mtof(root), a: 0.005, d: 0.14, vol: s === 0 ? 0.11 : 0.075, filter: { f: 380, q: 3 } });
+    if ([0, 6, 8, 11].includes(s)) v({ type: 'sine', f: 125, f2: 42, a: 0.002, d: 0.24, vol: 0.4 });
+    if (s === 4 || s === 12) {
+      nz({ type: 'bandpass', f: 1800, d: 0.15, vol: 0.14, send: 0.2 });
+      v({ type: 'triangle', f: 190, f2: 120, d: 0.08, vol: 0.08 });
+    }
+    nz({ type: 'highpass', f: 7500, d: 0.035, vol: s % 2 ? 0.02 : 0.035 });
+    if (bossOnScreen() && (s === 2 || s === 10 || s === 14)) v({ type: 'sine', f: 95, f2: 55, a: 0.003, d: 0.35, vol: 0.3, send: 0.4 });
+    if ([0, 3, 6, 8, 11, 14].includes(s)) {
+      const n = chord[(s / 2 | 0) % 3] + 12;
+      v({ type: 'sawtooth', f: mtof(n), a: 0.005, d: 0.13, vol: 0.026, filter: { f: 2400 }, pan: s % 2 ? 0.3 : -0.3 });
+    }
+  }
+
+  // ---------- Synthwave ----------
   // Dia: synthwave calmo (Am9 – Fmaj7 – Cadd9 – G6), com pads de serra desafinados,
   // baixo pulsando em oitavas, arpejo com eco e bateria eletrônica suave
-  const DAY = {
+  const SW_DAY = {
     bpm: 84,
     chords: [[57, 60, 64, 71], [53, 57, 60, 64], [55, 60, 62, 64], [55, 59, 62, 64]],
     bass: [33, 29, 36, 31],
     arp: [[69, 72, 76, 79], [65, 69, 72, 76], [67, 72, 74, 76], [67, 71, 74, 79]],
     penta: [76, 79, 81, 84, 86, 88],
   };
-  // Noite: darksynth (a vertente sombria do synthwave) em Ré menor: Dm – Dm – B♭ – A,
-  // baixo em semicolcheias, bumbo marcando os 4 tempos, arpejo rápido e lead de serra
-  const NIGHT = {
+  // Noite: darksynth em Ré menor (Dm – Dm – B♭ – A), baixo em semicolcheias,
+  // bumbo nos 4 tempos, arpejo rápido e lead de serra
+  const SW_NIGHT = {
     bpm: 116,
     chords: [[62, 65, 69, 74], [62, 65, 69, 72], [58, 62, 65, 69], [57, 61, 64, 69]],
     bass: [38, 38, 34, 33],
@@ -446,8 +491,168 @@ const Sound = (() => {
     lead: [[74, 72, 69, 72], [74, 77, 76, 72], [70, 69, 65, 69], [69, 68, 69, 73]],
   };
 
+  function synthDay(s, t) {
+    const D = SW_DAY, i = bar % 4, chord = D.chords[i], barLen = stepDur() * 16, sd = stepDur(), v = mv('day', t), nz = mn('day', t);
+    // 16 compassos: entrada só com pad, depois arpejo, baixo e bateria; os 2 últimos respiram sem bateria
+    const sec = bar % 16, drums = bar >= 4 && sec < 14, lead = bar >= 8 && sec >= 4 && sec < 12;
+    if (s === 0) {
+      for (const n of chord) {
+        v({ type: 'sawtooth', f: mtof(n), a: 1.4, hold: barLen - 1.2, d: 1.6, vol: 0.016, detune: -11, filter: { f: 1100, q: 0.5 }, send: 0.8, pan: -0.35 });
+        v({ type: 'sawtooth', f: mtof(n), a: 1.4, hold: barLen - 1.2, d: 1.6, vol: 0.016, detune: 11, filter: { f: 1100, q: 0.5 }, send: 0.8, pan: 0.35 });
+      }
+      v({ type: 'sine', f: mtof(chord[0] - 12), a: 1.5, hold: barLen - 1.2, d: 1.6, vol: 0.03, send: 0.5 });
+    }
+    if (bar < 2) return;
+    const arp = D.arp[i];
+    const note = arp[[0, 1, 2, 3, 2, 1, 2, 3][s % 8]] + (s >= 8 && bar % 2 ? 12 : 0);
+    const pan = s % 2 ? 0.3 : -0.3;
+    v({ type: 'square', f: mtof(note), a: 0.004, d: 0.18, vol: 0.022, filter: { f: 2200, q: 2 }, send: 0.5, pan });
+    v({ type: 'square', f: mtof(note), a: 0.004, d: 0.18, vol: 0.009, filter: { f: 1600, q: 2 }, send: 0.7, pan: -pan, t: t + sd * 3 });
+    if (bar < 4) return;
+    if (s % 2 === 0) {
+      const root = D.bass[i] + (s % 4 === 2 ? 12 : 0);
+      v({ type: 'sawtooth', f: mtof(root), a: 0.005, d: sd * 1.6, vol: s % 4 ? 0.05 : 0.07, filter: { f: 420, q: 4 } });
+    }
+    if (drums) {
+      if (s === 0 || s === 8) v({ type: 'sine', f: 110, f2: 40, a: 0.002, d: 0.3, vol: 0.22 });
+      if (s === 4 || s === 12) {
+        nz({ type: 'bandpass', f: 1700, q: 0.7, d: 0.22, vol: 0.07, send: 1 });
+        v({ type: 'triangle', f: 200, f2: 150, d: 0.1, vol: 0.05, send: 0.6 });
+      }
+      if (s % 4 === 2) nz({ type: 'highpass', f: 8000, d: 0.04, vol: 0.022, pan: 0.2 });
+    }
+    if (lead && [0, 6, 10].includes(s) && Math.random() < 0.7) {
+      const n = Math.random() < 0.6 ? pick(chord) + 24 : pick(D.penta);
+      if (n < 92) {
+        v({ type: 'sawtooth', f: mtof(n), a: 0.06, hold: sd * 3, d: 1.2, vol: 0.014, detune: 6, filter: { f: 2600, q: 1 }, send: 0.9 });
+        v({ type: 'triangle', f: mtof(n), a: 0.06, hold: sd * 3, d: 1.2, vol: 0.02, send: 0.9 });
+      }
+    }
+  }
+
+  function synthNight(s, t) {
+    const N = SW_NIGHT, i = bar % 4, chord = N.chords[i], root = N.bass[i], barLen = stepDur() * 16, sd = stepDur(), v = mv('night', t), nz = mn('night', t);
+    // a horda chega de uma vez: baixo e bumbo desde o início; arpejo a partir do 2º compasso, lead a partir do 5º
+    const sec = bar % 16, leadOn = bar >= 4 && sec >= 4 && sec < 12, fill = sec === 15;
+    if (s === 0) {
+      for (const n of chord) {
+        v({ type: 'sawtooth', f: mtof(n - 12), a: 0.5, hold: barLen - 0.5, d: 0.7, vol: 0.013, detune: -12, filter: { f: 750, q: 0.7 }, send: 0.5, pan: -0.4 });
+        v({ type: 'sawtooth', f: mtof(n - 12), a: 0.5, hold: barLen - 0.5, d: 0.7, vol: 0.013, detune: 12, filter: { f: 750, q: 0.7 }, send: 0.5, pan: 0.4 });
+      }
+      if (bar % 4 === 3) nz({ type: 'bandpass', f: 400, f2: 6000, q: 1.5, a: barLen * 0.8, d: 0.2, vol: 0.05, send: 0.4 });
+    }
+    const oct = [0, 0, 12, 0, 0, 12, 0, 12][s % 8];
+    v({ type: 'sawtooth', f: mtof(root + oct), a: 0.003, d: sd * 0.9, vol: s % 4 === 0 ? 0.085 : 0.06, filter: { f: 520, q: 5 } });
+    if (s % 4 === 0) v({ type: 'sine', f: mtof(root - 12), a: 0.003, d: sd * 3, vol: 0.09 });
+    if (s % 4 === 0) v({ type: 'sine', f: 140, f2: 42, a: 0.002, d: 0.22, vol: 0.38 });
+    if (s === 4 || s === 12 || (fill && s >= 12)) {
+      nz({ type: 'bandpass', f: 1600, q: 0.7, d: 0.2, vol: fill && s > 12 ? 0.08 : 0.13, send: 0.9 });
+      v({ type: 'triangle', f: 210, f2: 150, d: 0.09, vol: 0.08, send: 0.5 });
+    }
+    nz({ type: 'highpass', f: 8000, d: s % 4 === 2 ? 0.06 : 0.03, vol: s % 4 === 2 ? 0.035 : 0.018, pan: 0.25 });
+    if (bar >= 1) {
+      const arp = N.arp[i];
+      const n = arp[[0, 1, 2, 3, 2, 1, 2, 3][s % 8]] + (bar % 2 ? 12 : 0);
+      const pan = s % 2 ? 0.35 : -0.35;
+      v({ type: 'square', f: mtof(n), a: 0.003, d: 0.11, vol: 0.02, filter: { f: 2600, q: 3 }, send: 0.3, pan });
+      v({ type: 'square', f: mtof(n), a: 0.003, d: 0.11, vol: 0.008, filter: { f: 1800, q: 2 }, send: 0.5, pan: -pan, t: t + sd * 3 });
+    }
+    if (leadOn && [0, 3, 6, 10].includes(s)) {
+      const n = N.lead[i][[0, 3, 6, 10].indexOf(s)];
+      v({ type: 'sawtooth', f: mtof(n), a: 0.01, hold: sd * 1.5, d: 0.35, vol: 0.022, detune: -7, filter: { f: 2400, q: 2 }, send: 0.6 });
+      v({ type: 'sawtooth', f: mtof(n), a: 0.01, hold: sd * 1.5, d: 0.35, vol: 0.022, detune: 7, filter: { f: 2400, q: 2 }, send: 0.6 });
+    }
+    if (bossOnScreen() && (s === 0 || s === 8)) {
+      v({ type: 'sawtooth', f: mtof(root - 12), a: 0.05, hold: sd * 4, d: 0.6, vol: 0.06, filter: { f: 380, q: 6 }, send: 0.5 });
+      v({ type: 'sawtooth', f: mtof(root - 5), a: 0.05, hold: sd * 4, d: 0.6, vol: 0.04, filter: { f: 380, q: 6 }, send: 0.5 });
+    }
+  }
+
+  // ---------- Terror ----------
+  // Dia: drone grave, vento e uma caixinha de música desafinada com notas cromáticas.
+  // Noite: batidas industriais, coração acelerado, cordas em trêmulo com segundas menores e metais graves.
+  const TR_DAY = {
+    bpm: 66,
+    drone: [33, 33, 32, 33],                           // Lá grave, com um Sol# que incomoda
+    box: [[81, 84, 83, 80, 81, 76, 77, 75], [81, 84, 83, 80, 81, 76, 72, 71],
+          [77, 80, 79, 76, 77, 72, 73, 71], [76, 80, 81, 83, 84, 83, 80, 76]],
+  };
+  const TR_NIGHT = {
+    bpm: 100,
+    root: [38, 38, 37, 39],                            // Ré, Ré, Dó#, Ré#: a tonalidade não se firma
+    trem: [[74, 75], [74, 75], [73, 74], [75, 76]],    // segundas menores em trêmulo
+  };
+
+  // som de caixinha de música: fundamental + um parcial metálico, com cauda longa
+  function musicBox(v, f, vol, detune = 0, pan = 0, at) {
+    const when = at ? { t: at } : {};
+    v({ type: 'sine', f, a: 0.002, d: 1.6, vol, detune, send: 0.9, pan, ...when });
+    v({ type: 'sine', f: f * 2.76, a: 0.002, d: 0.5, vol: vol * 0.35, detune, send: 0.9, pan, ...when });
+  }
+
+  function terrorDay(s, t) {
+    const D = TR_DAY, i = bar % 4, barLen = stepDur() * 16, sd = stepDur(), v = mv('day', t), nz = mn('day', t);
+    // drone que muda devagar, a cada compasso
+    if (s === 0) {
+      const r = D.drone[i];
+      v({ type: 'sine', f: mtof(r), a: 1.8, hold: barLen - 1.4, d: 1.8, vol: 0.06, send: 0.4 });
+      v({ type: 'sine', f: mtof(r + 7), a: 2, hold: barLen - 1.6, d: 1.8, vol: 0.025, detune: 9, send: 0.6 });
+      v({ type: 'sawtooth', f: mtof(r + 12), a: 2, hold: barLen - 1.6, d: 2, vol: 0.008, filter: { f: 320, q: 2 }, send: 0.7 });
+      // vento
+      if (bar % 2 === 0) nz({ type: 'lowpass', f: 700, f2: 250, q: 3, a: 2, d: barLen, vol: 0.035, pan: rand(-0.5, 0.5), send: 0.5 });
+      // estrondo distante a cada 4 compassos
+      if (bar >= 4 && bar % 4 === 0) v({ type: 'sine', f: 60, f2: 28, a: 0.01, d: 2.2, vol: 0.14, send: 0.9 });
+    }
+    // caixinha de música em colcheias, sempre um pouco desafinada; às vezes pula notas
+    if (bar >= 2 && s % 2 === 0 && Math.random() < 0.85) {
+      const n = D.box[i][s / 2];
+      const wobble = Math.sin(bar * 1.7 + s) * 18;  // a "corda" da caixinha perdendo afinação
+      musicBox(v, mtof(n), 0.035, wobble, rand(-0.3, 0.3));
+      // eco fantasma, uma oitava abaixo
+      if (Math.random() < 0.25) musicBox(v, mtof(n - 12), 0.012, wobble - 30, rand(-0.6, 0.6), t + sd * 3);
+    }
+  }
+
+  function terrorNight(s, t) {
+    const N = TR_NIGHT, i = bar % 4, root = N.root[i], sd = stepDur(), v = mv('night', t), nz = mn('night', t);
+    // coração acelerado: "tum-tum" duas vezes por compasso
+    if (s === 0 || s === 8) v({ type: 'sine', f: 75, f2: 38, a: 0.003, d: 0.2, vol: 0.4 });
+    if (s === 3 || s === 11) v({ type: 'sine', f: 68, f2: 36, a: 0.003, d: 0.18, vol: 0.28 });
+    // pancadas metálicas industriais no 2 e no 4
+    if (s === 4 || s === 12) {
+      nz({ type: 'bandpass', f: 3200, q: 9, d: 0.35, vol: 0.12, send: 0.8 });
+      v({ type: 'square', f: 420, f2: 260, d: 0.1, vol: 0.025, filter: { f: 1500, q: 3 } });
+      nz({ type: 'lowpass', f: 900, d: 0.12, vol: 0.08 });
+    }
+    // engrenagem: estalos secos nas semicolcheias ímpares
+    if (s % 2) nz({ type: 'highpass', f: 6000, d: 0.02, vol: 0.014, pan: s % 4 === 1 ? -0.4 : 0.4 });
+    // cordas em trêmulo alternando um semitom
+    if (bar >= 1) {
+      const [a, b] = N.trem[i];
+      v({ type: 'sawtooth', f: mtof(s % 2 ? b : a), a: 0.01, d: sd * 0.9, vol: 0.014, filter: { f: 1900, q: 1.5 }, send: 0.5, pan: s % 2 ? 0.3 : -0.3 });
+    }
+    // metais graves com trítono a cada 2 compassos
+    if (s === 0 && bar % 2 === 0) {
+      v({ type: 'sawtooth', f: mtof(root - 12), a: 0.08, hold: sd * 8, d: 1, vol: 0.05, filter: { f: 420, q: 6 }, send: 0.6 });
+      v({ type: 'sawtooth', f: mtof(root - 6), a: 0.08, hold: sd * 8, d: 1, vol: 0.035, filter: { f: 420, q: 6 }, send: 0.6 });
+    }
+    // a caixinha de música do dia volta, distorcida, por cima do caos
+    if (bar >= 4 && (s === 2 || s === 10) && Math.random() < 0.6)
+      musicBox(v, mtof(pick(TR_DAY.box[i]) + (Math.random() < 0.5 ? 0 : -12)), 0.022, -45, rand(-0.5, 0.5));
+    if (bossOnScreen() && (s === 2 || s === 6 || s === 10 || s === 14)) v({ type: 'sine', f: 95, f2: 50, a: 0.003, d: 0.35, vol: 0.28, send: 0.4 });
+  }
+
+  const STYLES = {
+    classic: { day: CL_DAY, night: CL_NIGHT, dayStep: classicDay, nightStep: classicNight },
+    synth:   { day: SW_DAY, night: SW_NIGHT, dayStep: synthDay, nightStep: synthNight },
+    terror:  { day: TR_DAY, night: TR_NIGHT, dayStep: terrorDay, nightStep: terrorNight },
+  };
+  let styleKey = null;
+  const style = () => STYLES[P('musicStyle')] || STYLES.synth;
+  const bossOnScreen = () => typeof S !== 'undefined' && S.horde.zs && S.horde.zs.some(z => ZTYPES[z.type].boss);
+
   const currentMood = () => (typeof S !== 'undefined' && S.horde && S.horde.active) ? 'night' : 'day';
-  const stepDur = () => 60 / (mood === 'day' ? DAY.bpm : NIGHT.bpm) / 4;
+  const stepDur = () => 60 / (mood === 'day' ? style().day.bpm : style().night.bpm) / 4;
 
   function setMood(m) {
     if (m === mood) return;
@@ -465,134 +670,29 @@ const Sound = (() => {
   function scheduler() {
     if (!ac || ac.state !== 'running') return;
     setMood(currentMood());
+    // trocar de estilo recomeça a trilha do começo
+    if (styleKey !== P('musicStyle')) { styleKey = P('musicStyle'); step = 0; bar = 0; nextTime = ac.currentTime + 0.3; }
     ambient(0.025);
     if (nextTime < ac.currentTime - 0.5) nextTime = ac.currentTime + 0.05;
+    const st = style();
     while (nextTime < ac.currentTime + 0.15) {
-      if (mood === 'day') dayStep(step % 16, nextTime); else nightStep(step % 16, nextTime);
+      if (mood === 'day') st.dayStep(step % 16, nextTime); else st.nightStep(step % 16, nextTime);
       nextTime += stepDur();
       step++;
       if (step % 16 === 0) bar++;
     }
   }
 
-  function dayStep(s, t) {
-    const i = bar % 4, chord = DAY.chords[i], barLen = stepDur() * 16, sd = stepDur(), m = 'day';
-    // estrutura de 16 compassos: entrada só com pad, depois arpejo, baixo e bateria; os 2 últimos respiram sem bateria
-    const sec = bar % 16, intro = bar < 2, drums = bar >= 4 && sec < 14, lead = bar >= 8 && sec >= 4 && sec < 12;
-    const v = (o) => tone({ bus: 'music', mood: m, t, ...o });
-
-    // pad: duas serras desafinadas por nota, filtro fechado e muito reverb
-    if (s === 0) {
-      for (const n of chord) {
-        v({ type: 'sawtooth', f: mtof(n), a: 1.4, hold: barLen - 1.2, d: 1.6, vol: 0.016, detune: -11, filter: { f: 1100, q: 0.5 }, send: 0.8, pan: -0.35 });
-        v({ type: 'sawtooth', f: mtof(n), a: 1.4, hold: barLen - 1.2, d: 1.6, vol: 0.016, detune: 11, filter: { f: 1100, q: 0.5 }, send: 0.8, pan: 0.35 });
-      }
-      v({ type: 'sine', f: mtof(chord[0] - 12), a: 1.5, hold: barLen - 1.2, d: 1.6, vol: 0.03, send: 0.5 });
-    }
-
-    if (intro) return;
-
-    // arpejo em semicolcheias com eco de colcheia pontuada
-    const arp = DAY.arp[i];
-    const note = arp[[0, 1, 2, 3, 2, 1, 2, 3][s % 8]] + (s >= 8 && bar % 2 ? 12 : 0);
-    const pan = s % 2 ? 0.3 : -0.3;
-    v({ type: 'square', f: mtof(note), a: 0.004, d: 0.18, vol: 0.022, filter: { f: 2200, q: 2 }, send: 0.5, pan });
-    v({ type: 'square', f: mtof(note), a: 0.004, d: 0.18, vol: 0.009, filter: { f: 1600, q: 2 }, send: 0.7, pan: -pan, t: t + sd * 3 });
-
-    if (bar < 4) return;
-
-    // baixo pulsante: colcheias alternando a fundamental e a oitava
-    if (s % 2 === 0) {
-      const root = DAY.bass[i] + (s % 4 === 2 ? 12 : 0);
-      v({ type: 'sawtooth', f: mtof(root), a: 0.005, d: sd * 1.6, vol: s % 4 ? 0.05 : 0.07, filter: { f: 420, q: 4 } });
-    }
-
-    if (drums) {
-      // bumbo macio no 1 e no 3
-      if (s === 0 || s === 8) v({ type: 'sine', f: 110, f2: 40, a: 0.002, d: 0.3, vol: 0.22 });
-      // caixa com reverb longo no 2 e no 4 (a marca dos anos 80)
-      if (s === 4 || s === 12) {
-        noise({ bus: 'music', mood: m, type: 'bandpass', f: 1700, q: 0.7, d: 0.22, vol: 0.07, t, send: 1 });
-        v({ type: 'triangle', f: 200, f2: 150, d: 0.1, vol: 0.05, send: 0.6 });
-      }
-      // chimbal nas colcheias do contratempo
-      if (s % 4 === 2) noise({ bus: 'music', mood: m, type: 'highpass', f: 8000, d: 0.04, vol: 0.022, t, pan: 0.2 });
-    }
-
-    // melodia esparsa, como um sintetizador de lead ao longe
-    if (lead && [0, 6, 10].includes(s) && Math.random() < 0.7) {
-      const n = Math.random() < 0.6 ? pick(chord) + 24 : pick(DAY.penta);
-      if (n < 92) {
-        v({ type: 'sawtooth', f: mtof(n), a: 0.06, hold: sd * 3, d: 1.2, vol: 0.014, detune: 6, filter: { f: 2600, q: 1 }, send: 0.9 });
-        v({ type: 'triangle', f: mtof(n), a: 0.06, hold: sd * 3, d: 1.2, vol: 0.02, send: 0.9 });
-      }
-    }
-  }
-
-  function nightStep(s, t) {
-    const i = bar % 4, chord = NIGHT.chords[i], root = NIGHT.bass[i], barLen = stepDur() * 16, sd = stepDur(), m = 'night';
-    const boss = typeof S !== 'undefined' && S.horde.zs && S.horde.zs.some(z => ZTYPES[z.type].boss);
-    // a horda chega de uma vez: baixo e bumbo desde o início; arpejo a partir do 2º compasso, lead a partir do 5º
-    const sec = bar % 16, arpOn = bar >= 1, leadOn = bar >= 4 && sec >= 4 && sec < 12, fill = sec === 15;
-    const v = (o) => tone({ bus: 'music', mood: m, t, ...o });
-
-    // pad escuro: serras desafinadas com filtro fechado
-    if (s === 0) {
-      for (const n of chord) {
-        v({ type: 'sawtooth', f: mtof(n - 12), a: 0.5, hold: barLen - 0.5, d: 0.7, vol: 0.013, detune: -12, filter: { f: 750, q: 0.7 }, send: 0.5, pan: -0.4 });
-        v({ type: 'sawtooth', f: mtof(n - 12), a: 0.5, hold: barLen - 0.5, d: 0.7, vol: 0.013, detune: 12, filter: { f: 750, q: 0.7 }, send: 0.5, pan: 0.4 });
-      }
-      // varredura de ruído subindo a cada 4 compassos
-      if (bar % 4 === 3) noise({ bus: 'music', mood: m, type: 'bandpass', f: 400, f2: 6000, q: 1.5, a: barLen * 0.8, d: 0.2, vol: 0.05, t, send: 0.4 });
-    }
-
-    // baixo em semicolcheias: fundamental com oitavas no contratempo
-    const oct = [0, 0, 12, 0, 0, 12, 0, 12][s % 8];
-    v({ type: 'sawtooth', f: mtof(root + oct), a: 0.003, d: sd * 0.9, vol: s % 4 === 0 ? 0.085 : 0.06, filter: { f: 520, q: 5 } });
-    if (s % 4 === 0) v({ type: 'sine', f: mtof(root - 12), a: 0.003, d: sd * 3, vol: 0.09 });
-
-    // bateria: bumbo nos 4 tempos, caixa com reverb longo no 2 e no 4, chimbal em semicolcheias
-    if (s % 4 === 0) v({ type: 'sine', f: 140, f2: 42, a: 0.002, d: 0.22, vol: 0.38 });
-    if (s === 4 || s === 12 || (fill && s >= 12)) {
-      noise({ bus: 'music', mood: m, type: 'bandpass', f: 1600, q: 0.7, d: 0.2, vol: fill && s > 12 ? 0.08 : 0.13, t, send: 0.9 });
-      v({ type: 'triangle', f: 210, f2: 150, d: 0.09, vol: 0.08, send: 0.5 });
-    }
-    noise({ bus: 'music', mood: m, type: 'highpass', f: 8000, d: s % 4 === 2 ? 0.06 : 0.03, vol: s % 4 === 2 ? 0.035 : 0.018, t, pan: 0.25 });
-
-    // arpejo em semicolcheias com eco, subindo e descendo pelo acorde
-    if (arpOn) {
-      const arp = NIGHT.arp[i];
-      const n = arp[[0, 1, 2, 3, 2, 1, 2, 3][s % 8]] + (bar % 2 ? 12 : 0);
-      const pan = s % 2 ? 0.35 : -0.35;
-      v({ type: 'square', f: mtof(n), a: 0.003, d: 0.11, vol: 0.02, filter: { f: 2600, q: 3 }, send: 0.3, pan });
-      v({ type: 'square', f: mtof(n), a: 0.003, d: 0.11, vol: 0.008, filter: { f: 1800, q: 2 }, send: 0.5, pan: -pan, t: t + sd * 3 });
-    }
-
-    // lead de serra: um motivo de 4 notas por compasso, em colcheias pontuadas
-    if (leadOn && [0, 3, 6, 10].includes(s)) {
-      const n = NIGHT.lead[i][[0, 3, 6, 10].indexOf(s)];
-      v({ type: 'sawtooth', f: mtof(n), a: 0.01, hold: sd * 1.5, d: 0.35, vol: 0.022, detune: -7, filter: { f: 2400, q: 2 }, send: 0.6 });
-      v({ type: 'sawtooth', f: mtof(n), a: 0.01, hold: sd * 1.5, d: 0.35, vol: 0.022, detune: 7, filter: { f: 2400, q: 2 }, send: 0.6 });
-    }
-
-    // chefe na tela: metais graves e sinistros
-    if (boss && (s === 0 || s === 8)) {
-      v({ type: 'sawtooth', f: mtof(root - 12), a: 0.05, hold: sd * 4, d: 0.6, vol: 0.06, filter: { f: 380, q: 6 }, send: 0.5 });
-      v({ type: 'sawtooth', f: mtof(root - 5), a: 0.05, hold: sd * 4, d: 0.6, vol: 0.04, filter: { f: 380, q: 6 }, send: 0.5 });
-    }
-  }
-
   function applyPrefs() {
     if (ac) {
       const t = ac.currentTime;
-      master.gain.setTargetAtTime(prefs.vol, t, 0.05);
-      musicBus.gain.setTargetAtTime(prefs.music ? 0.5 : 0, t, 0.1);
-      sfxBus.gain.setTargetAtTime(prefs.sfx ? 1 : 0, t, 0.05);
+      master.gain.setTargetAtTime(P('vol'), t, 0.05);
+      musicBus.gain.setTargetAtTime(P('music') ? 0.5 * P('musicVol') : 0, t, 0.1);
+      sfxBus.gain.setTargetAtTime(P('sfx') ? P('sfxVol') : 0, t, 0.05);
     }
     const mb = document.getElementById('snd-music'), sb = document.getElementById('snd-sfx');
-    if (mb) { mb.classList.toggle('off', !prefs.music); mb.title = prefs.music ? 'Desligar música' : 'Ligar música'; }
-    if (sb) { sb.classList.toggle('off', !prefs.sfx); sb.textContent = prefs.sfx ? '🔊' : '🔇'; sb.title = prefs.sfx ? 'Desligar efeitos' : 'Ligar efeitos'; }
-    savePrefs();
+    if (mb) { mb.classList.toggle('off', !P('music')); mb.title = P('music') ? 'Desligar música' : 'Ligar música'; }
+    if (sb) { sb.classList.toggle('off', !P('sfx')); sb.textContent = P('sfx') ? '🔊' : '🔇'; sb.title = P('sfx') ? 'Desligar efeitos' : 'Ligar efeitos'; }
   }
 
   function setup() {
@@ -600,10 +700,10 @@ const Sound = (() => {
     const start = () => init();
     document.addEventListener('pointerdown', start);
     document.addEventListener('keydown', start);
-    const mb = document.getElementById('snd-music'), sb = document.getElementById('snd-sfx'), vol = document.getElementById('snd-vol');
-    if (mb) mb.onclick = () => { prefs.music = !prefs.music; applyPrefs(); };
-    if (sb) sb.onclick = () => { prefs.sfx = !prefs.sfx; applyPrefs(); };
-    if (vol) { vol.value = Math.round(prefs.vol * 100); vol.oninput = () => { prefs.vol = vol.value / 100; applyPrefs(); }; }
+    const mb = document.getElementById('snd-music'), sb = document.getElementById('snd-sfx');
+    if (mb) mb.onclick = () => Settings.set('music', !P('music'));
+    if (sb) sb.onclick = () => Settings.set('sfx', !P('sfx'));
+    Settings.on(k => { if (['music', 'sfx', 'vol', 'musicVol', 'sfxVol'].includes(k)) applyPrefs(); });
     applyPrefs();
   }
 

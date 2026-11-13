@@ -98,8 +98,10 @@ function simulate(seconds) {
 function step() {
   const now = Date.now();
   if (modalOpen || paused) { S.last = now; return 0; }
-  const dt = Math.min((now - S.last) / 1000, OFFLINE_MAX);
+  let dt = Math.min((now - S.last) / 1000, OFFLINE_MAX);
   S.last = now;
+  // 2x só no jogo ao vivo (nunca no progresso offline) e só de dia
+  if (dt < 0.5 && fastOn()) dt *= 2;
   if (dt > 1) simulate(dt);
   else if (dt > 0) tick(dt, true);
   return Math.max(0, Math.min(dt, 0.1));

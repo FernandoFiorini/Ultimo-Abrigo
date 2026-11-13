@@ -144,19 +144,19 @@ const Endgame = (() => {
       case 'food':  return 1 + dist('food');
       case 'scrap': return (1 + dist('scrap')) * (1 + hb('engenheiro'));
       case 'ammo':  return (1 + dist('ammo')) * (hasMod('polvora') ? 0.5 : 1);
-      case 'meds':  return (1 + dist('meds')) * (1 + hb('medico'));
+      case 'meds':  return (1 + dist('meds')) * (1 + hb('medico')) * traitMult('socorro');
       case 'rp':    return (1 + dist('rp')) * (1 + 0.25 * L);
       case 'wall':  return (1 + 0.2 * tl('concreto')) * (1 + hb('engenheiro'));
       case 'fire':  return 1 + 0.08 * tl('cadencia');
-      case 'dmg':   return (1 + 0.15 * tl('calibre')) * (1 + hb('atirador')) * (1 + dist('dmg')) * (1 + 0.1 * L);
+      case 'dmg':   return (1 + 0.15 * tl('calibre')) * (1 + hb('atirador')) * (1 + dist('dmg')) * (1 + 0.1 * L) * traitMult('mira');
     }
     return 1;
   }
   const critChance = () => 0.08 * tl('pontaoca');
   const sciCap = () => S.build.lab * 2 + dist('sci');
-  const durMult = () => 1 - 0.1 * tl('rotas');
+  const durMult = () => (1 - 0.1 * tl('rotas')) * traitMult('pes');
   const riskMult = () => (1 - 0.15 * tl('rotas')) * (1 - hb('batedor') / 2);
-  const scoutLoot = () => 1 + hb('batedor');
+  const scoutLoot = () => (1 + hb('batedor')) * traitMult('faro');
 
   const event = () => (S.horde && S.horde.active && S.horde.event) ? EVENTS[S.horde.event] : null;
 
@@ -270,7 +270,7 @@ const Endgame = (() => {
       onPick: diff => {
         const m = M();
         const keep = { cash: m.cash, ach: m.ach, stats: m.stats, heroes: m.heroes, weapons: m.weapons, active: m.active, hid: m.hid,
-          records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, legado: m.legado + g, worlds: m.worlds + 1 };
+          records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, memorial: m.memorial, fallen: m.fallen, legado: m.legado + g, worlds: m.worlds + 1 };
         S = newState(Object.assign(newMeta(), keep), diff);
         addLog(`🌍 Bem-vindo ao Mundo ${S.meta.worlds}! +${g} de Legado (total ${S.meta.legado}).`, 'good');
         emit('evacuate', { city: 1, g: 0, world: S.meta.worlds });
@@ -352,7 +352,7 @@ const Endgame = (() => {
       if (Math.random() < 0.4 || !M().heroes.length) gainHero(`libertando ${d.nome}`);
     } else {
       const lost = Math.ceil(o.n / 2);
-      const names = removeSurvivors(lost);
+      const names = removeSurvivors(lost, `morreu tentando libertar: ${d.nome}`);
       addLog(`💀 O ataque a ${d.icon} ${d.nome} fracassou. ${joinNames(names)} não ${lost > 1 ? 'voltaram' : 'voltou'}.`, 'bad');
       emit('expReturn', { n: o.n - lost });
       emit('breach');

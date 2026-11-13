@@ -12,7 +12,7 @@ function expReturn(e) {
     const v = Math.round((a + Math.random() * (b - a)) * back * scale);
     if (v > 0) { S.res[r] += v; got.push(`+${fmt(v)} ${RES[r].icon}`); }
   }
-  const lost = removeSurvivors(dead);
+  const lost = removeSurvivors(dead, `não voltou da expedição: ${L.nome}`);
   let found = '';
   if (back > 0 && S.survivors < maxSurv() && Math.random() < Math.min(0.5, 0.12 * back)) found = addSurvivor();
 

@@ -56,7 +56,18 @@ const Scene = (() => {
     return { far, near, stars, cracks, horde, fog };
   })();
 
-  function building(b, base, color) {
+  // Paletas dos estilos visuais (Configurações → Estilo do cenário)
+  const LOOKS = {
+    classic: { dayTop: [118, 128, 128], dayBot: [200, 152, 100], nightTop: [6, 8, 22], nightBot: [30, 28, 52], wave: [80, 24, 26],
+               far: [128, 118, 110], near: [84, 80, 78], win: [46, 44, 48], lit: ['240,200,96'] },
+    synth:   { dayTop: [46, 22, 92], dayBot: [255, 112, 150], nightTop: [8, 4, 26], nightBot: [74, 16, 96], wave: [110, 18, 80],
+               far: [104, 50, 140], near: [44, 24, 72], win: [70, 36, 96], lit: ['255,80,200', '80,230,255'], neon: true },
+    terror:  { dayTop: [96, 104, 98], dayBot: [156, 150, 124], nightTop: [4, 8, 6], nightBot: [24, 34, 24], wave: [60, 20, 18],
+               far: [92, 98, 90], near: [54, 58, 52], win: [30, 34, 30], lit: ['190,220,120'], fog: 0.45 },
+  };
+  const look = () => LOOKS[sceneStyle()] || LOOKS.classic;
+
+  function building(b, base, color, neon) {
     ctx.fillStyle = T(color);
     ctx.beginPath();
     ctx.moveTo(b.x, base);
@@ -66,6 +77,16 @@ const Scene = (() => {
     ctx.lineTo(b.x + b.w, base - b.h + b.jag[3]);
     ctx.lineTo(b.x + b.w, base);
     ctx.fill();
+    if (neon) {
+      // contorno neon no topo dos prédios
+      ctx.strokeStyle = neon; ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(b.x, base - b.h + b.jag[0]);
+      ctx.lineTo(b.x + b.w * 0.35, base - b.h + b.jag[1]);
+      ctx.lineTo(b.x + b.w * 0.6, base - b.h + b.jag[2]);
+      ctx.lineTo(b.x + b.w, base - b.h + b.jag[3]);
+      ctx.stroke();
+    }
   }
 
   const SKINS = [[234, 192, 160], [200, 150, 110], [150, 100, 70], [110, 72, 50], [224, 176, 140]];
@@ -488,18 +509,27 @@ const Scene = (() => {
   }
 
   function drawSky() {
-    const wave = S.horde.active;
-    const top = mix([118, 128, 128], [6, 8, 22], night);
+    const wave = S.horde.active, L = look(), st = sceneStyle();
+    const top = mix(L.dayTop, L.nightTop, night);
     const ev = Endgame.event() ? S.horde.event : null;
-    const bot = mix([200, 152, 100], ev === 'sangue' ? [140, 10, 20] : ev === 'acida' ? [40, 70, 30] : wave ? [80, 24, 26] : [30, 28, 52], night);
+    const bot = mix(L.dayBot, ev === 'sangue' ? [140, 10, 20] : ev === 'acida' ? [40, 70, 30] : wave ? L.wave : L.nightBot, night);
     const g = ctx.createLinearGradient(0, 0, 0, GY);
     g.addColorStop(0, `rgb(${top})`); g.addColorStop(1, `rgb(${bot})`);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, GY);
 
     if (night < 1) {
       ctx.globalAlpha = 1 - night;
-      ctx.fillStyle = 'rgba(255,220,160,0.3)'; ctx.beginPath(); ctx.arc(390, 44, 15, 0, 7); ctx.fill();
-      ctx.fillStyle = '#f3d9a0'; ctx.beginPath(); ctx.arc(390, 44, 9, 0, 7); ctx.fill();
+      if (st === 'synth') drawSynthSun(g);
+      else if (st === 'terror') {
+        // sol pálido atrás da névoa
+        const h = ctx.createRadialGradient(390, 44, 0, 390, 44, 40);
+        h.addColorStop(0, 'rgba(220,225,200,0.35)'); h.addColorStop(1, 'rgba(220,225,200,0)');
+        ctx.fillStyle = h; ctx.fillRect(350, 4, 80, 80);
+        ctx.fillStyle = 'rgba(214,218,196,0.75)'; ctx.beginPath(); ctx.arc(390, 44, 8, 0, 7); ctx.fill();
+      } else {
+        ctx.fillStyle = 'rgba(255,220,160,0.3)'; ctx.beginPath(); ctx.arc(390, 44, 15, 0, 7); ctx.fill();
+        ctx.fillStyle = '#f3d9a0'; ctx.beginPath(); ctx.arc(390, 44, 9, 0, 7); ctx.fill();
+      }
     }
     if (night > 0) {
       ctx.globalAlpha = night;
@@ -519,16 +549,34 @@ const Scene = (() => {
     ctx.globalAlpha = 1;
   }
 
+  // Sol listrado do synthwave: degradê amarelo → rosa, cortado por faixas da cor do céu
+  function drawSynthSun(sky) {
+    const x = 390, y = 70, r = 28;
+    const glow = ctx.createRadialGradient(x, y, r * 0.6, x, y, r * 2);
+    glow.addColorStop(0, 'rgba(255,90,160,0.35)'); glow.addColorStop(1, 'rgba(255,90,160,0)');
+    ctx.fillStyle = glow; ctx.fillRect(x - r * 2, y - r * 2, r * 4, r * 4);
+    const sg = ctx.createLinearGradient(0, y - r, 0, y + r);
+    sg.addColorStop(0, '#ffe46b'); sg.addColorStop(0.55, '#ff8a5c'); sg.addColorStop(1, '#ff3f9a');
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    // faixas ficam mais grossas perto do horizonte
+    ctx.fillStyle = sky;
+    for (let k = 0, by = y - 2; k < 7; k++) { const h = 1 + k * 0.7; ctx.fillRect(x - r - 1, by, r * 2 + 2, h); by += h + 3.2 - k * 0.25; }
+  }
+
   function drawCity() {
-    for (const b of city.far) building(b, GY, [128, 118, 110]);
+    const L = look();
+    const neon = L.neon ? `rgba(255,70,200,${0.35 + night * 0.5})` : null;
+    for (const b of city.far) building(b, GY, L.far, L.neon ? `rgba(90,200,255,${0.25 + night * 0.35})` : null);
     for (const b of city.near) {
-      building(b, GY, [84, 80, 78]);
+      building(b, GY, L.near, neon);
       for (const w of b.win) {
         const wx = b.x + w.x, wy = GY - b.h + w.y;
         if (wy < GY - b.h + Math.max(...b.jag) + 2) continue;
-        if (w.lit && night > 0.2 && Math.sin(time * 0.7 + w.f) > -0.8) {
-          ctx.fillStyle = `rgba(240,200,96,${night * 0.9})`; ctx.fillRect(wx, wy, 2, 3);
-        } else rect([46, 44, 48], wx, wy, 2, 3);
+        // no synthwave as janelas de neon ficam acesas também de dia
+        const glow = L.neon ? Math.max(0.45, night) : night;
+        if (w.lit && glow > 0.2 && Math.sin(time * 0.7 + w.f) > -0.8) {
+          ctx.fillStyle = `rgba(${L.lit[Math.floor(w.f) % L.lit.length]},${glow * 0.9})`; ctx.fillRect(wx, wy, 2, 3);
+        } else rect(L.win, wx, wy, 2, 3);
       }
     }
     // a horda no horizonte
@@ -549,11 +597,12 @@ const Scene = (() => {
   }
 
   function drawFog() {
-    if (night < 0.05) return;
+    const amt = Math.max(night, look().fog || 0);
+    if (amt < 0.05) return;
     for (const f of city.fog) {
       const x = ((f.x + time * f.sp) % (W + f.w * 2)) - f.w;
       const g = ctx.createRadialGradient(x, f.y, 0, x, f.y, f.w / 2);
-      g.addColorStop(0, `rgba(170,180,200,${(S.horde.event === 'neblina' && S.horde.active ? 0.5 : 0.13) * night})`); g.addColorStop(1, 'rgba(170,180,200,0)');
+      g.addColorStop(0, `rgba(170,180,200,${(S.horde.event === 'neblina' && S.horde.active ? 0.5 : 0.13) * amt})`); g.addColorStop(1, 'rgba(170,180,200,0)');
       ctx.fillStyle = g;
       ctx.save(); ctx.translate(x, f.y); ctx.scale(1, 0.25); ctx.translate(-x, -f.y);
       ctx.fillRect(x - f.w / 2, f.y - f.w / 2, f.w, f.w);
@@ -1011,14 +1060,21 @@ const Scene = (() => {
     for (const c of corpses) c.t += dt;
     prune(corpses, c => c.t < 5);
 
-    if (Math.random() < dt * 4) parts.push({ x: FIRE.x + rand(-1, 1), y: FIRE.y - 8, vx: rand(-2, 3), vy: rand(-12, -7), life: 2, max: 2, c: [130, 130, 130], s: 2, a: 0.35 });
+    const reduce = Settings.get('reduceFx');
+    if (Math.random() < dt * (reduce ? 1 : 4)) parts.push({ x: FIRE.x + rand(-1, 1), y: FIRE.y - 8, vx: rand(-2, 3), vy: rand(-12, -7), life: 2, max: 2, c: [130, 130, 130], s: 2, a: 0.35 });
+    // efeitos reduzidos: limita partículas e clarões na tela
+    if (reduce) {
+      if (parts.length > 40) parts.splice(0, parts.length - 40);
+      if (flashes.length > 2) flashes.splice(0, flashes.length - 2);
+      redFlash = Math.min(redFlash, 0.3);
+    }
   }
 
   function draw() {
     if (!ctx) return;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.save();
-    if (shake > 0) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+    if (shake > 0 && !Settings.get('noShake')) ctx.translate(rand(-shake, shake), rand(-shake, shake));
 
     drawSky();
     drawCity();

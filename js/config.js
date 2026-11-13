@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '1.01.000';
+const VERSION = '1.02.000';
 const SAVE_KEY = 'ultimoAbrigo.v1';
 const OFFLINE_MAX = 8 * 3600;      // máximo de progresso offline (segundos)
 // (intervalo entre hordas e consumo de comida dependem da dificuldade: veja DIFFS)
@@ -51,7 +51,7 @@ const DIFFS = {
 };
 const D = () => DIFFS[(S && S.diff) || 'normal'];
 const waveInterval = () => D().interval * (hasMod('rapida') ? 0.7 : 1);
-const foodPer = () => D().food * (hasMod('fome') ? 1.5 : 1);
+const foodPer = () => D().food * (hasMod('fome') ? 1.5 : 1) * traitMult('frugal');
 
 const RES = {
   comida:  { nome: 'Comida',   icon: '🥫' },
@@ -148,6 +148,21 @@ const MODS = {
 const MOD_OFFER = 4;   // quantos desafios são oferecidos a cada evacuação
 const hasMod = k => !!(typeof S !== 'undefined' && S && S.mods && S.mods.includes(k));
 const modBonus = (list = (S && S.mods) || []) => list.reduce((a, k) => a + (MODS[k] ? MODS[k].bonus : 0), 0);
+
+// Talentos: alguns sobreviventes chegam com um. O bônus vale enquanto a pessoa estiver no grupo
+// (até TRAIT_CAP pessoas com o mesmo talento contam). v negativo reduz (consumo, duração).
+const TRAITS = {
+  mira:    { nome: 'Boa mira',           icon: '🎯', desc: '+6% de dano dos tiros',              v: 0.06 },
+  verde:   { nome: 'Mão verde',          icon: '🌱', desc: '+8% de produção de comida',          v: 0.08 },
+  jeito:   { nome: 'Jeito com máquinas', icon: '🔧', desc: '+8% de produção de sucata',          v: 0.08 },
+  frugal:  { nome: 'Come pouco',         icon: '🍞', desc: '−4% no consumo de comida do grupo',  v: -0.04 },
+  socorro: { nome: 'Primeiros socorros', icon: '🩹', desc: '+10% de produção de remédios',       v: 0.10 },
+  forca:   { nome: 'Força bruta',        icon: '💪', desc: '+5% de resistência do muro',         v: 0.05 },
+  pes:     { nome: 'Pés ligeiros',       icon: '👟', desc: 'Expedições e operações 5% mais rápidas', v: -0.05 },
+  faro:    { nome: 'Faro para achados',  icon: '🍀', desc: '+6% de recompensa em expedições',    v: 0.06 },
+};
+const TRAIT_CHANCE = 0.35, TRAIT_CAP = 5;
+const MEMORIAL_MAX = 200;   // nomes guardados no memorial (o total de mortes é contado à parte)
 
 // Nomes dos sobreviventes comuns (os heróis têm a própria lista)
 const NAMES = ['Ana', 'Jorge', 'Marta', 'Paulo', 'Cláudia', 'Diego', 'Fernanda', 'Luiz', 'Camila', 'Roberto', 'Sueli', 'André',

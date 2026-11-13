@@ -125,6 +125,10 @@ function buildUI() {
   $('btn-export').onclick = showExport;
   $('btn-import').onclick = showImport;
   $('btn-keys').onclick = showShortcuts;
+  $('btn-settings').onclick = openSettings;
+  $('btn-speed').onclick = () => { Settings.set('speed2x', !Settings.get('speed2x')); render(); };
+  applyBodyPrefs();
+  Settings.on(k => { if (k === 'colorblind') applyBodyPrefs(); });
   $('btn-merchant').onclick = () => Events.openMerchant();
   $('pause-badge').onclick = () => togglePause(false);
   setupKeys();
@@ -160,6 +164,10 @@ function render() {
   $('diff-chip').textContent = `${D().icon} ${D().nome}` + (S.mods.length ? ' · ' + S.mods.map(k => MODS[k].icon).join('') : '');
   $('diff-chip').title = 'Dificuldade (clique para mudar)' + (S.mods.length ? '\nDesafios: ' + S.mods.map(k => MODS[k].nome).join(', ') : '');
   $('pause-badge').classList.toggle('hidden', !paused);
+  const fast = Settings.get('speed2x'), sp = $('btn-speed');
+  sp.classList.toggle('active', fast);
+  sp.textContent = fast ? (S.horde.active ? '⏩ 2x (pausado na horda)' : '⏩ 2x ligado') : '⏩ 2x';
+  sp.title = 'Acelera o dia (atalho F). Na horda o jogo volta ao normal.';
   const mc = $('btn-merchant');
   mc.classList.toggle('hidden', !S.merchant);
   if (S.merchant) mc.textContent = `🛒 Comerciante (${Math.ceil(S.merchant.t)}s)`;
@@ -430,14 +438,34 @@ function alertsHtml(r, left) {
 }
 
 // ---------- lista de sobreviventes ----------
-let peopleSig = '';
+let peopleSig = '', memSig = '';
 function renderPeople() {
-  const sig = S.people.join('|') + '|' + away();
-  if (sig === peopleSig) return;
-  peopleSig = sig;
-  $('people').innerHTML = S.people.length
-    ? S.people.map(n => `<span class="person">${n}</span>`).join('') + (away() ? `<p class="hint">${away()} estão fora, em expedições ou operações.</p>` : '')
-    : '<p class="hint">Ninguém no abrigo.</p>';
+  const sig = S.people.join('|') + '|' + away() + '|' + JSON.stringify(S.traits);
+  if (sig !== peopleSig) {
+    peopleSig = sig;
+    $('people').innerHTML = S.people.length
+      ? S.people.map(n => {
+          const t = TRAITS[S.traits[n]];
+          return `<span class="person${t ? ' gifted' : ''}"${t ? ` title="${t.nome}: ${t.desc}"` : ''}>${n}${t ? ` ${t.icon}` : ''}</span>`;
+        }).join('') + (away() ? `<p class="hint">${away()} estão fora, em expedições ou operações.</p>` : '')
+      : '<p class="hint">Ninguém no abrigo.</p>';
+    const c = traitCounts();
+    const parts = Object.keys(TRAITS).filter(k => c[k]).map(k => {
+      const T = TRAITS[k], n = Math.min(TRAIT_CAP, c[k]);
+      return `<span title="${T.desc} por pessoa (até ${TRAIT_CAP})">${T.icon} ${T.nome}${c[k] > 1 ? ` ×${c[k]}` : ''}: ${T.v > 0 ? '+' : '−'}${Math.round(Math.abs(T.v) * n * 100)}%</span>`;
+    });
+    $('traits-sum').innerHTML = parts.length ? 'Talentos do grupo: ' + parts.join(' · ') : 'Ninguém no grupo tem talento especial ainda. Cerca de 1 em cada 3 novatos chega com um.';
+  }
+  const mem = S.meta.memorial || [];
+  const ms = (S.meta.fallen || 0) + '|' + (mem[0] ? mem[0].n + mem[0].c : '');
+  if (ms !== memSig) {
+    memSig = ms;
+    $('fallen-count').textContent = S.meta.fallen ? `(${S.meta.fallen})` : '';
+    $('memorial').innerHTML = mem.length
+      ? mem.slice(0, 30).map(m => `<li><b>${m.n}</b> ${m.c} <span>onda ${m.w} · cidade ${m.city}${m.world > 1 ? ` · mundo ${m.world}` : ''}</span></li>`).join('') +
+        (S.meta.fallen > 30 ? `<li class="more">e mais ${S.meta.fallen - 30} que não serão esquecidos.</li>` : '')
+      : '<li class="more">Ninguém caiu ainda.</li>';
+  }
 }
 
 // ---------- janela genérica ----------

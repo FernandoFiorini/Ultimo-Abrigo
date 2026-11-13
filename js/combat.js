@@ -250,7 +250,7 @@ function wallDamage(d, y) {
     while (S === st && S.overflow >= per) {
       S.overflow -= per;
       if (H.active && H.deaths >= H.deathCap) { S.overflow = 0; break; }
-      const died = killSurvivors(1, 'foi morto pela horda', true);
+      const died = killSurvivors(1, 'morreu na invasão da horda', true);
       if (H.active) H.deaths = (H.deaths || 0) + 1;
       if (died) emit('breach');
     }
@@ -272,7 +272,7 @@ function killSurvivors(n, reason, useMeds) {
   n = Math.max(0, Math.min(n, home()));
   const names = [];
   for (let i = 0; i < n; i++) {
-    names.push(...removeSurvivors(1));
+    names.push(...removeSurvivors(1, reason));
     if (idle() < 0) {
       const busy = Object.keys(S.jobs).filter(k => S.jobs[k] > 0);
       S.jobs[busy[Math.floor(Math.random() * busy.length)]]--;
@@ -280,7 +280,7 @@ function killSurvivors(n, reason, useMeds) {
   }
   if (saved) { addLog(`💊 Remédios salvaram ${saved} sobrevivente(s).`, 'good'); S.meta.stats.saved += saved; }
   if (n === 1) addLog(`☠️ ${names[0] || 'Um sobrevivente'} ${reason}.`, 'bad');
-  else if (n > 1) addLog(`☠️ ${joinNames(names)} não resistiram (${reason.replace(/^(morreu|foi morto)/, m => m === 'morreu' ? 'morreram' : 'foram mortos')}).`, 'bad');
+  else if (n > 1) addLog(`☠️ ${joinNames(names)} não resistiram (${reason.replace(/^morreu/, 'morreram')}).`, 'bad');
   if (home() <= 0 && !S.exps.length) gameOver();
   return n;
 }

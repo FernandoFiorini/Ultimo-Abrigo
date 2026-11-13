@@ -25,7 +25,7 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 
 | Sistema | Descrição |
 |---|---|
-| Sobreviventes | Cada um com nome, em seis funções (forrageiro, coletor, armeiro, guarda, médico, cientista), com consumo de comida e risco de fome |
+| Sobreviventes | Cada um com nome (e às vezes um talento), em seis funções (forrageiro, coletor, armeiro, guarda, médico, cientista), com consumo de comida, risco de fome e um memorial para quem morreu |
 | Hordas | Ondas crescentes com seis tipos de zumbi: comum, corredor, brutamontes, cuspidor, inchado (explode) e a Abominação, chefe a cada 10 ondas |
 | Noites especiais | Lua de Sangue, Neblina, Horda Dupla, Chuva Ácida e Noite dos Corredores, cada uma com regras e visual próprios |
 | Expedições e distritos | Missões com risco de morte e recompensas; esquadrões libertam distritos da cidade em troca de bônus |
@@ -34,6 +34,7 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 | Prestígio em duas camadas | Evacuar a cidade gera Esperança e melhorias permanentes; concluir a pesquisa da Cura inicia um Novo Mundo com Legado |
 | Eventos | Dilemas com escolha durante o dia e um comerciante ambulante com trocas por tempo limitado |
 | Desafios de prestígio | Regras opcionais para cada nova cidade que aumentam a Esperança ganha |
+| Configurações | Três estilos musicais (Clássica, Synthwave e Terror), três estilos de cenário, volumes separados, velocidade 2x de dia e opções de acessibilidade |
 | Metajogo | 36 conquistas, desafios semanais, loja de boosts, recordes por dificuldade e quatro níveis de dificuldade |
 
 ## Como jogar
@@ -53,6 +54,7 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 | `V` | Vasculhar |
 | `R` | Recrutar |
 | `C` | Consertar o muro |
+| `F` | Velocidade 2x durante o dia |
 | `M` | Ligar / desligar o som |
 | `O` | Abrir o comerciante |
 | `H` ou `?` | Lista de atalhos |
@@ -68,6 +70,7 @@ index.html          interface e ordem de carregamento dos scripts
 css/style.css       layout, tema escuro e responsividade
 js/
   config.js         constantes de balanceamento e tabelas de dados (zumbis, funções, construções, dificuldades)
+  settings.js       configurações do aparelho (áudio, estilos, acessibilidade) e a janela de configurações
   state.js          estado do jogo, multiplicadores derivados e barramento de eventos
   combat.js         hordas: surgimento, movimento, tiros, dano ao muro e resolução offline
   simulation.js     passo de simulação, progresso offline e controle de tempo
@@ -80,8 +83,8 @@ js/
   endgame.js        pesquisa, a Cura, noites especiais, distritos, heróis e desafios semanais
   events.js         dilemas com escolha e comerciante ambulante
   tutorial.js       dicas do primeiro jogo e atalhos de teclado
-  scene.js          renderização em pixel art no Canvas
-  audio.js          música generativa e efeitos sonoros sintetizados
+  scene.js          renderização em pixel art no Canvas, com três estilos visuais
+  audio.js          música generativa em três estilos e efeitos sonoros sintetizados
   main.js           inicialização e laço principal
 ```
 

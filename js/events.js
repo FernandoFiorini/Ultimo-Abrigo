@@ -21,10 +21,10 @@ const Events = (() => {
     return parts.join(' ');
   }
   // Tira n pessoas que estão no abrigo (ajusta funções se preciso) e devolve os nomes
-  function lose(n) {
+  function lose(n, cause) {
     const names = [];
     for (let i = 0; i < n && home() > 0; i++) {
-      names.push(...removeSurvivors(1));
+      names.push(...removeSurvivors(1, cause));
       if (idle() < 0) {
         const busy = Object.keys(S.jobs).filter(k => S.jobs[k] > 0);
         S.jobs[pick(busy)]--;
@@ -47,7 +47,7 @@ const Events = (() => {
         { label: 'Acolher', hint: '+1 sobrevivente · 30% de chance de estar infectada',
           run: () => {
             if (chance(0.7)) { const n = addSurvivor(); arrive(1); return [`Era só um corte. ${n} se recuperou e se juntou ao grupo.`, 'good']; }
-            const dead = lose(1); checkOver();
+            const dead = lose(1, 'foi vítima de uma pessoa infectada'); checkOver();
             return [`Era uma mordida. Durante a noite a pessoa se transformou e atacou${dead.length ? ` ${dead[0]}, que não resistiu` : ''}.`, 'bad'];
           } },
         { label: 'Tratar com remédio', hint: '−1 💊 · +1 sobrevivente, sem risco', ok: () => S.res.remedio >= 1,
@@ -66,7 +66,7 @@ const Events = (() => {
           run: () => {
             if (chance(fightChance())) return [`Os saqueadores fugiram e largaram o que carregavam! ${change({ municao: R(15), sucata: R(20) })}.`, 'good'];
             S.wallHp = Math.max(0, S.wallHp - maxWall() * 0.35);
-            const dead = lose(1); checkOver();
+            const dead = lose(1, 'morreu no tiroteio com saqueadores'); checkOver();
             return [`A luta foi feia. O muro foi danificado${dead.length ? ` e ${dead[0]} morreu no tiroteio` : ''}.`, 'bad'];
           } },
         { label: 'Oferecer comida', hint: () => `−${R(25)} 🥫`, ok: () => S.res.comida >= R(25),
@@ -94,7 +94,7 @@ const Events = (() => {
         { label: d => `Expulsar ${d.b}`, hint: '−1 sobrevivente',
           run: d => {
             const i = S.people.indexOf(d.b);
-            if (i >= 0 && home() > 1) { S.people.splice(i, 1); S.survivors--; if (idle() < 0) { const busy = Object.keys(S.jobs).filter(k => S.jobs[k] > 0); S.jobs[pick(busy)]--; } syncPeople(); return [`${d.b} teve que deixar o abrigo. O grupo ficou mais quieto, e menor.`, 'warn']; }
+            if (i >= 0 && home() > 1) { forgetPerson(d.b); S.survivors--; if (idle() < 0) { const busy = Object.keys(S.jobs).filter(k => S.jobs[k] > 0); S.jobs[pick(busy)]--; } syncPeople(); return [`${d.b} teve que deixar o abrigo. O grupo ficou mais quieto, e menor.`, 'warn']; }
             return [`${d.b} já tinha partido antes da decisão.`, ''];
           } },
         { label: 'Deixar que resolvam', hint: '50% de chance de dar errado',
@@ -172,7 +172,7 @@ const Events = (() => {
   function airdrop(n, risk, mult) {
     let dead = 0;
     for (let i = 0; i < n; i++) if (chance(risk)) dead++;
-    const names = lose(dead);
+    const names = lose(dead, 'não voltou da busca pela caixa de suprimentos');
     if (dead >= n) { checkOver(); return [`Ninguém voltou da caixa. ${joinNames(names)} foram cercados pelos zumbis.`, 'bad']; }
     const got = change({ municao: Math.round(R(20) * mult), remedio: Math.round((1 + Math.random() * 2) * mult) });
     return [dead ? `Trouxeram a caixa (${got}), mas ${joinNames(names)} não ${dead > 1 ? 'voltaram' : 'voltou'}.` : `Todos voltaram com a caixa! ${got}.`, dead ? 'warn' : 'good'];
