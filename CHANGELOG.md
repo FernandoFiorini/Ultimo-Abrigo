@@ -17,6 +17,7 @@ Configurações, estilos e um grupo com mais personalidade.
 - **Talentos:** cerca de 1 em cada 3 sobreviventes chega com um talento (Boa mira, Mão verde, Come pouco, Força bruta e outros) que dá um bônus ao grupo enquanto a pessoa estiver viva.
 - **Velocidade 2x:** botão ao lado de Vasculhar (atalho F) que acelera o dia. Na horda o jogo volta à velocidade normal, e o progresso offline não é acelerado.
 - **Acessibilidade:** opções para reduzir efeitos visuais, desligar o tremor de tela e trocar verde e vermelho por azul e laranja nos avisos.
+- **Pausa congela o cenário:** com o jogo pausado, os personagens, o fogo e as partículas param (a música continua tocando) e não dá para vasculhar.
 - O controle de volume saiu do cabeçalho e foi para as Configurações; os botões de música e efeitos continuam lá.
 
 ## 1.01.001

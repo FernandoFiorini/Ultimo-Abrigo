@@ -32,7 +32,8 @@ function boot() {
     const frameDt = Math.min(0.1, Math.max(0, (now - lastFrame) / 1000));
     lastFrame = now;
     step();
-    Scene.update(frameDt);
+    // pausado: a cena congela (pessoas, fogo, partículas), mas a música continua
+    Scene.update(paused ? 0 : frameDt);
     Scene.draw();
     panelT += frameDt;
     if (panelT > 0.15) { Tutorial.update(panelT); panelT = 0; render(); }

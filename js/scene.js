@@ -990,6 +990,7 @@ const Scene = (() => {
     listeners.push(on);
 
     cv.addEventListener('pointerdown', e => {
+      if (paused) return;
       const r = cv.getBoundingClientRect();
       const lx = (e.clientX - r.left) / r.width * W, ly = (e.clientY - r.top) / r.height * H;
       if (S.horde.active) {

@@ -118,7 +118,7 @@ function buildUI() {
   showTab(document.querySelector(`.tab[data-tab="${firstTab}"]`) ? firstTab : 'equipe');
 
   $('btn-scavenge').title = 'O líder vasculha as ruínas por conta própria. Rende mais conforme sua produção e a onda aumentam. Também dá para clicar direto no cenário.';
-  $('btn-scavenge').onclick = () => { Scene.float(actions.scavenge()); render(); };
+  $('btn-scavenge').onclick = () => { if (paused) return; Scene.float(actions.scavenge()); render(); };
   $('btn-recruit').onclick = () => { actions.recruit(); render(); };
   $('btn-repair').onclick = () => { actions.repair(); render(); };
   $('btn-save').onclick = save;
