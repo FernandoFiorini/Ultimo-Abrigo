@@ -6,7 +6,10 @@ function newMeta() {
   const perks = {};
   for (const k in PERKS) perks[k] = 0;
   return { hope: 0, hopeTotal: 0, city: 1, perks, cash: 0, boosts: { prod: 0, furia: 0 }, stats: newStats(), ach: {}, tutorial: {}, memorial: [], fallen: 0,
-    lw: { owned: { pistola: 1 }, slots: ['pistola', null, null], cur: 0 }, ...Endgame.newMetaExtra() };
+    lw: { owned: { pistola: 1 }, slots: ['pistola', null, null], cur: 0 },
+    // player: nome do jogador · runId: identidade do save (morte permanente) · minDiff: menor dificuldade permitida · wins: vitórias por dificuldade
+    player: 'Sobrevivente', runId: '', minDiff: 0, wins: {},
+    ...Endgame.newMetaExtra() };
 }
 
 function newState(meta = newMeta(), diff = 'normal') {

@@ -1,9 +1,9 @@
 'use strict';
 
 function save() {
-  if (awaitingChoice || importing) return;
+  if (awaitingChoice || importing || Slots.dead || !Slots.ready) return;
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(S));
+    localStorage.setItem(Slots.key(Slots.cur), JSON.stringify(S));
     $('save-status').textContent = 'Salvo às ' + new Date().toLocaleTimeString('pt-BR');
   } catch (e) { /* armazenamento indisponível */ }
 }
@@ -21,7 +21,7 @@ function mergeDeep(base, saved) {
 function load() {
   S = newState();
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(Slots.key(Slots.cur));
     if (raw) {
       const d = JSON.parse(raw);
       if (!(d.meta && d.meta.diffChosen)) legacyChoice = true;
@@ -40,6 +40,11 @@ function load() {
         exps: d.exps || [],
         log: (d.log || []).slice(0, 3) };
       if (veteran) S.meta.tutorial = { off: true };
+      if (!DIFFS[S.diff]) S.diff = 'normal';
+      // trava de dificuldade: saves antigos começam travados na dificuldade em que estão
+      S.meta.minDiff = Math.max(S.meta.minDiff || 0, diffRank(S.diff));
+      if (!S.meta.runId) S.meta.runId = Slots.rid();
+      if (!S.meta.wins || typeof S.meta.wins !== 'object') S.meta.wins = {};
       syncPeople();
       offlineProgress();
     } else {
@@ -66,29 +71,31 @@ function decodeSave(code) {
   try {
     const bin = atob(code);
     json = new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
-  } catch (e) { throw new Error('O código não é válido (não parece um save do Último Abrigo).'); }
+  } catch (e) { throw new Error('O código não é válido (não parece um save do Voidfall).'); }
   let d;
   try { d = JSON.parse(json); } catch (e) { throw new Error('O código está incompleto ou corrompido.'); }
-  if (!d || typeof d !== 'object' || !d.meta || typeof d.survivors !== 'number') throw new Error('Esse código não contém um save do Último Abrigo.');
+  if (!d || typeof d !== 'object' || !d.meta || typeof d.survivors !== 'number') throw new Error('Esse código não contém um save do Voidfall.');
   return d;
 }
 // Substitui o save atual e recarrega a página (o carregamento normal cuida da migração)
 function importSave(code) {
   const d = decodeSave(code);
+  if (Slots.buried(d.meta.runId)) throw new Error('Este save morreu no modo Apocalipse. A morte é permanente: ele não pode ser recuperado.');
   d.last = Date.now();
   importing = true;
-  localStorage.setItem(SAVE_KEY, JSON.stringify(d));
-  location.reload();
+  localStorage.setItem(Slots.key(Slots.cur), JSON.stringify(d));
+  Slots.open(Slots.cur);
 }
 
 function startFirstRun() {
   awaitingChoice = true;
   chooseDifficulty({
-    title: '☣ Último Abrigo',
+    title: '☣ Voidfall',
     sub: 'Você e mais dois sobreviventes encontraram um armazém abandonado. A horda chega ao anoitecer. <b>Escolha a dificuldade:</b>',
     cancel: false,
     onPick: diff => {
       S = newState(S.meta, diff);
+      if (!S.meta.runId) S.meta.runId = Slots.rid();
       addLog(`Você e mais dois sobreviventes encontraram um armazém abandonado. A horda chega ao anoitecer. Prepare-se. (${DIFFS[diff].icon} ${DIFFS[diff].nome})`, 'warn');
       awaitingChoice = false;
       save();

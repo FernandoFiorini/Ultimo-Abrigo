@@ -136,19 +136,7 @@ function buildUI() {
   $('pause-badge').onclick = () => togglePause(false);
   setupKeys();
   Tutorial.setup();
-  $('btn-reset').onclick = () => {
-    if (!confirm('Apagar TODO o progresso, inclusive Esperança, cash, conquistas e melhorias permanentes?')) return;
-    S = newState();
-    Tutorial.reset();
-    emit('gameOver');
-    render();
-    chooseDifficulty({
-      title: 'Um novo começo',
-      sub: 'Escolha a dificuldade.',
-      cancel: false,
-      onPick: diff => { S = newState(newMeta(), diff); addLog(`Novo jogo no modo ${DIFFS[diff].icon} ${DIFFS[diff].nome}.`, 'warn'); save(); },
-    });
-  };
+  $('btn-menu').onclick = () => Slots.toMenu();
   $('diff-chip').onclick = changeDifficulty;
 }
 
@@ -334,29 +322,45 @@ function diffStats(k) {
     `❤️ Vida dos zumbis ${pct(d.hp)} · dano ${pct(d.dmg)}`,
     `⏱ ${d.interval}s entre hordas · 🥫 consumo ${d.food.toLocaleString('pt-BR')}/s por pessoa`,
     `🏭 Produção ${pct(d.prod)}`,
-    `✨ Esperança ×${fmt(d.hope)} · 👹 Abominação 💵 ${d.bossCash}`,
+    `✨ Esperança ×${fmt(d.hope)} · 👹 Abominação 💵 ${d.bossCash}` + (d.loot ? ` · 🎒 saque ×${fmt(d.loot)}` : ''),
+    ...(d.permadeath ? ['<b class="bad-text">💀 Morte permanente: se o abrigo cair, o save é apagado</b>'] : []),
   ];
 }
 
-function chooseDifficulty({ title, sub, cancel, onPick }) {
-  const modal = $('modal');
-  $('modal-title').innerHTML = title;
-  $('modal-sub').innerHTML = sub;
-  $('diff-list').innerHTML = Object.entries(DIFFS).map(([k, d]) => `
-    <button class="diff-card ${S && S.diff === k ? 'current' : ''}" data-diff="${k}" style="--c:${d.color}">
+// Cartões de dificuldade (seletor do jogo e menu principal). min: menor dificuldade permitida neste save.
+function diffCardsHtml(cur, min = 0) {
+  return Object.entries(DIFFS).map(([k, d]) => {
+    const locked = diffRank(k) < min;
+    return `
+    <button class="diff-card ${cur === k ? 'current' : ''} ${d.permadeath ? 'perma' : ''}" data-diff="${k}" style="--c:${d.color}" ${locked ? 'disabled' : ''}>
       <div class="diff-name">${d.icon} ${d.nome}</div>
       <div class="diff-desc">${d.desc}</div>
       <ul>${diffStats(k).map(s => `<li>${s}</li>`).join('')}</ul>
-    </button>`).join('');
+      ${locked ? '<div class="diff-lock">🔒 Este save já jogou numa dificuldade maior</div>' : ''}
+    </button>`;
+  }).join('');
+}
+const PERMA_WARN = 'Atenção: no Apocalipse a morte é permanente. Se todos morrerem, este save será APAGADO, sem volta. O save também nunca mais poderá voltar para uma dificuldade menor. Continuar?';
+
+function chooseDifficulty({ title, sub, cancel, onPick }) {
+  const modal = $('modal');
+  const min = S && S.meta ? S.meta.minDiff || 0 : 0;
+  $('modal-title').innerHTML = title;
+  $('modal-sub').innerHTML = sub + (min > 0 ? `<br><small>🔒 Para não dar para juntar recursos numa dificuldade alta e depois voltar a uma mais fácil, este save não pode jogar abaixo de <b>${DIFFS[DIFF_ORDER[min]].icon} ${DIFFS[DIFF_ORDER[min]].nome}</b>.</small>` : '');
+  $('diff-list').innerHTML = diffCardsHtml(S && S.diff, min);
   $('modal-cancel').style.display = cancel ? '' : 'none';
   modalOpen = true;
   const close = () => { modal.classList.add('hidden'); modalOpen = false; };
   $('modal-cancel').onclick = close;
   $('diff-list').querySelectorAll('.diff-card').forEach(b => {
     b.onclick = () => {
+      const k = b.dataset.diff;
+      if (diffRank(k) < min) return;
+      if (DIFFS[k].permadeath && !(S && D().permadeath) && !confirm(PERMA_WARN)) return;
       close();
-      onPick(b.dataset.diff);
+      onPick(k);
       S.meta.diffChosen = true;
+      S.meta.minDiff = Math.max(S.meta.minDiff || 0, diffRank(S.diff));
       save();
       render();
     };
@@ -367,7 +371,7 @@ function chooseDifficulty({ title, sub, cancel, onPick }) {
 function changeDifficulty() {
   chooseDifficulty({
     title: 'Mudar dificuldade',
-    sub: `Mudar a dificuldade <b>recomeça a cidade atual do zero</b>. Você mantém Esperança, cash, conquistas e melhorias permanentes. Dificuldade atual: <b>${D().icon} ${D().nome}</b>.`,
+    sub: `Mudar a dificuldade <b>recomeça a cidade atual do zero</b>. Você mantém Esperança, cash, conquistas e melhorias permanentes. Só é possível <b>subir</b> de dificuldade, nunca voltar. Dificuldade atual: <b>${D().icon} ${D().nome}</b>.`,
     cancel: true,
     onPick: diff => {
       if (diff === S.diff) return;
@@ -550,6 +554,14 @@ function dialogEsc() {
 
 // ---------- exportar / importar ----------
 function showExport() {
+  if (D().permadeath) {
+    openDialog({
+      title: '💾 Exportar progresso',
+      body: '<p class="event-text">Saves do <b>🔥 Apocalipse</b> não podem ser exportados: a morte é permanente e não existe cópia de segurança.</p>',
+      cancel: 'Fechar',
+    });
+    return;
+  }
   const code = exportCode();
   openDialog({
     title: '💾 Exportar progresso',
@@ -579,7 +591,7 @@ function copyCode(code) {
 function downloadCode(code) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([code], { type: 'text/plain' }));
-  a.download = `ultimo-abrigo-${new Date().toISOString().slice(0, 10)}.txt`;
+  a.download = `voidfall-${new Date().toISOString().slice(0, 10)}.txt`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -591,7 +603,7 @@ function showImport() {
   openDialog({
     title: '📂 Importar progresso',
     staticBody: true,
-    body: `<p class="event-text">Cole o código exportado ou escolha o arquivo <b>.txt</b>. <span class="bad-text">O progresso atual deste navegador será substituído.</span></p>
+    body: `<p class="event-text">Cole o código exportado ou escolha o arquivo <b>.txt</b>. <span class="bad-text">O progresso do espaço ${Slots.cur} (${escHtml(S.meta.player)}) será substituído.</span></p>
       <textarea id="save-code" class="save-code" spellcheck="false" placeholder="UA1:..."></textarea>
       <label class="file-pick"><input type="file" id="save-file" accept=".txt,text/plain"> 📄 Escolher arquivo</label>
       <p id="save-msg" class="hint"></p>`,

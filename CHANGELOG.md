@@ -6,6 +6,25 @@ As versões seguem o formato `MAIOR.MÉDIA.PEQUENA`:
 - **Média** (`1.00.000` → `1.01.000`): novos recursos ou mudanças grandes.
 - **Maior** (`1.00.000` → `2.00.000`): as maiores atualizações, que mudam o jogo como um todo.
 
+## 1.07.000
+
+Apocalipse, saves e vitória.
+
+- **O jogo agora se chama Voidfall** (antes: Último Abrigo). Os saves continuam valendo.
+
+- **Nova dificuldade 🔥 Apocalipse**, acima do Pesadelo: hordas maiores e mais rápidas, zumbis bem mais fortes, especiais chegando 2 ondas antes, 60s entre hordas e produção −30%. Em troca: **Esperança ×4**, **Abominação vale 💵 20** e **saque das expedições ×1,5**.
+- **Morte permanente no Apocalipse:** se o abrigo cair e todos morrerem, o save é **apagado**. Vale também para quedas durante o progresso offline. Saves do Apocalipse não podem ser exportados, e um código exportado antes da morte não pode ser importado de novo.
+- **Dificuldade travada para cima:** cada save guarda a maior dificuldade em que já jogou e nunca pode voltar para uma menor (nem ao mudar a dificuldade, nem ao evacuar, nem num Novo Mundo). Assim não dá para juntar Esperança e cash numa dificuldade alta e voltar para uma fácil. Saves antigos ficam travados na dificuldade atual.
+- **3 espaços de salvamento.** O save antigo vai para o espaço 1 automaticamente.
+- **Menu principal** ao abrir o jogo: **Continuar** (último save), **Carregar** (lista dos espaços, com apagar), **Novo jogo** (espaço, nome do jogador e dificuldade), **Hall da Fama**, **Skins** e **Créditos**. No jogo, o botão **☰ Menu** (rodapé ou Configurações › Dados) salva e volta para ele. O antigo botão Reiniciar saiu: para recomeçar, apague o espaço no menu.
+- **Vitória** (concluir a Cura), na primeira vez em cada dificuldade de um save:
+  - 💵 cash extra (de 10 no Fácil a 150 no Apocalipse);
+  - o **nome do jogador aparece num sobrevivente lendário** na frente do abrigo, com a roupa da dificuldade vencida, em todos os saves;
+  - **skins do líder**: uma por dificuldade vencida (Escoteiro, Veterano, Caçador, Pesadelo e Lenda do Apocalipse, com coroa) e a **Personalizada**, com cores escolhidas pelo jogador. Troque em Configurações › Visual ou no menu;
+  - **bandeira de troféu** no telhado, na cor da maior dificuldade vencida;
+  - nome no **Hall da Fama** do menu e um **certificado de vitória** para enviar ao desenvolvedor e entrar no Hall da Fama do site (lista `HALL_OF_FAME` em `js/config.js`; confira com `Victory.verify('UAV1:...')` no console).
+- Conquistas novas: Fogo cruzado (onda 10 no Apocalipse), Inferno na Terra (onda 30) e Lenda do Apocalipse (vencer no Apocalipse).
+
 ## 1.06.000
 
 Quando o muro cai.

@@ -1,4 +1,4 @@
-# ☣ Último Abrigo
+# ☣ Voidfall
 
 Jogo idle de sobrevivência zumbi para navegador, feito em **JavaScript puro**, sem frameworks, sem bibliotecas e sem nenhum arquivo de imagem ou áudio: os gráficos em pixel art são desenhados no Canvas e toda a música e os efeitos sonoros são sintetizados em tempo real com a Web Audio API.
 
@@ -38,11 +38,12 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 | Eventos | Dilemas com escolha durante o dia e um comerciante ambulante com trocas por tempo limitado |
 | Desafios de prestígio | Regras opcionais para cada nova cidade que aumentam a Esperança ganha |
 | Configurações | Três estilos musicais (Clássica, Synthwave e Terror), três estilos de cenário, volumes separados, velocidade 2x de dia e opções de acessibilidade |
-| Metajogo | 36 conquistas, desafios semanais, loja de boosts, recordes por dificuldade e quatro níveis de dificuldade |
+| Metajogo | 39 conquistas, desafios semanais, loja de boosts, recordes por dificuldade e cinco níveis de dificuldade (o Apocalipse tem morte permanente) |
+| Saves e vitória | Menu principal, 3 espaços de salvamento, dificuldade que só pode subir, e recompensas ao vencer: skins do líder, Hall da Fama e o nome do jogador num sobrevivente lendário no abrigo |
 
 ## Como jogar
 
-1. Escolha a dificuldade.
+1. No menu principal, comece um **Novo jogo**: escolha o espaço, o seu nome e a dificuldade.
 2. Na aba **Equipe**, distribua os sobreviventes: comida primeiro, depois guardas e armeiros para a munição.
 3. Construa barracas para abrigar mais gente e torres e muro para aguentar as hordas.
 4. Durante a noite, mire e clique para atirar com o líder ((Q) (W) (E) trocam de arma). De dia, use o botão Vasculhar para juntar recursos.

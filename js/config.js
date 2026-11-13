@@ -1,7 +1,9 @@
 'use strict';
 
-const VERSION = '1.06.000';
-const SAVE_KEY = 'ultimoAbrigo.v1';
+const VERSION = '1.07.000';
+const SAVE_KEY = 'ultimoAbrigo.v1';   // save único das versões até a 1.06 (migrado para o espaço 1)
+const SLOT_COUNT = 3;                 // espaços de salvamento
+const REPO_URL = 'https://github.com/fernandofiorini/Ultimo-Abrigo';
 // Desenvolvimento: true libera o menu de debug (F9), mas só rodando localmente. Deixe false ao publicar.
 const DEV_MODE = false;
 const OFFLINE_MAX = 8 * 3600;      // máximo de progresso offline (segundos)
@@ -74,7 +76,14 @@ const DIFFS = {
               desc: 'Zumbis mais duros e rápidos, que crescem mais a cada onda. Falta recurso.' },
   pesadelo: { nome: 'Pesadelo', icon: '☣️', color: '#b04ad0', count: 1.05, grow: 1.23, hp: 1.1, hpGrow: 0.11, dmg: 1.25, speed: 1.2, early: 1,  interval: 70,  food: 0.17, prod: 0.8,  hope: 2.2, bossCash: 10,
               desc: 'Só para veteranos. Cada noite pode ser a última.' },
+  // permadeath: se o abrigo cair, o save é apagado · loot: multiplica o saque das expedições
+  apocalipse: { nome: 'Apocalipse', icon: '🔥', color: '#ff3b30', count: 1.15, grow: 1.25, hp: 1.25, hpGrow: 0.13, dmg: 1.45, speed: 1.3, early: 2, interval: 60, food: 0.18, prod: 0.7, hope: 4, bossCash: 20,
+              loot: 1.5, permadeath: true,
+              desc: 'Morte permanente: se o abrigo cair, o save é apagado. Recompensas enormes para quem aguentar.' },
 };
+// Ordem crescente. Um save nunca volta para uma dificuldade menor do que a maior que já jogou.
+const DIFF_ORDER = Object.keys(DIFFS);
+const diffRank = k => Math.max(0, DIFF_ORDER.indexOf(k));
 const D = () => DIFFS[(S && S.diff) || 'normal'];
 const waveInterval = () => D().interval * (hasMod('rapida') ? 0.7 : 1);
 const foodPer = () => D().food * (hasMod('fome') ? 1.5 : 1) * traitMult('frugal');
@@ -221,3 +230,24 @@ const LWEAPONS = {
 const LW_MAX_LVL = 5, LW_UP_MULT = 1.7;
 const LW_KEYS = ['Q', 'W', 'E'];   // até 3 armas por noite (R é o atalho de Recrutar)
 const LW_DROP = 0.2;   // chance de um zumbi abatido por você deixar munição para suas armas
+
+// ---------- vitória (Cura concluída) ----------
+// Cash ganho na primeira vitória de cada save, por dificuldade
+const VICTORY_CASH = { facil: 10, normal: 20, dificil: 35, pesadelo: 60, apocalipse: 150 };
+
+// Skins do líder. diff: dificuldade que precisa ser vencida para liberar (custom: qualquer vitória).
+const LEADER_SKINS = {
+  padrao:     { nome: 'Sobrevivente', icon: '🧍', shirt: [60, 62, 72],  pants: [40, 40, 50], hair: [30, 25, 20] },
+  escoteiro:  { nome: 'Escoteiro',    icon: '🌱', diff: 'facil',      shirt: [70, 120, 60], pants: [60, 54, 40], hair: [90, 60, 30], cap: [60, 100, 50] },
+  veterano:   { nome: 'Veterano',     icon: '🎖️', diff: 'normal',     shirt: [86, 96, 60],  pants: [60, 66, 44], hair: [30, 25, 20], helmet: true },
+  cacador:    { nome: 'Caçador',      icon: '🏹', diff: 'dificil',    shirt: [120, 50, 40], pants: [50, 40, 34], hair: [20, 18, 16], cap: [60, 30, 26], cape: [90, 36, 30] },
+  pesadelo:   { nome: 'Pesadelo',     icon: '☣️', diff: 'pesadelo',   shirt: [90, 44, 120], pants: [36, 30, 50], hair: [200, 200, 210], cape: [140, 60, 180] },
+  lenda:      { nome: 'Lenda do Apocalipse', icon: '👑', diff: 'apocalipse', shirt: [200, 160, 50], pants: [70, 40, 30], hair: [30, 25, 20], cape: [170, 30, 30], crown: true },
+  custom:     { nome: 'Personalizada', icon: '🎨', diff: '*' },
+};
+
+// Hall da Fama do site: quem venceu e enviou o certificado de vitória.
+// Para adicionar alguém, confira o código com Victory.verify('UAV1:...') no console e copie a linha que ele devolve.
+// { n: nome, d: dificuldade, t: data (AAAA-MM-DD) }
+const HALL_OF_FAME = [
+];

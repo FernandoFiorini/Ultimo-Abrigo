@@ -1050,10 +1050,10 @@ const Scene = (() => {
     }
     light(f.x, f.y - 4, 30 + Math.sin(time * 7) * 2, '255,140,40', 0.12 + night * 0.3);
 
-    // líder no telhado (você)
-    drawHuman(LEADER.x, LEADER.y, {
+    drawTrophy();
+    // líder no telhado (você), com a skin escolhida
+    drawLook(LEADER.x, LEADER.y, Profile.look(), {
       pose: S.horde.active ? 'aim' : 'stand', face: 1, phase: 0,
-      skin: [220, 180, 150], hair: [30, 25, 20], shirt: [60, 62, 72], pants: [40, 40, 50],
       gun: leaderGun(), gunDy: Math.round(Math.sin(Math.min(1, leaderSwap / 0.22) * Math.PI) * 3),
     });
     if (leaderMuzzle > 0) {
@@ -1159,6 +1159,62 @@ const Scene = (() => {
       ctx.fillStyle = '#000'; ctx.fillText(z.name, z.x + 0.5, z.y - 19 * t.scale - 6.5);
       ctx.fillStyle = '#c9d6a0'; ctx.fillText(z.name, z.x, z.y - 19 * t.scale - 7);
     }
+  }
+
+  // Boneco com skin (líder, vencedores do Hall da Fama e miniaturas): capa atrás, coroa por cima
+  function drawLook(x, y, look, o) {
+    const face = o.face || 1;
+    if (look.cape) rect(look.cape, x - 4 * face - (face < 0 ? 2 : 0), y - 11, 2, 7);
+    drawHuman(x, y, { skin: [220, 180, 150], ...o, shirt: look.shirt, pants: look.pants, hair: look.hair,
+      cap: look.cap, helmet: look.helmet });
+    if (look.crown) {
+      const cx = Math.round(x) + (face > 0 ? -2 : -3), cy = Math.round(y) - 19;
+      rect([235, 190, 50], cx, cy, 5, 1);
+      for (const dx of [0, 2, 4]) rect([235, 190, 50], cx + dx, cy - 1, 1, 1);
+      rect([200, 40, 40], cx + 2, cy, 1, 1);
+    }
+  }
+  const skinOfDiff = d => Object.values(LEADER_SKINS).find(s => s.diff === d) || LEADER_SKINS.padrao;
+
+  // Vencedores (deste navegador e do Hall da Fama do site) passeiam na frente do abrigo com o nome em cima
+  const HALL_X = [18, 46, 74], HALL_SPOTS = HALL_X.length, HALL_ROTATE = 30;
+  function hallNpcs(ents) {
+    const all = Profile.hall();
+    if (!all.length) return;
+    const start = all.length > HALL_SPOTS ? (Math.floor(time / HALL_ROTATE) * HALL_SPOTS) % all.length : 0;
+    for (let i = 0; i < Math.min(HALL_SPOTS, all.length); i++) {
+      const w = all[(start + i) % all.length], x = HALL_X[i], y = 165 + (i % 2) * 6;
+      ents.push([y, () => {
+        const face = Math.sin(time * 0.35 + i * 2.1) > 0 ? 1 : -1;
+        drawLook(x, y, skinOfDiff(w.d), { pose: 'stand', face, phase: 0 });
+        const gold = w.d === 'apocalipse';
+        ctx.font = '5px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(w.n, x + 0.5, y - 20.5, 26);
+        ctx.fillStyle = gold ? '#ffd040' : '#efe6c0'; ctx.fillText(w.n, x, y - 21, 26);
+      }]);
+    }
+  }
+
+  // Bandeira de troféu no telhado, na cor da maior dificuldade vencida
+  function drawTrophy() {
+    const tr = Profile.get().trophy;
+    if (tr < 0) return;
+    const d = DIFFS[DIFF_ORDER[tr]], wv = Math.round(Math.sin(time * 3));
+    rect([60, 60, 60], 6, 84, 1, 15);
+    rect(d.color, 7, 84 + wv * 0.5, 8, 5);
+    rect([255, 224, 102], 10, 85 + wv * 0.5, 2, 2);
+  }
+
+  // Miniatura de uma skin num canvas qualquer (menu e configurações)
+  function portrait(c, look) {
+    const oc = ctx, on = night;
+    ctx = c.getContext('2d'); night = 0;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, c.width, c.height);
+    const k = Math.max(1, Math.floor(c.height / 24));
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    drawLook(c.width / k / 2, 22, look, { pose: 'stand', face: 1, phase: 0 });
+    ctx = oc; night = on;
   }
 
   function drawHero(h, x, y) {
@@ -1544,6 +1600,7 @@ const Scene = (() => {
       const x = 118 + i * 11, y = 186;
       ents.push([y, () => drawHero(h, x, y)]);
     });
+    hallNpcs(ents);
     for (const c of corpses) ents.push([c.y - 0.5, () => drawCorpse(c)]);
     for (const p of pieces) ents.push([p.rest ? p.floor - 0.4 : p.y, () => drawPiece(p)]);
     for (const z of S.horde.zs || []) ents.push([z.y, () => drawZombie(z)]);
@@ -1573,5 +1630,5 @@ const Scene = (() => {
     for (let i = 0; i < 5; i++) parts.push({ x: LEADER.x, y: LEADER.y - 4, vx: rand(-20, 20), vy: rand(-25, -5), g: 60, life: 0.5, max: 0.5, c: [180, 170, 140], s: 1 });
   }
 
-  return { init, update, draw, float, gunTip };
+  return { init, update, draw, float, gunTip, portrait };
 })();

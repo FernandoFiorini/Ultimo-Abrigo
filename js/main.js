@@ -1,7 +1,21 @@
 'use strict';
 
+// Ao abrir: menu principal (Continuar, Carregar, Novo jogo). Trocar de save recarrega a página direto no espaço escolhido.
 function boot() {
+  Slots.migrate();
+  Menu.init();
+  const auto = Slots.takeAutoload();
+  if (auto && Slots.has(auto)) startGame(auto);
+  else Menu.show();
+}
+
+function startGame(slot) {
+  Slots.cur = slot;
+  Slots.setLast(slot);
   load();
+  // o abrigo caiu no Apocalipse enquanto você estava fora
+  if (Slots.dead) { Menu.death(); return; }
+  Slots.ready = true;
   buildUI();
   $('version').textContent = 'v' + VERSION;
   Scene.init($('scene'));

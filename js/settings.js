@@ -85,6 +85,7 @@ function openSettings() {
       </div>`)}
 
       ${pane('visual', `
+      <div class="actions"><button data-cmd="skins">🎨 Skin do líder</button></div>
       <div class="opt-label">Estilo do cenário</div>
       ${seg('sceneStyle', SCENE_STYLES)}
       ${check('blood', 'Sangue e mutilação', 'Sangue no cenário e zumbis se despedaçando ao morrer. Desligado, os zumbis só caem e os impactos levantam poeira.')}
@@ -104,10 +105,11 @@ function openSettings() {
       <p class="hint" id="style-desc">${MUSIC_STYLES[Settings.get('musicStyle')].desc}</p>`)}
 
       ${pane('data', `
-      <p class="hint">O progresso é salvo automaticamente neste navegador. Exporte um código para guardar uma cópia ou levar o jogo para outro aparelho.</p>
+      <p class="hint">O progresso é salvo automaticamente neste navegador, no <b>espaço ${Slots.cur}</b> (${escHtml(S.meta.player)}). Exporte um código para guardar uma cópia ou levar o jogo para outro aparelho.</p>
       <div class="actions">
         <button data-cmd="export">Exportar progresso</button>
         <button data-cmd="import">Importar progresso</button>
+        <button data-cmd="menu">☰ Menu principal</button>
       </div>`)}`,
     cancel: 'Fechar',
     onMount: () => {
@@ -143,6 +145,8 @@ function openSettings() {
         if (cmd === 'export') showExport();
         else if (cmd === 'import') showImport();
         else if (cmd === 'keys') showShortcuts();
+        else if (cmd === 'skins') showSkins();
+        else if (cmd === 'menu') Slots.toMenu();
         else if (cmd === 'tips') { Tutorial.reset(); addLog('💡 As dicas do tutorial vão aparecer de novo.'); dialogEsc(); }
       });
     },

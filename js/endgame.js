@@ -251,6 +251,7 @@ const Endgame = (() => {
       M().cured = true;
       addLog('💉 A CURA FOI ENCONTRADA! A humanidade tem uma chance. Você pode começar um Novo Mundo na aba Pesquisa.', 'good');
       emit('cure');
+      Victory.win();
       toast({ icon: '💉', label: 'Fim da campanha', name: 'A Cura foi encontrada!',
         desc: `Comece um Novo Mundo para ganhar ${legadoGain()} de Legado (bônus permanente), ou continue nesta cidade.`,
         btn: 'Ver opções', onBtn: () => openTab('pesquisa') });
@@ -273,7 +274,8 @@ const Endgame = (() => {
       onPick: diff => {
         const m = M();
         const keep = { cash: m.cash, ach: m.ach, stats: m.stats, heroes: m.heroes, weapons: m.weapons, active: m.active, hid: m.hid,
-          records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, memorial: m.memorial, fallen: m.fallen, lw: m.lw, legado: m.legado + g, worlds: m.worlds + 1 };
+          records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, memorial: m.memorial, fallen: m.fallen, lw: m.lw, legado: m.legado + g, worlds: m.worlds + 1,
+          player: m.player, runId: m.runId, minDiff: m.minDiff, wins: m.wins, diffChosen: true };
         S = newState(Object.assign(newMeta(), keep), diff);
         addLog(`🌍 Bem-vindo ao Mundo ${S.meta.worlds}! +${g} de Legado (total ${S.meta.legado}).`, 'good');
         emit('evacuate', { city: 1, g: 0, world: S.meta.worlds });
@@ -710,4 +712,7 @@ ACH.push(
   { id: 'legendary',  icon: '🟧', nome: 'Arma lendária',       desc: 'Encontre uma arma Lendária',    val: () => (S.meta.weapons.some(w => w.rar === 3) || S.meta.heroes.some(h => h.weapon && h.weapon.rar === 3)) ? 1 : 0, goal: 1, cash: 5 },
   { id: 'cure',       icon: '💉', nome: 'A Cura',              desc: 'Encontre a cura da infecção',   val: () => S.meta.cured || S.meta.worlds > 1 ? 1 : 0, goal: 1, cash: 25 },
   { id: 'world2',     icon: '🌍', nome: 'Novo Mundo',          desc: 'Comece um Novo Mundo',          val: () => S.meta.worlds - 1, goal: 1, cash: 10 },
+  { id: 'apoc10',     icon: '🔥', nome: 'Fogo cruzado',        desc: 'Sobreviva à onda 10 no Apocalipse', val: () => (S.meta.records && S.meta.records.apocalipse) || 0, goal: 10, cash: 15 },
+  { id: 'apoc30',     icon: '🌋', nome: 'Inferno na Terra',    desc: 'Sobreviva à onda 30 no Apocalipse', val: () => (S.meta.records && S.meta.records.apocalipse) || 0, goal: 30, cash: 40 },
+  { id: 'apocwin',    icon: '👑', nome: 'Lenda do Apocalipse', desc: 'Encontre a Cura no Apocalipse',     val: () => (S.meta.wins && S.meta.wins.apocalipse) ? 1 : 0, goal: 1, cash: 100 },
 );

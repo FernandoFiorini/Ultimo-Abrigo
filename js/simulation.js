@@ -106,7 +106,7 @@ function simulate(seconds) {
 
 function step() {
   const now = Date.now();
-  if (modalOpen || paused) { S.last = now; return 0; }
+  if (modalOpen || paused || Slots.dead) { S.last = now; return 0; }
   let dt = Math.min((now - S.last) / 1000, OFFLINE_MAX);
   S.last = now;
   // 2x só no jogo ao vivo (nunca no progresso offline) e só de dia

@@ -5,7 +5,7 @@ function expReturn(e) {
   let dead = 0;
   for (let i = 0; i < e.n; i++) if (Math.random() < L.risk * Endgame.riskMult()) dead++;
   const back = e.n - dead;
-  const scale = (1 + 0.08 * (S.wave - 1)) * hopeMult() * Endgame.scoutLoot();
+  const scale = (1 + 0.08 * (S.wave - 1)) * hopeMult() * Endgame.scoutLoot() * (D().loot || 1);
   const got = [];
   for (const r in L.loot) {
     const [a, b] = L.loot[r];

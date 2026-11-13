@@ -295,6 +295,8 @@ function killSurvivors(n, reason, useMeds) {
 }
 
 function gameOver() {
+  // Apocalipse: o save morre junto com o abrigo
+  if (D().permadeath) { Slots.perish(); return; }
   const best = S.best, kills = S.kills, mods = S.mods;
   S = newState(S.meta, S.diff);
   // os desafios valem para a cidade inteira, mesmo depois de o abrigo cair
