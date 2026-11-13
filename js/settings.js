@@ -10,6 +10,7 @@ const Settings = (() => {
     sceneStyle: 'auto',    // auto (segue a música) | classic | synth | terror
     speed2x: false,
     reduceFx: false, noShake: false, colorblind: false,
+    blood: true,           // sangue e mutilação (corpos se despedaçando)
   };
   const v = { ...DEF };
   // preferências de áudio da 1.01 e anteriores
@@ -63,11 +64,36 @@ function openSettings() {
     <label class="opt range"><span><b>${label}</b></span>
       <input type="range" min="0" max="100" data-set="${key}" value="${Math.round(Settings.get(key) * 100)}"><output>${Math.round(Settings.get(key) * 100)}%</output></label>`;
 
+  const TABS = { game: '⏩ Jogo', visual: '🎨 Visual', audio: '🔊 Áudio', data: '💾 Dados' };
+  const cur = TABS[openSettings.tab] ? openSettings.tab : 'game';
+  const pane = (id, html) => `<div class="set-pane" data-pane="${id}"${id === cur ? '' : ' hidden'}>${html}</div>`;
+
   openDialog({
     title: '⚙️ Configurações',
     staticBody: true,
+    plain: true,
     body: `
-      <h3>🔊 Áudio</h3>
+      <div class="tabs set-tabs" role="tablist">${Object.entries(TABS).map(([id, nome], i) => `
+        <button class="tab${id === cur ? ' active' : ''}" role="tab" aria-selected="${id === cur}" data-tab="${id}" data-hotkey="${i + 1}">${nome} ${hk(i + 1)}</button>`).join('')}
+      </div>
+
+      ${pane('game', `
+      ${check('speed2x', 'Velocidade 2x durante o dia', 'Acelera produção e o tempo até a horda. Volta ao normal sozinho quando a horda chega. Atalho: F')}
+      <div class="actions">
+        <button data-cmd="tips">Rever dicas do tutorial</button>
+        <button data-cmd="keys">⌨️ Atalhos</button>
+      </div>`)}
+
+      ${pane('visual', `
+      <div class="opt-label">Estilo do cenário</div>
+      ${seg('sceneStyle', SCENE_STYLES)}
+      ${check('blood', 'Sangue e mutilação', 'Sangue no cenário e zumbis se despedaçando ao morrer. Desligado, os zumbis só caem e os impactos levantam poeira.')}
+      <h3>♿ Acessibilidade</h3>
+      ${check('reduceFx', 'Reduzir efeitos visuais', 'Menos partículas, fumaça e clarões')}
+      ${check('noShake', 'Desligar tremor de tela')}
+      ${check('colorblind', 'Cores para daltonismo', 'Troca verde e vermelho por azul e laranja nos avisos')}`)}
+
+      ${pane('audio', `
       ${check('music', 'Música')}
       ${check('sfx', 'Efeitos sonoros')}
       ${range('vol', 'Volume geral')}
@@ -75,30 +101,28 @@ function openSettings() {
       ${range('sfxVol', 'Volume dos efeitos')}
       <div class="opt-label">Estilo musical</div>
       ${seg('musicStyle', MUSIC_STYLES)}
-      <p class="hint" id="style-desc">${MUSIC_STYLES[Settings.get('musicStyle')].desc}</p>
+      <p class="hint" id="style-desc">${MUSIC_STYLES[Settings.get('musicStyle')].desc}</p>`)}
 
-      <h3>🎨 Visual</h3>
-      <div class="opt-label">Estilo do cenário</div>
-      ${seg('sceneStyle', SCENE_STYLES)}
-
-      <h3>⏩ Jogo</h3>
-      ${check('speed2x', 'Velocidade 2x durante o dia', 'Acelera produção e o tempo até a horda. Volta ao normal sozinho quando a horda chega. Atalho: F')}
-
-      <h3>♿ Acessibilidade</h3>
-      ${check('reduceFx', 'Reduzir efeitos visuais', 'Menos partículas, fumaça e clarões')}
-      ${check('noShake', 'Desligar tremor de tela')}
-      ${check('colorblind', 'Cores para daltonismo', 'Troca verde e vermelho por azul e laranja nos avisos')}
-
-      <h3>💾 Dados</h3>
+      ${pane('data', `
+      <p class="hint">O progresso é salvo automaticamente neste navegador. Exporte um código para guardar uma cópia ou levar o jogo para outro aparelho.</p>
       <div class="actions">
         <button data-cmd="export">Exportar progresso</button>
         <button data-cmd="import">Importar progresso</button>
-        <button data-cmd="tips">Rever dicas do tutorial</button>
-        <button data-cmd="keys">⌨️ Atalhos</button>
-      </div>`,
+      </div>`)}`,
     cancel: 'Fechar',
     onMount: () => {
       const body = $('dialog-body');
+      body.querySelector('.set-tabs').addEventListener('click', e => {
+        const t = e.target.closest('[data-tab]');
+        if (!t) return;
+        openSettings.tab = t.dataset.tab;
+        for (const b of body.querySelectorAll('[data-tab]')) {
+          const on = b === t;
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-selected', on);
+        }
+        for (const p of body.querySelectorAll('[data-pane]')) p.hidden = p.dataset.pane !== t.dataset.tab;
+      });
       body.addEventListener('input', e => {
         const el = e.target, k = el.dataset.set;
         if (!k) return;

@@ -526,22 +526,30 @@ body.cb {
 button.speed.active { background: #12324a; border-color: #4aa3ff; color: #bfe0ff; }
 
 #dialog-body h3:first-child { margin-top: 0; }
+.set-tabs { grid-template-columns: repeat(4, 1fr); margin: 0 0 12px; background: transparent; }
+.set-tabs .tab { font-size: 12.5px; }
+.set-pane { min-height: 260px; }
+.set-pane > .actions { margin-top: 12px; }
+.set-pane > .hint:first-child { margin-top: 0; }
 .opt { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; font-size: 13px; }
 .opt input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); flex: 0 0 auto; }
-.opt span { display: flex; flex-direction: column; gap: 1px; }
+.opt > span { display: flex; flex-direction: column; gap: 1px; }
 .opt small { color: var(--muted); font-size: 11.5px; }
-.opt.range span { flex: 0 0 140px; }
+.opt.range > span { flex: 0 0 140px; }
 .opt.range input { flex: 1; min-width: 0; accent-color: var(--accent); }
 .opt.range output { width: 40px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 .opt-label { margin: 10px 0 6px; font-size: 13px; font-weight: 700; }
+.segs + .hint { margin: 8px 0 12px; padding-left: 2px; }
+.segs + .opt { margin-top: 8px; }
 .segs { display: flex; flex-wrap: wrap; gap: 6px; }
 .seg { cursor: pointer; }
 .seg input { position: absolute; opacity: 0; pointer-events: none; }
-.seg span { display: inline-block; padding: 6px 12px; font-size: 13px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2); }
+.seg > span { display: inline-block; padding: 6px 12px; font-size: 13px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2); }
 .seg input:checked + span { border-color: var(--accent); background: var(--accent-dim); color: #fff; font-weight: 700; }
 .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .person.gifted { border-color: #6a5a1c; }
+.person.hurt { border-color: #8a3a32; color: #e8a59c; }
 .traits-sum { margin-top: 8px; }
 .memorial { list-style: none; margin: 0; padding: 0; font-size: 12px; max-height: 240px; overflow-y: auto; }
 .memorial li { padding: 4px 0; border-bottom: 1px solid var(--border); color: var(--muted); }
@@ -552,7 +560,7 @@ button.speed.active { background: #12324a; border-color: #4aa3ff; color: #bfe0ff
 
 @media (max-width: 600px) {
   .opt.range { flex-wrap: wrap; }
-  .opt.range span { flex-basis: 100%; }
+  .opt.range > span { flex-basis: 100%; }
 }
 
 /* ---------- 1.04: armas do líder ---------- */
@@ -577,17 +585,98 @@ button.speed.active { background: #12324a; border-color: #4aa3ff; color: #bfe0ff
   border-radius: 6px;
   white-space: nowrap;
 }
-.wslot kbd { min-width: 16px; padding: 0 4px; font-size: 10.5px; }
 .wslot .wicon { font-size: 14px; }
 .wslot .wammo { font-weight: 700; font-variant-numeric: tabular-nums; color: #ffe066; }
-.wslot.active { border-color: #ffd070; box-shadow: 0 0 0 1px #ffd070 inset; background: rgba(58, 48, 10, 0.88); }
+.weapon-bar { align-items: flex-end; }
+.wslot { position: relative; opacity: 0.72; transition: transform 0.12s, opacity 0.12s; }
+.wslot:hover:not(.empty) { opacity: 1; }
+.wslot.active {
+  opacity: 1;
+  transform: translateY(-4px) scale(1.1);
+  border-color: #ffd070;
+  box-shadow: 0 0 0 1px #ffd070 inset, 0 0 12px rgba(255, 208, 112, 0.55);
+  background: rgba(70, 56, 10, 0.94);
+  font-weight: 700;
+  z-index: 1;
+}
+.wslot.active .hk { color: #ffd070; }
+.wslot .wtag {
+  position: absolute;
+  left: 50%;
+  top: -15px;
+  transform: translateX(-50%);
+  padding: 0 5px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #1a1400;
+  background: #ffd070;
+  border-radius: 3px;
+}
 .wslot.dry .wammo { color: var(--bad); }
-.wslot.empty { opacity: 0.45; }
+.wslot.empty { opacity: 0.4; }
 .wslot.empty .wname { font-style: italic; }
 .lw-row.equipped { border-color: #6a5a1c; }
-.lw-slots { display: flex; gap: 4px; margin-top: 5px; }
-.lw-slots button { min-width: 30px; font-size: 11px; }
+.lw-tag { display: inline-block; white-space: nowrap; margin-left: 6px; padding: 0 6px; font-size: 11px; font-weight: 700; color: #ffd070; border: 1px solid #6a5a1c; border-radius: 999px; }
+.lw-slots { display: flex; align-items: center; gap: 4px; margin-top: 5px; }
+.lw-slots-label { font-size: 11.5px; color: var(--muted); margin-right: 2px; }
+.lw-slots button { min-width: 34px; font-size: 11px; }
+
+/* aviso ao trocar de arma */
+.weapon-flash {
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  padding: 5px 14px;
+  font-size: 15px;
+  white-space: nowrap;
+  color: #fff;
+  background: rgba(20, 16, 4, 0.88);
+  border: 1px solid #ffd070;
+  border-radius: 8px;
+  box-shadow: 0 0 14px rgba(255, 208, 112, 0.4);
+  pointer-events: none;
+  opacity: 0;
+}
+.weapon-flash .hk { color: #ffd070; font-size: 13px; }
+.weapon-flash small { color: #e8d9a8; font-size: 12px; }
+.weapon-flash.show { animation: wflash-in 0.18s ease-out forwards; }
+.weapon-flash.show.out { animation: wflash-out 0.35s ease-in forwards; }
+@keyframes wflash-in { from { opacity: 0; transform: translate(-50%, 6px) scale(0.92); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes wflash-out { from { opacity: 1; } to { opacity: 0; transform: translate(-50%, -6px); } }
+
+/* atalho apertado com o botão indisponível */
+button.nope { animation: nope 0.35s; }
+@keyframes nope { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+
+/* rótulo de atalho padronizado: (R), (1), (Q) */
+.hk { font-size: 0.85em; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+button.primary .hk { color: inherit; opacity: 0.75; }
+.tab .hk { font-size: 0.78em; }
+.tab.active .hk { color: inherit; opacity: 0.8; }
+.event-opt .eo-label .hk { color: var(--accent); }
+table.keys .hk { color: var(--text); }
 
 @media (max-width: 700px) {
   .wslot .wname { display: none; }
+  .tab .hk { display: none; }
 }
+
+/* ---------- 1.04.001: palavras-chave em destaque ---------- */
+.kw { font-weight: 700; }
+.kw-danger { color: var(--bad); }
+.kw-life { color: var(--good); }
+.kw-gold { color: #f3d36a; }
+.kw-food { color: #f0a868; }
+.kw-scrap { color: #b8c4cc; }
+.kw-ammo { color: #ffd166; }
+.kw-sci { color: #7cc8ff; }
+.kw-wall { color: #d9a066; }
+
+/* menu de debug */
+.dbg-status { font-size: 12px; line-height: 1.5; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; margin: 8px 0; }
+.dbg-k { display: inline-block; min-width: 118px; opacity: 0.7; }
+.dbg-h { margin: 10px 0 4px; font-size: 13px; }
+.dbg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
+.dbg-grid button { font-size: 12px; text-align: left; }

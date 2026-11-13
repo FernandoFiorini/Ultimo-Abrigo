@@ -6,7 +6,7 @@ function newMeta() {
   const perks = {};
   for (const k in PERKS) perks[k] = 0;
   return { hope: 0, hopeTotal: 0, city: 1, perks, cash: 0, boosts: { prod: 0, furia: 0 }, stats: newStats(), ach: {}, tutorial: {}, memorial: [], fallen: 0,
-    lw: { owned: { pistola: 1 }, slots: ['pistola', null, null, null], cur: 0 }, ...Endgame.newMetaExtra() };
+    lw: { owned: { pistola: 1 }, slots: ['pistola', null, null], cur: 0 }, ...Endgame.newMetaExtra() };
 }
 
 function newState(meta = newMeta(), diff = 'normal') {
@@ -26,6 +26,12 @@ function newState(meta = newMeta(), diff = 'normal') {
     wallHp: Math.round(100 * (1 + 0.2 * P.engenharia)),
     wallDown: false,
     overflow: 0,
+    injured: [],     // feridos: { n: nome, t: tratamento restante }
+    injT: 0,         // tempo que algum ferido está sem tratamento
+    bitten: [],      // mordidos esperando a decisão do jogador
+    turned: [],      // liberados que voltarão transformados na próxima horda
+    returning: [],   // liberados que resistiram à infecção: { n, t }
+    mourn: 0,        // segundos de luto restantes
     wave: 1,
     waveTimer: DIFFS[diff].interval,
     horde: { active: false, queue: [], zs: [] },
@@ -49,7 +55,7 @@ function newState(meta = newMeta(), diff = 'normal') {
 const perk = k => S.meta.perks[k];
 const hopeMult = () => 1 + 0.03 * S.meta.hopeTotal;
 const boostMult = () => S.meta.boosts.prod > 0 ? 2 : 1;
-const prodMult = () => boostMult() * D().prod * Endgame.mult('prod');
+const prodMult = () => boostMult() * D().prod * Endgame.mult('prod') * (S.mourn > 0 ? 1 - MOURN_PENALTY : 1);
 const furia = () => S.meta.boosts.furia > 0;
 const foodMult = () => (1 + 0.25 * S.build.horta) * (1 + 0.15 * perk('agricultura')) * hopeMult() * prodMult() * Endgame.mult('food') * traitMult('verde');
 const scrapMult = () => (1 + 0.25 * S.build.oficina) * (1 + 0.15 * perk('sucateiros')) * hopeMult() * prodMult() * Endgame.mult('scrap') * traitMult('jeito');
@@ -59,7 +65,18 @@ const maxWall = () => Math.round((100 + S.build.muro * 50) * (1 + 0.2 * perk('en
 const assigned = () => Object.values(S.jobs).reduce((a, b) => a + b, 0);
 const away = () => S.exps.reduce((a, e) => a + e.n, 0) + S.ops.reduce((a, o) => a + o.n, 0);
 const home = () => S.survivors - away();
-const idle = () => S.survivors - assigned() - away();
+// feridos ficam no abrigo (comem), mas não trabalham até um médico tratá-los
+const hurt = () => Math.min((S.injured || []).length, Math.max(0, home()));
+const treating = () => Math.min(S.jobs.medico, hurt());
+const idle = () => S.survivors - assigned() - away() - hurt();
+// Tira gente das funções até sobrar ninguém trabalhando sem existir (depois de mortes e ferimentos)
+function fixJobs() {
+  while (idle() < 0) {
+    const busy = Object.keys(S.jobs).filter(k => S.jobs[k] > 0);
+    if (!busy.length) break;
+    S.jobs[busy[Math.floor(Math.random() * busy.length)]]--;
+  }
+}
 // Vasculhar rende mais conforme o abrigo cresce
 const scavGain = () => {
   const base = 2 + Math.floor(S.wave / 2);
@@ -100,7 +117,8 @@ function rates() {
     comida: S.jobs.forrageiro * 0.6 * foodMult() - home() * foodPer(),
     sucata: S.jobs.coletor * 0.5 * scrapMult() - S.jobs.armeiro * 0.3,
     municao: S.jobs.armeiro * AMMO_RATE * prodMult() * Endgame.mult('ammo'),
-    remedio: S.jobs.medico * 0.04 * prodMult() * Endgame.mult('meds'),
+    // médico ocupado tratando um ferido não produz remédio
+    remedio: (S.jobs.medico - treating()) * 0.04 * prodMult() * Endgame.mult('meds'),
   };
 }
 
@@ -162,7 +180,10 @@ function addSurvivor() {
 function forgetPerson(name) {
   const i = S.people.indexOf(name);
   if (i >= 0) S.people.splice(i, 1);
-  if (!S.people.includes(name)) delete S.traits[name];
+  if (!S.people.includes(name)) {
+    delete S.traits[name];
+    if (S.injured) S.injured = S.injured.filter(w => w.n !== name);
+  }
   traitsChanged();
   S.wallHp = Math.min(S.wallHp, maxWall());
 }
@@ -196,4 +217,6 @@ function syncPeople() {
   traitsChanged();
   while (S.people.length < S.survivors) S.people.push(pickName(S.people));
   if (S.people.length > Math.max(0, S.survivors)) S.people.length = Math.max(0, S.survivors);
+  for (const k of ['injured', 'bitten', 'turned', 'returning']) if (!Array.isArray(S[k])) S[k] = [];
+  S.injured = S.injured.filter(w => w && S.people.includes(w.n));
 }

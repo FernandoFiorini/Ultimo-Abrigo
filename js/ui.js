@@ -103,6 +103,8 @@ function buildUI() {
       <button data-act="perk" data-k="${k}" id="pb-${k}"></button>
     </div>`).join('');
 
+  highlight(document.querySelector('.panes'), '.hint, .row .desc:not(.now), .row .title');
+
   document.body.addEventListener('click', e => {
     const btn = e.target.closest('button');
     if (btn && btn.dataset.act) { actions[btn.dataset.act](btn.dataset.k); render(); }
@@ -167,11 +169,11 @@ function render() {
   $('pause-badge').classList.toggle('hidden', !paused);
   const fast = Settings.get('speed2x'), sp = $('btn-speed');
   sp.classList.toggle('active', fast);
-  sp.textContent = fast ? (S.horde.active ? '⏩ 2x (pausado na horda)' : '⏩ 2x ligado') : '⏩ 2x';
-  sp.title = 'Acelera o dia (atalho F). Na horda o jogo volta ao normal.';
+  setHtml(sp, (fast ? (S.horde.active ? '⏩ 2x · pausado na horda' : '⏩ 2x ligado') : '⏩ 2x') + ' ' + hk('F'));
+  sp.title = 'Acelera o dia. Na horda o jogo volta ao normal.';
   const mc = $('btn-merchant');
   mc.classList.toggle('hidden', !S.merchant);
-  if (S.merchant) mc.textContent = `🛒 Comerciante (${Math.ceil(S.merchant.t)}s)`;
+  if (S.merchant) setHtml(mc, `🛒 Comerciante · ${Math.ceil(S.merchant.t)}s ${hk('O')}`);
   $('diff-chip').style.setProperty('--c', D().color);
   $('r-cash').textContent = S.meta.cash;
   const B = S.meta.boosts;
@@ -197,18 +199,19 @@ function render() {
 
   let info = `<b>${S.survivors}</b> / ${maxSurv()} sobreviventes · <b>${idle()}</b> ociosos`;
   if (away()) info += ` · <b>${away()}</b> em expedição`;
+  if (hurt()) info += ` · <b>${hurt()}</b> ferido(s)` + (treating() ? ` (${treating()} em tratamento)` : '');
   info += `<br>Consumo: ${fmt(home() * foodPer())} comida/s`;
   info += alertsHtml(r, left);
   $('surv-info').innerHTML = info;
   renderPeople();
 
   const sg = scavGain();
-  $('btn-scavenge').textContent = `🔍 Vasculhar (+${sg.comida} 🥫 +${sg.sucata} 🔩)`;
+  setHtml($('btn-scavenge'), `🔍 Vasculhar · +${sg.comida} 🥫 +${sg.sucata} 🔩 ${hk('V')}`);
 
   const rc = recruitCost();
   const full = S.survivors >= maxSurv();
   const iso = hasMod('isolados');
-  $('btn-recruit').textContent = iso ? '📵 Isolados: sem recrutamento' : full ? '🧍 Lotado (construa barracas)' : `🧍 Recrutar (${RES.comida.icon} ${rc})`;
+  setHtml($('btn-recruit'), (iso ? '📵 Isolados: sem recrutamento' : full ? '🧍 Lotado · construa barracas' : `🧍 Recrutar · ${RES.comida.icon} ${rc}`) + ' ' + hk('R'));
   $('btn-recruit').disabled = iso || full || S.res.comida < rc;
 
   for (const k in JOBS) {
@@ -242,7 +245,7 @@ function render() {
     <div class="stat"><span>🛡️ ${S.jobs.guarda} guardas · 🗼 ${S.build.torre} torres</span><span>☠ ${fmt(S.kills)} · 🏆 onda ${S.best}</span></div>
     <div class="stat" title="Chance de acerto. Melhora com Treinamento de tiro, a pesquisa Miras ópticas, o talento Boa mira e o herói Atirador. Tiro errado também gasta munição."><span>🎯 Precisão</span><span>guardas ${Math.round(accuracy('guard') * 100)}% · torres ${Math.round(accuracy('tower') * 100)}%</span></div>`;
 
-  $('btn-repair').textContent = `🔨 Reparar muro (${RES.sucata.icon} ${REPAIR_COST})`;
+  setHtml($('btn-repair'), `🔨 Reparar muro · ${RES.sucata.icon} ${REPAIR_COST} ${hk('C')}`);
   $('btn-repair').disabled = S.res.sucata < REPAIR_COST || S.wallHp >= maxWall();
 
   const scale = (1 + 0.08 * (S.wave - 1)) * hopeMult();
@@ -319,6 +322,7 @@ function render() {
 
   if (logDirty) {
     $('log').innerHTML = S.log.map(l => `<li class="${l.type}">${l.text}</li>`).join('');
+    highlight($('log'));
     logDirty = false;
   }
 }
@@ -395,6 +399,7 @@ function toast({ icon, label, name, desc, btn, onBtn }) {
     el.classList.add('out');
     setTimeout(() => el.remove(), 400);
   };
+  highlight(el.querySelector('.tdesc'));
   if (btn) el.querySelector('button').onclick = e => { e.stopPropagation(); onBtn(); render(); close(); };
   el.onclick = close;
   box.appendChild(el);
@@ -437,6 +442,11 @@ function alertsHtml(r, left) {
     const ammo = S.res.municao + Math.max(0, r.municao) * S.waveTimer;
     if (ammo < ammoNeeded() * 0.6) out.push(['warn', '⚠ Pouca munição para a próxima horda: os guardas vão jogar pedras']);
   }
+  if (hurt() > treating()) out.push(['bad', S.jobs.medico
+    ? `⚠ ${hurt() - treating()} ferido(s) esperando um médico livre: sem tratamento, alguém piora em ${Math.ceil(WOUND_TIME - S.injT)}s`
+    : `⚠ ${hurt()} ferido(s) sem médico: alguém piora em ${Math.ceil(WOUND_TIME - S.injT)}s (gasta remédio ou morre)`]);
+  if (S.mourn > 0) out.push(['warn', `🕯️ Luto: −${Math.round(MOURN_PENALTY * 100)}% de produção por mais ${fmtTime(S.mourn)}`]);
+  if (S.wallDown && !S.horde.active) out.push(['bad', '⚠ O muro está caído: na próxima horda os zumbis entram direto no abrigo. Repare!']);
   if (!S.horde.active && S.waveTimer < 30 && S.wallHp < maxWall() * 0.4) out.push(['bad', `⚠ Muro fraco e a horda chega em ${Math.ceil(S.waveTimer)}s: repare agora`]);
   return out.map(([c, t]) => `<br><span class="${c}-text">${t}</span>`).join('');
 }
@@ -444,13 +454,14 @@ function alertsHtml(r, left) {
 // ---------- lista de sobreviventes ----------
 let peopleSig = '', memSig = '';
 function renderPeople() {
-  const sig = S.people.join('|') + '|' + away() + '|' + JSON.stringify(S.traits);
+  const sig = S.people.join('|') + '|' + away() + '|' + JSON.stringify(S.traits) + '|' + S.injured.map(w => w.n).join('|');
   if (sig !== peopleSig) {
     peopleSig = sig;
     $('people').innerHTML = S.people.length
       ? S.people.map(n => {
-          const t = TRAITS[S.traits[n]];
-          return `<span class="person${t ? ' gifted' : ''}"${t ? ` title="${t.nome}: ${t.desc}"` : ''}>${n}${t ? ` ${t.icon}` : ''}</span>`;
+          const t = TRAITS[S.traits[n]], w = S.injured.some(i => i.n === n);
+          const tip = [t && `${t.nome}: ${t.desc}`, w && 'Ferido: não trabalha até um médico tratar'].filter(Boolean).join(' · ');
+          return `<span class="person${t ? ' gifted' : ''}${w ? ' hurt' : ''}"${tip ? ` title="${tip}"` : ''}>${w ? '🤕 ' : ''}${n}${t ? ` ${t.icon}` : ''}</span>`;
         }).join('') + (away() ? `<p class="hint">${away()} estão fora, em expedições ou operações.</p>` : '')
       : '<p class="hint">Ninguém no abrigo.</p>';
     const c = traitCounts();
@@ -472,6 +483,15 @@ function renderPeople() {
   }
 }
 
+// rótulo de atalho padronizado: (R), (1), (Q)...
+const hk = k => `<span class="hk">(${k})</span>`;
+// troca o HTML só quando muda (os botões são redesenhados várias vezes por segundo)
+function setHtml(el, html) {
+  if (el._html === html) return;
+  el._html = html;
+  el.innerHTML = html;
+}
+
 // ---------- janela genérica ----------
 // o: { title, body (texto ou função), buttons: [{ label, cls, onClick(d), keep, disabled(), hidden() }],
 //      cancel (true ou texto do botão de fechar), onOpt(chave, d) para elementos [data-opt], onClose, onMount(d), staticBody }
@@ -482,7 +502,7 @@ function openDialog(o) {
   const d = {
     refresh(full = !o.staticBody) {
       $('dialog-title').innerHTML = val(o.title);
-      if (full) $('dialog-body').innerHTML = val(o.body);
+      if (full) { $('dialog-body').innerHTML = val(o.body); if (!o.plain) highlight($('dialog-body')); }
       $('dialog-actions').innerHTML = (o.buttons || []).map((b, i) => b.hidden && b.hidden() ? '' :
         `<button data-btn="${i}" class="${b.cls || ''}" ${b.disabled && b.disabled() ? 'disabled' : ''}>${val(b.label)}</button>`).join('') +
         (o.cancel ? `<button data-btn="-1">${o.cancel === true ? 'Fechar' : o.cancel}</button>` : '');
@@ -590,4 +610,50 @@ function showImport() {
     } }],
     cancel: 'Cancelar',
   });
+}
+
+// ---------- realce de palavras-chave ----------
+// Cada grupo vira uma classe kw-<grupo> (cores no CSS). Só mexe em texto: botões, campos e atalhos ficam de fora.
+const KEYWORDS = [
+  ['danger', 'hordas?|zumbis?|Abominaç(?:ão|ões)|invas(?:ão|ões)|morreu|morreram|mort[oa]s?|infectad[oa]s?|mordida|saqueadores|fome|Lua de Sangue|chefe'],
+  ['life',   'vidas?|sobreviventes?|remédios?|salv(?:ou|aram|am|ar)|Cura'],
+  ['gold',   'Esperança|Legado|cash|conquistas?'],
+  ['food',   'comida'],
+  ['scrap',  'sucata'],
+  ['ammo',   'munição|munições'],
+  ['sci',    'pesquisas?|amostras?|cientistas?'],
+  ['wall',   'muro'],
+];
+const KW_RE = new RegExp('(?<!\\p{L})(?:' + KEYWORDS.map(([, w]) => `(${w})`).join('|') + ')(?!\\p{L})', 'giu');
+const KW_SKIP = 'button, kbd, input, textarea, select, output, .kw, script, style';
+
+function highlight(root, selector) {
+  if (!root) return;
+  const targets = selector ? root.querySelectorAll(selector) : [root];
+  for (const t of targets) {
+    const walker = document.createTreeWalker(t, NodeFilter.SHOW_TEXT, {
+      acceptNode: n => (n.parentElement && n.parentElement.closest(KW_SKIP)) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const n of nodes) {
+      const text = n.nodeValue;
+      KW_RE.lastIndex = 0;
+      if (!KW_RE.test(text)) continue;
+      KW_RE.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let last = 0, m;
+      while ((m = KW_RE.exec(text))) {
+        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        const g = m.slice(1).findIndex(x => x !== undefined);
+        const span = document.createElement('span');
+        span.className = 'kw kw-' + KEYWORDS[g][0];
+        span.textContent = m[0];
+        frag.appendChild(span);
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      n.parentNode.replaceChild(frag, n);
+    }
+  }
 }

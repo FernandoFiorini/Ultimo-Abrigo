@@ -190,8 +190,8 @@ const Events = (() => {
         : `<p class="event-text">${val(D.text, data)}</p>
            <div class="event-opts">${D.opts.map((o, i) => {
              const ok = !o.ok || o.ok(data);
-             return `<button class="event-opt" data-opt="${i}" ${ok ? '' : 'disabled'}>
-               <span class="eo-label">${val(o.label, data)}</span>
+             return `<button class="event-opt" data-opt="${i}" data-hotkey="${(i + 1) % 10}" ${ok ? '' : 'disabled'}>
+               <span class="eo-label">${hk((i + 1) % 10)} ${val(o.label, data)}</span>
                <span class="eo-hint">${val(o.hint, data) || ''}</span></button>`;
            }).join('')}</div>`,
       buttons: [{ label: 'Continuar', cls: 'primary', hidden: () => !result }],
@@ -294,7 +294,7 @@ const Events = (() => {
             return `<div class="row merchant-row ${o.left <= 0 ? 'locked' : ''}">
               <div class="main"><div class="title">${bagHtml(o.give, true)} → ${bagHtml(o.get)}</div>
               <div class="desc">${o.left > 0 ? `${o.left} troca(s) disponível(is)` : 'Esgotado'}</div></div>
-              <button data-opt="${i}" ${block ? `disabled title="${block}"` : ''}>Trocar</button></div>`;
+              <button data-opt="${i}" data-hotkey="${(i + 1) % 10}" ${block ? `disabled title="${block}"` : ''}>Trocar ${hk((i + 1) % 10)}</button></div>`;
           }).join('')}</div>`;
       },
       cancel: 'Fechar',

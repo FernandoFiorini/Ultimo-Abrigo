@@ -11,8 +11,13 @@ function tick(dt, live) {
     S.res.sucata -= need * frac;
     S.res.municao += S.jobs.armeiro * AMMO_RATE * prodMult() * Endgame.mult('ammo') * dt * frac;
   }
-  S.res.remedio += S.jobs.medico * 0.04 * prodMult() * Endgame.mult('meds') * dt;
+  // médicos tratando feridos não produzem remédio
+  S.res.remedio += (S.jobs.medico - treating()) * 0.04 * prodMult() * Endgame.mult('meds') * dt;
   S.clickCd = Math.max(0, S.clickCd - dt);
+
+  // feridos, luto e quem foi liberado depois de uma mordida
+  Invasion.tick(dt);
+  if (S !== st) return;
 
   // Conquistas (verificadas duas vezes por segundo)
   Endgame.tick(dt);
@@ -58,7 +63,11 @@ function tick(dt, live) {
   }
 
   // dilemas e comerciante só com o jogo aberto na tela
-  if (live && !document.hidden) { Events.tick(dt); if (S !== st) return; }
+  if (live && !document.hidden) {
+    Invasion.prompt();   // decisão sobre quem foi mordido (depois da horda)
+    Events.tick(dt);
+    if (S !== st) return;
+  }
 
   if (S.horde.active) {
     if (live) updateHorde(dt); else flushWave();

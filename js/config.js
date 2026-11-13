@@ -1,7 +1,9 @@
 'use strict';
 
-const VERSION = '1.04.000';
+const VERSION = '1.06.000';
 const SAVE_KEY = 'ultimoAbrigo.v1';
+// Desenvolvimento: true libera o menu de debug (F9), mas só rodando localmente. Deixe false ao publicar.
+const DEV_MODE = false;
 const OFFLINE_MAX = 8 * 3600;      // máximo de progresso offline (segundos)
 // (intervalo entre hordas e consumo de comida dependem da dificuldade: veja DIFFS)
 const STARVE_TIME = 20;             // segundos sem comida até alguém morrer
@@ -29,6 +31,25 @@ const TOWER_ACC = 0.8;     // torres (fixas, com mira melhor)
 const ACC_MAX = 0.95;      // teto: sempre sobra algum risco
 const DEATH_CAP = 1;       // fração máxima dos sobreviventes que pode morrer numa mesma onda
 
+// Invasão: com o muro caído, os zumbis entram no abrigo e os sobreviventes lutam corpo a corpo
+const INV = {
+  hit: 0.55,          // chance de o ataque de um zumbi alcançar alguém
+  dead: 0.4,          // destino de quem é alcançado: morte...
+  bitten: 0.15,       // ...mordida (decisão do jogador)... e o resto escapa ferido
+  hurtDead: 0.65,     // quem já estava ferido e é alcançado de novo quase sempre morre
+  shield: 0.75,       // chance de o zumbi pegar alguém de pé (o grupo protege os feridos)
+  atkCd: 1.3,         // segundos entre ataques de um zumbi dentro do abrigo
+  meleeCd: 1.6,       // segundos entre golpes de cada sobrevivente
+  meleeHit: 0.55,     // chance de acerto do golpe
+  meleeDmg: 0.35,     // dano do golpe (× resistência da onda)
+  maxFighters: 12,
+};
+const HEAL_TIME = 60;        // segundos de tratamento por ferido (cada médico trata um por vez)
+const WOUND_TIME = 120;      // feridos sem tratamento: a cada X segundos, um piora (gasta remédio ou morre)
+const MOURN_TIME = 150;      // luto depois de matar alguém mordido (segundos)
+const MOURN_PENALTY = 0.15;  // produção perdida durante o luto
+const CURE_CHANCE = 0.25;    // chance de quem foi liberado resistir à infecção e voltar
+
 const ZTYPES = {
   normal:    { nome: 'Zumbi',       hp: 1,  speed: 13, scale: 1,    dmg: 2.5, hits: 2, loot: 1 },
   corredor:  { nome: 'Corredor',    hp: 1,  speed: 24, scale: 0.95, dmg: 2.5, hits: 2, loot: 1 },
@@ -37,6 +58,8 @@ const ZTYPES = {
                spit: { range: 75, cd: 2.2, dmg: 2, count: 4 } },
   explosivo: { nome: 'Inchado',     hp: 2,  speed: 7,  scale: 1.25, dmg: 15,  hits: 1, loot: 3, explode: true },
   chefe:     { nome: 'Abominação',  hp: 30, speed: 5,  scale: 2.2,  dmg: 10,  hits: 4, loot: 40, boss: true },
+  // alguém do grupo que foi liberado depois de uma mordida e voltou transformado
+  mordido:   { nome: 'Transformado', hp: 3, speed: 17, scale: 1.05, dmg: 4,   hits: 3, loot: 6 },
 };
 const leakOf = (t, n) => { const Z = ZTYPES[t]; return (Z.dmg * Z.hits + (Z.spit ? Z.spit.dmg * Z.spit.count : 0)) * dmgMult(n); };
 
@@ -68,7 +91,7 @@ const JOBS = {
   coletor:    { nome: 'Coletor',    icon: '🔧', desc: 'Produz 0,5 sucata/s' },
   armeiro:    { nome: 'Armeiro',    icon: '⚙️', desc: 'Transforma 0,3 sucata em 0,4 munição/s' },
   guarda:     { nome: 'Guarda',     icon: '🛡️', desc: 'Atira nos zumbis (1 munição por tiro). Sem munição, joga pedras' },
-  medico:     { nome: 'Médico',     icon: '⚕️', desc: 'Produz 0,04 remédio/s. Cada remédio salva uma vida' },
+  medico:     { nome: 'Médico',     icon: '⚕️', desc: 'Produz 0,04 remédio/s (cada remédio salva uma vida) e trata os feridos: cada médico cuida de um por vez' },
   cientista:  { nome: 'Cientista',  icon: '🔬', desc: 'Gera pontos de pesquisa (precisa de Laboratório: 2 vagas por nível)' },
 };
 
@@ -196,5 +219,5 @@ const LWEAPONS = {
                 cost: { sucata: 5000, municao: 600, remedio: 10 }, desc: 'Mata qualquer zumbi comum da área com um tiro. A Abominação perde 40% da vida.' },
 };
 const LW_MAX_LVL = 5, LW_UP_MULT = 1.7;
-const LW_KEYS = ['Q', 'W', 'E', 'R'];
+const LW_KEYS = ['Q', 'W', 'E'];   // até 3 armas por noite (R é o atalho de Recrutar)
 const LW_DROP = 0.2;   // chance de um zumbi abatido por você deixar munição para suas armas

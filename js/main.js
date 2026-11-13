@@ -7,6 +7,7 @@ function boot() {
   Scene.init($('scene'));
   Scene.draw();
   Sound.setup();
+  Debug.init();
   listeners.push((t, d) => { if (t === 'achievement') achToast(d.a); });
   render();
 

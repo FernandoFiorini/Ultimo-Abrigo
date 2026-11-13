@@ -59,9 +59,9 @@ function chooseMods() {
   openDialog({
     title: `🎲 Desafios da cidade ${S.meta.city}`,
     body: () => `<p class="event-text">Quer deixar esta cidade mais difícil? Cada desafio aumenta a <b>✨ Esperança</b> que você vai ganhar ao evacuar dela. Os desafios valem até a próxima evacuação, mesmo se o abrigo cair.</p>
-      <div class="mod-list">${offer.map(k => `
-        <button class="mod-card ${sel.has(k) ? 'on' : ''}" data-opt="${k}">
-          <span class="mod-name">${MODS[k].icon} ${MODS[k].nome}</span>
+      <div class="mod-list">${offer.map((k, i) => `
+        <button class="mod-card ${sel.has(k) ? 'on' : ''}" data-opt="${k}" data-hotkey="${(i + 1) % 10}">
+          <span class="mod-name">${hk((i + 1) % 10)} ${MODS[k].icon} ${MODS[k].nome}</span>
           <span class="mod-desc">${MODS[k].desc}</span>
           <span class="mod-bonus">+${pct(MODS[k].bonus)} de Esperança</span>
         </button>`).join('')}</div>

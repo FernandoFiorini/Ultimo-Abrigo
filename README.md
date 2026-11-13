@@ -26,7 +26,8 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 | Sistema | Descrição |
 |---|---|
 | Sobreviventes | Cada um com nome (e às vezes um talento), em seis funções (forrageiro, coletor, armeiro, guarda, médico, cientista), com consumo de comida, risco de fome e um memorial para quem morreu |
-| Armas do líder | Mira manual na horda e sete armas com melhorias (da pistola à bazuca), munição própria por noite e quatro espaços em Q W E R |
+| Armas do líder | Mira manual na horda e sete armas com melhorias (da pistola à bazuca), munição própria por noite e até 3 armas por noite, em (Q) (W) (E) |
+| Invasão | Se o muro cair, os zumbis entram no abrigo e os sobreviventes lutam corpo a corpo. Quem é alcançado morre, escapa ferido (precisa de médico) ou é mordido, e cada mordida pede uma decisão: matar (luto no grupo) ou liberar (pode voltar transformado na horda seguinte, ou curado) |
 | Combate | Guardas e torres com precisão que evolui por treinamento, pesquisa, talentos e heróis; tiros errados também gastam munição |
 | Hordas | Ondas crescentes com seis tipos de zumbi: comum, corredor, brutamontes, cuspidor, inchado (explode) e a Abominação, chefe a cada 10 ondas |
 | Noites especiais | Lua de Sangue, Neblina, Horda Dupla, Chuva Ácida e Noite dos Corredores, cada uma com regras e visual próprios |
@@ -44,7 +45,7 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 1. Escolha a dificuldade.
 2. Na aba **Equipe**, distribua os sobreviventes: comida primeiro, depois guardas e armeiros para a munição.
 3. Construa barracas para abrigar mais gente e torres e muro para aguentar as hordas.
-4. Durante a noite, mire e clique para atirar com o líder (Q W E R trocam de arma). De dia, use o botão Vasculhar para juntar recursos.
+4. Durante a noite, mire e clique para atirar com o líder ((Q) (W) (E) trocam de arma). De dia, use o botão Vasculhar para juntar recursos.
 5. Ao sobreviver à onda 10, evacue para ganhar Esperança e recomeçar mais forte.
 
 ### Atalhos de teclado
@@ -78,6 +79,8 @@ js/
   combat.js         hordas: surgimento, movimento, tiros, dano ao muro e resolução offline
   simulation.js     passo de simulação, progresso offline e controle de tempo
   progression.js    expedições e evacuação (prestígio)
+  invasion.js       muro caído: luta dentro do abrigo, feridos, médicos e a decisão sobre os mordidos
+  debug.js          menu de debug para montar cenários de teste (F9; exige DEV_MODE = true em config.js e rodar localmente)
   achievements.js   conquistas e estatísticas
   shop.js           loja e moeda rara
   actions.js        ações disparadas pelo jogador

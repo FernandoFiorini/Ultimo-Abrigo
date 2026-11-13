@@ -22,7 +22,9 @@ function startWave(quiet) {
   const n = S.wave;
   const event = Endgame.rollEvent(n);
   const queue = Endgame.modifyQueue(waveComposition(n), event);
-  S.horde = { active: true, n, queue, event, spawnT: 1.5, zs: [], kills: 0, loot: 0, dmg: 0, gcd: [], tcd: [],
+  // quem foi liberado depois de uma mordida e não resistiu volta com a horda
+  const turned = Invasion.addTurned(queue);
+  S.horde = { active: true, n, queue, event, spawnT: 1.5, zs: [], kills: 0, loot: 0, dmg: 0, gcd: [], tcd: [], mcd: [], turned,
     deaths: 0, deathCap: Math.max(1, Math.ceil(home() * DEATH_CAP)) };
   if (!quiet) addLog(`🌙 A noite caiu. Onda ${n}: ${queue.length} zumbis se aproximam!` +
     (queue.includes('chefe') ? ' Algo ENORME vem junto...' : ''), 'warn');
@@ -57,6 +59,7 @@ function killZombie(z, src) {
   countKill(z.type);
   Endgame.onKill(z, src);
   if (src === 'player') Weapons.onKill(z);
+  Invasion.onKill(z, src);
   if (Z.boss) gainCash(D().bossCash, 'a Abominação foi derrotada!', z.x, zy(z) - 10);
   if (Z.explode) {
     emit('explode', { x: z.x, y: zy(z) });
@@ -96,6 +99,7 @@ function updateHorde(dt) {
       y: Z.boss ? 178 : WORLD.LANE_MIN + Math.random() * (WORLD.LANE_MAX - WORLD.LANE_MIN),
       speed: Z.speed * D().speed * Endgame.speedMultEv() * (0.85 + Math.random() * 0.3),
     };
+    if (type === 'mordido') z.name = (H.turned || []).shift() || null;
     H.zs.push(z);
     H.spawnT = spawnGap(H.n) * (0.6 + Math.random() * 0.8);
     if (Z.boss) { emit('bossSpawn', { id: z.id }); addLog('👹 Uma ABOMINAÇÃO surgiu na horda!', 'bad'); }
@@ -111,9 +115,13 @@ function updateHorde(dt) {
   for (const z of H.zs) {
     if (z.dead) continue;
     const Z = ZTYPES[z.type];
-    if (z.state === 'walk') {
+    // muro caído: quem chega nele (ou estava atacando) entra no abrigo
+    if (S.wallDown && z.state !== 'invade' && (z.state === 'attack' || z.x <= WX + (Z.boss ? 8 : 0))) Invasion.enter(z);
+    if (z.state === 'invade') {
+      if (!Invasion.zombie(z, dt)) return;
+    } else if (z.state === 'walk') {
       z.x -= z.speed * dt;
-      if (Z.spit && z.spits < Z.spit.count && z.x <= WX + Z.spit.range) { z.state = 'spit'; z.t = 0; }
+      if (Z.spit && !S.wallDown && z.spits < Z.spit.count && z.x <= WX + Z.spit.range) { z.state = 'spit'; z.t = 0; }
       else if (z.x <= WX + (Z.boss ? 8 : 0)) { z.x = WX + (Z.boss ? 8 : 0); z.state = 'attack'; z.t = 0; }
     } else if (z.state === 'spit') {
       z.t += dt;
@@ -122,7 +130,7 @@ function updateHorde(dt) {
         emit('spit', { x: z.x - 4, y: zy(z) - 4, ty: z.y });
         H.dmg += wallDamage(Z.spit.dmg * dmgMult(H.n), z.y);
         if (S !== st) return;
-        if (z.spits >= Z.spit.count) z.state = 'walk';
+        if (z.spits >= Z.spit.count || S.wallDown) z.state = 'walk';
       }
     } else {
       z.t += dt;
@@ -136,6 +144,9 @@ function updateHorde(dt) {
       }
     }
   }
+
+  // sobreviventes lutando corpo a corpo com quem entrou
+  Invasion.fight(dt);
 
   const g = S.jobs.guarda, fm = fireMult();
   for (let i = 0; i < g; i++) {
@@ -220,12 +231,13 @@ function endWave() {
   S.wave = H.n + 1;
   S.waveTimer = waveInterval();
   addLog(`☀️ Onda ${H.n} sobrevivida! ${H.kills} zumbis abatidos (+${H.loot} sucata)` +
-    (H.dmg > 0 ? `. O muro sofreu ${Math.round(H.dmg)} de dano.` : '. Nenhum dano ao muro!'),
-    H.dmg > 0 ? 'warn' : 'good');
+    (H.inv ? '. Os zumbis invadiram o abrigo.' : H.dmg > 0 ? `. O muro sofreu ${Math.round(H.dmg)} de dano.` : '. Nenhum dano ao muro!'),
+    H.dmg > 0 || H.inv ? 'warn' : 'good');
   const st = S.meta.stats;
   st.bestWave = Math.max(st.bestWave, H.n);
   Endgame.onWaveEnd(H);
-  if (H.dmg === 0 && H.n >= 5) st.flawless++;
+  Invasion.onWaveEnd(H);
+  if (H.dmg === 0 && !H.inv && !S.wallDown && H.n >= 5) st.flawless++;
   if (H.n === EVAC_WAVE) addLog('🚁 Um helicóptero respondeu ao rádio! Agora você pode EVACUAR para outra cidade (painel Evacuação).', 'good');
   emit('waveEnd', { n: H.n, kills: H.kills });
 }
@@ -240,18 +252,16 @@ function wallDamage(d, y) {
   if (over > 0) {
     if (!S.wallDown) {
       S.wallDown = true;
-      addLog('🚨 O muro caiu! Os zumbis estão invadindo o abrigo!', 'bad');
+      addLog('🚨 O muro caiu! Os zumbis estão invadindo o abrigo e os sobreviventes vão lutar pela própria vida!', 'bad');
       emit('wallDown');
     }
     S.overflow += over;
-    // Cada X de dano além do muro mata 1 pessoa, com limite por onda para dar chance de se recuperar
-    const H = S.horde, per = DMG_PER_DEATH * dmgMult(H.n || S.wave);
+    // Cada X de dano além do muro alcança 1 pessoa (morte, ferimento ou mordida).
+    // Ao vivo os zumbis entram no abrigo; isto vale para o dano que sobra e para a onda resolvida de uma vez.
+    const per = DMG_PER_DEATH * dmgMult(S.horde.n || S.wave);
     while (S === st && S.overflow >= per) {
       S.overflow -= per;
-      if (H.active && H.deaths >= H.deathCap) { S.overflow = 0; break; }
-      const died = killSurvivors(1, 'morreu na invasão da horda', true);
-      if (H.active) H.deaths = (H.deaths || 0) + 1;
-      if (died) emit('breach');
+      if (!Invasion.victim(WORLD.WALL_X - 20, 172)) { S.overflow = 0; break; }
     }
   }
   return real;

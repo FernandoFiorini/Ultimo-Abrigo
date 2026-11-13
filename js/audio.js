@@ -174,6 +174,37 @@ const Sound = (() => {
         tone({ type: 'sine', f, f2: f * 0.45, a: 0.003, d: 0.22, vol: 0.035, t, pan: pan + 0.2, send: 0.4 });
       }
     },
+    // sons leves e distantes que dão vida à cidade em ruínas
+    ambience(d) {
+      const t = ac.currentTime, pan = Math.max(-0.9, Math.min(0.9, panOf(d.x) * 1.1));
+      switch (d.kind) {
+        case 'glass':
+          noise({ type: 'highpass', f: 5000, d: 0.12, vol: 0.03, pan, send: 0.6 });
+          for (let i = 0; i < 6; i++) tone({ type: 'sine', f: rand(2600, 5200), d: rand(0.05, 0.2), vol: 0.012, t: t + 0.02 + i * rand(0.015, 0.05), pan, send: 0.6 });
+          break;
+        case 'debris':
+          noise({ type: 'lowpass', f: 900, f2: 200, a: 0.05, d: 0.9, vol: 0.05, pan, send: 0.7 });
+          for (let i = 0; i < 3; i++) tone({ f: rand(70, 110), f2: 45, d: 0.12, vol: 0.05, t: t + 0.12 + i * rand(0.12, 0.2), pan, send: 0.6 });
+          for (let i = 0; i < 4; i++) noise({ type: 'bandpass', f: rand(1500, 2600), q: 3, d: 0.02, vol: 0.02, t: t + 0.5 + i * 0.07, pan });
+          break;
+        case 'metal': {
+          const f0 = rand(280, 480);
+          for (const m of [1, 2.76, 5.4]) tone({ type: 'sine', f: f0 * m, d: 1.3, vol: 0.016 / m, pan, send: 0.8 });
+          break;
+        }
+        case 'creak':
+          tone({ type: 'sawtooth', f: rand(80, 110), f2: rand(55, 70), a: 0.3, d: 0.9, vol: 0.016, filter: { type: 'bandpass', f: 800, q: 8 }, pan, send: 0.6 });
+          break;
+        case 'alarm':
+          // alarme de carro ao longe, que logo para
+          for (let i = 0; i < 6; i++) tone({ type: 'square', f: i % 2 ? 700 : 920, d: 0.16, vol: 0.006, t: t + i * 0.2, filter: { f: 1800 }, pan, send: 0.9 });
+          break;
+        case 'shot':
+          noise({ type: 'lowpass', f: 700, d: 0.25, vol: 0.05, pan, send: 0.95 });
+          if (Math.random() < 0.5) noise({ type: 'lowpass', f: 650, d: 0.22, vol: 0.035, t: t + rand(0.3, 0.6), pan, send: 0.95 });
+          break;
+      }
+    },
     noAmmo() { tone({ type: 'square', f: 1400, d: 0.03, vol: 0.04, filter: { f: 3000 } }); },
     weaponSwap() {
       const t = ac.currentTime;
@@ -212,6 +243,34 @@ const Sound = (() => {
         tone({ type: 'square', f: 660, d: 0.12, vol: 0.04, t: t + i * 0.28 + 0.14, filter: { f: 2200 } });
       }
       tone({ type: 'sawtooth', f: 520, f2: 260, a: 0.02, d: 0.5, vol: 0.05, filter: { f: 1500, q: 3 }, t: t + 0.05 });
+    },
+    // golpe corpo a corpo (pá, cano, taco) dentro do abrigo
+    melee(d) {
+      const pan = panOf(d.x);
+      if (d.hit) {
+        tone({ f: 140, f2: 60, d: 0.1, vol: 0.12, pan });
+        noise({ type: 'bandpass', f: 700, q: 1.5, d: 0.07, vol: 0.1, pan });
+      } else noise({ type: 'highpass', f: 2500, d: 0.08, vol: 0.03, pan });
+    },
+    injured(d) {
+      const pan = panOf(d.x);
+      tone({ type: 'triangle', f: 330, f2: 220, a: 0.01, d: 0.25, vol: 0.06, pan });
+      noise({ type: 'lowpass', f: 900, d: 0.12, vol: 0.08, pan });
+    },
+    bitten(d) {
+      const pan = panOf(d.x), t = ac.currentTime;
+      noise({ type: 'bandpass', f: 1800, q: 4, d: 0.08, vol: 0.12, pan });
+      tone({ type: 'sawtooth', f: 520, f2: 760, a: 0.02, d: 0.45, vol: 0.06, filter: { f: 2400, q: 2 }, pan, t: t + 0.05 });
+      tone({ f: 70, f2: 40, d: 0.3, vol: 0.12, t: t + 0.05 });
+    },
+    biteChoice(d) {
+      if (d.kill) { tone({ f: 120, f2: 50, d: 0.35, vol: 0.2 }); noise({ type: 'lowpass', f: 1200, f2: 200, d: 0.3, vol: 0.12 }); }
+      else noise({ type: 'lowpass', f: 600, f2: 300, d: 0.8, vol: 0.06, send: 0.4 });
+    },
+    healed() {
+      const t = ac.currentTime;
+      tone({ type: 'triangle', f: 523, d: 0.12, vol: 0.06, t });
+      tone({ type: 'triangle', f: 784, d: 0.18, vol: 0.06, t: t + 0.1 });
     },
     explode(d) {
       const pan = panOf(d.x);
@@ -433,7 +492,7 @@ const Sound = (() => {
       [60, 64, 67, 72, 76].forEach((m, i) => tone({ type: 'triangle', f: mtof(m), d: 1.2, vol: 0.06, t: t + 0.5 + i * 0.15, send: 0.6 }));
     },
   };
-  const GAPS = { sample: 0.1, crit: 0.08, trap: 0.06, shock: 0.1, research: 0.2, weapon: 0.3, assign: 0.06, unassign: 0.06, shot: 0.035, hit: 0.04, zdeath: 0.07, wallHit: 0.09, spit: 0.15, harvest: 1.2, scavenge: 0.03 };
+  const GAPS = { sample: 0.1, crit: 0.08, trap: 0.06, shock: 0.1, research: 0.2, weapon: 0.3, assign: 0.06, unassign: 0.06, shot: 0.035, hit: 0.04, zdeath: 0.07, wallHit: 0.09, spit: 0.15, melee: 0.06, injured: 0.15, bitten: 0.3, harvest: 1.2, scavenge: 0.03 };
 
   function on(type, d) {
     if (!SFX[type] || !allow(type, GAPS[type] ?? 0.05)) return;

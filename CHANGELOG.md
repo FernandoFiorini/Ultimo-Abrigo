@@ -6,6 +6,53 @@ As versões seguem o formato `MAIOR.MÉDIA.PEQUENA`:
 - **Média** (`1.00.000` → `1.01.000`): novos recursos ou mudanças grandes.
 - **Maior** (`1.00.000` → `2.00.000`): as maiores atualizações, que mudam o jogo como um todo.
 
+## 1.06.000
+
+Quando o muro cai.
+
+- **Invasão do abrigo:** com o muro destruído, os zumbis não param mais nele: entram no acampamento e atacam quem estiver por perto. Os sobreviventes que não estão nos postos de tiro partem para cima deles e lutam corpo a corpo (causam dano, mas morrem com facilidade). Guardas, torres e as armas do líder continuam atirando em quem entrou.
+- **Três destinos para quem é alcançado:** morrer, escapar **ferido** ou ser **mordido**. Remédios e o Médico de campo transformam uma morte em ferimento grave.
+- **Feridos:** não trabalham até serem tratados. Cada médico cuida de um ferido por vez (e não produz remédio enquanto isso). Sem médico livre, a cada 2 minutos um ferido piora: gasta um remédio ou morre. Os feridos aparecem enfaixados perto do abrigo, com os médicos ao lado, e marcados com 🤕 na lista da equipe.
+- **Decisão sobre os mordidos:** depois da horda, cada pessoa mordida exige uma escolha na tela:
+  - **Matar:** sem risco, mas o grupo fica de **luto** (−15% de produção por 2min 30s, acumulável).
+  - **Liberar:** sem luto, mas a pessoa provavelmente volta na **próxima horda como Transformado**, um zumbi mais forte e rápido que leva o nome dela. Com sorte (25%), resiste à infecção e volta curada alguns minutos depois, trazendo remédios.
+- **Progresso offline:** o dano que passa do muro também gera mortos, feridos e mordidos; as decisões ficam esperando a sua volta.
+- **Avisos:** resumo da invasão no registro, alerta de feridos sem médico, de luto e de muro caído antes da horda, e indicadores 🕯️ Luto e 🤕 feridos no cenário.
+- Uma onda em que os zumbis invadiram o abrigo não conta mais como "sem dano ao muro" (conquista Intocável).
+- **Menu de debug** (F9, \` ou botão 🐞 no rodapé): cenários prontos de invasão, mordidos, feridos, Transformado e cura, além de atalhos para muro, onda, pessoas, luto, recursos e tempo. Desligado por padrão: só aparece com `DEV_MODE = true` em `js/config.js` e rodando localmente.
+
+## 1.05.001
+
+Menus e armas da noite.
+
+- **Até 3 armas por noite**, nos espaços (Q) (W) (E). Saves antigos: a arma que estava no espaço R vai para um espaço livre, se houver.
+- **Arma equipada mais visível:** na barra da noite, a arma em uso fica maior, iluminada e com a etiqueta "EM MÃOS"; as outras ficam apagadas. Ao trocar de arma (Q/W/E, clique na barra ou roda do mouse), aparece um aviso no cenário com o nome da arma e a munição.
+- **O líder segura a arma escolhida:** cada uma das 7 armas tem desenho próprio no telhado (pistola, espingarda com telha, rifle com luneta, submetralhadora com pente, lança-granadas, lança-chamas com tanque nas costas e bazuca no ombro). Ao trocar, ele abaixa e levanta a arma, e o clarão, a chama e os projéteis saem da ponta do cano certo.
+- **Aba Armas:** cada arma equipada mostra "✔ Equipada (Q)", e os botões de espaço ficam em "Levar à noite: (Q) (W) (E)".
+- **(R) recruta** (antes era G, que continua funcionando). R deixou de ser espaço de arma.
+- **Atalho sem efeito agora avisa:** se o botão estiver indisponível (abrigo lotado, comida insuficiente, desafio Isolados), ele treme e o registro diz o motivo.
+- **Atalhos no mesmo formato em todo lugar:** (V), (R), (C), (F) e (O) nos botões, (1) a (0) nas abas, (H) em Atalhos e na lista de atalhos.
+- **Menus numerados:** opções dos acontecimentos, ofertas do comerciante, desafios da cidade e abas das Configurações mostram (1), (2)... e podem ser escolhidos com as teclas de número.
+- **Configurações em abas:** Jogo, Visual (com Acessibilidade), Áudio e Dados.
+
+## 1.05.000
+
+Ambientação do cenário.
+
+- **Acampamento refeito:** chão de terra batida separado do asfalto da rua; abrigo com arame farpado no telhado, caixa d'água, sacos de areia na porta, lampião e tambor de água; varal de lâmpadas coloridas que acende à noite; barracas com duas águas, cordas e luz dentro à noite; lona sobre a bancada de ferramentas; sacos de areia junto ao muro; varal de roupas balançando; fogueira com anel de pedras, troncos para sentar e panela fumegando no tripé.
+- **Mais um carro na rua:** abandonado no meio da pista, inclinado pelos pneus murchos, com um vidro estourado, outro trincado, porta aberta, ferrugem e cacos de vidro brilhando no asfalto.
+- **Janela de Configurações:** as descrições das opções voltaram a ficar numa linha só (o realce de palavras-chave as quebrava em pedaços; agora ele não vale nessa janela) e há mais espaço em volta da descrição do estilo musical.
+- **Noite mais clara:** o céu e o cenário escurecem bem menos à noite, nos três estilos visuais.
+- **Corpos pelo cenário:** pessoas e zumbis caídos na rua, de quem não chegou ao abrigo. Os zumbis que você abate ficam no chão por 40 segundos (antes, 5) e somem devagar.
+- **Sangue:** manchas antigas e rastros de arrasto na rua (fora do acampamento), poças sob os corpos e manchas que duram mais onde os zumbis caem.
+- **Zumbis se despedaçam ao morrer, de formas diferentes:** caem para trás, caem de cara, perdem a cabeça (que sai rolando, com sangue jorrando do pescoço), partem ao meio (as pernas ficam de pé um instante antes de tombar) ou se desmancham em pedaços. Explosões (granadas, bazuca, ataque aéreo e Inchados) sempre despedaçam. As partes voam, quicam no chão e ficam no cenário junto com os corpos.
+- **Opção "Sangue e mutilação" (⚙️ → Visual):** desligada, tira manchas, poças, respingos e o despedaçamento; os zumbis só caem e os impactos levantam poeira.
+- **Acontecimentos aleatórios:** a cada 7–18 segundos, algo acontece na cidade, com som leve e distante: vidro quebrando (com cacos caindo de uma janela), entulho despencando de um prédio, metal batendo, madeira rangendo, um alarme de carro ao longe e, à noite, tiros distantes.
+
+## 1.04.001
+
+- **Palavras-chave em destaque:** no registro, nas dicas, nas descrições, nas notificações e nas janelas, termos importantes ganham cor e negrito: perigo em vermelho (horda, zumbis, Abominação, mortes, fome), vida em verde (sobreviventes, remédios, vida, Cura), recompensas em dourado (Esperança, Legado, cash, conquistas), e cores próprias para comida, sucata, munição, pesquisa e muro. No modo para daltonismo, vermelho e verde viram laranja e azul.
+
 ## 1.04.000
 
 Mira manual e armas do líder.

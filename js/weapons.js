@@ -1,12 +1,26 @@
 'use strict';
 
-// Armas do líder: mira manual durante a horda, quatro espaços (Q W E R), munição própria por noite.
+// Armas do líder: mira manual durante a horda, até 3 armas por noite (Q W E), munição própria por noite.
 // Compra e melhorias ficam no metajogo (sobrevivem a evacuações); a munição é recarregada a cada horda.
 const Weapons = (() => {
   const MUZZLE = { x: 61, y: 88 };   // ponta da arma do líder no telhado
   const projectiles = [];
+  const N = LW_KEYS.length;
 
-  const M = () => S.meta.lw;
+  // saves antigos tinham 4 espaços (Q W E R): a arma do 4º vai para um espaço livre, se houver
+  function fixSlots(m) {
+    const sl = m.slots;
+    if (!Array.isArray(sl)) { m.slots = ['pistola', ...Array(N - 1).fill(null)]; m.cur = 0; return; }
+    let cur = m.cur;
+    for (let i = 0; i < N; i++) if (sl[i] === undefined) sl[i] = null;
+    for (let i = N; i < sl.length; i++) {
+      const free = sl.slice(0, N).indexOf(null);
+      if (sl[i] && free >= 0) { sl[free] = sl[i]; if (cur === i) cur = free; }
+    }
+    sl.length = N;
+    m.cur = cur >= 0 && cur < N ? cur : 0;
+  }
+  const M = () => { const m = S.meta.lw; if (!Array.isArray(m.slots) || m.slots.length !== N) fixSlots(m); return m; };
   const lvl = k => M().owned[k] || 0;
   const owned = k => lvl(k) > 0;
   const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
@@ -75,7 +89,7 @@ const Weapons = (() => {
 
   function equip(arg) {
     const [k, si] = String(arg).split('|'), i = +si;
-    if (!owned(k) || !(i >= 0 && i < 4)) return;
+    if (!owned(k) || !(i >= 0 && i < N)) return;
     const sl = M().slots, prev = sl.indexOf(k);
     if (prev === i) return;
     if (prev >= 0) sl[prev] = sl[i];   // troca de lugar com a que estava lá
@@ -84,14 +98,15 @@ const Weapons = (() => {
 
   function select(i) {
     if (!M().slots[i] || !owned(M().slots[i])) return;
-    if (M().cur === i) return;
+    if (M().cur === i) { if (S.horde.active) flash(); return; }
     M().cur = i;
     emit('weaponSwap', { k: current() });
+    if (S.horde.active) flash();
   }
   function cycle(dir) {
     const sl = M().slots;
-    for (let n = 1; n <= 4; n++) {
-      const i = (M().cur + dir * n + 4) % 4;
+    for (let n = 1; n <= N; n++) {
+      const i = (M().cur + dir * n + N) % N;
       if (sl[i] && owned(sl[i])) { select(i); return; }
     }
   }
@@ -146,8 +161,9 @@ const Weapons = (() => {
         }
       }
     } else if (w.type === 'grenade' || w.type === 'rocket') {
-      const dist = Math.hypot(x - MUZZLE.x, y - MUZZLE.y);
-      projectiles.push({ k, x0: MUZZLE.x, y0: MUZZLE.y, x, y, t: 0, dur: w.type === 'rocket' ? 0.35 : 0.25 + dist / 600, r: st.radius, dmg, rocket: w.type === 'rocket' });
+      const mz = typeof Scene !== 'undefined' ? Scene.gunTip() : MUZZLE;   // ponta da arma desenhada
+      const dist = Math.hypot(x - mz.x, y - mz.y);
+      projectiles.push({ k, x0: mz.x, y0: mz.y, x, y, t: 0, dur: w.type === 'rocket' ? 0.35 : 0.25 + dist / 600, r: st.radius, dmg, rocket: w.type === 'rocket' });
       emit('shot', { src: 'player', w: k, x, y, exact: true, launch: true });
     } else if (w.type === 'flame') {
       emit('flame', { x, y, r: st.radius });
@@ -216,7 +232,7 @@ const Weapons = (() => {
           <div class="desc">${w.desc}</div>
           <div class="desc now" id="lwn-${k}"></div>
           <div class="cost" id="lwc-${k}"></div>
-          <div class="lw-slots" id="lws-${k}">${LW_KEYS.map((key, i) => `<button class="small" data-act="lwEquip" data-k="${k}|${i}" id="lwe-${k}-${i}" title="Equipar no espaço ${key}">${key}</button>`).join('')}</div>
+          <div class="lw-slots" id="lws-${k}"><span class="lw-slots-label">Levar à noite:</span>${LW_KEYS.map((key, i) => `<button class="small" data-act="lwEquip" data-k="${k}|${i}" id="lwe-${k}-${i}" title="Equipar no espaço ${key}">(${key})</button>`).join('')}</div>
         </div>
         <button data-act="lwBuy" data-k="${k}" id="lwb-${k}"></button>
       </div>`).join('');
@@ -225,35 +241,51 @@ const Weapons = (() => {
     Object.assign(actions, { lwBuy: k => buy(k), lwEquip: a => equip(a) });
   }
 
+  // aviso grande no cenário ao trocar de arma
+  let flashT = 0;
+  function flash() {
+    const el = $('weapon-flash'), k = current(), a = ammoOf(k);
+    el.innerHTML = `<span class="hk">(${LW_KEYS[M().cur]})</span> ${LWEAPONS[k].icon} <b>${LWEAPONS[k].nome}</b> <small>equipada · ${a === Infinity ? '∞' : a} tiros</small>`;
+    el.classList.remove('hidden', 'out');
+    void el.offsetWidth;   // reinicia a animação
+    el.classList.add('show');
+    clearTimeout(flashT);
+    flashT = setTimeout(() => el.classList.add('out'), 1100);
+  }
+
   let barSig = '';
   function render() {
     const sl = M().slots;
     for (const k in LWEAPONS) {
       const w = LWEAPONS[k], l = lvl(k), open = unlocked(k), max = l >= LW_MAX_LVL, c = cost(k);
+      const si = sl.indexOf(k);
       $('lwr-' + k).classList.toggle('locked', !open && !l);
-      $('lwr-' + k).classList.toggle('equipped', sl.includes(k));
-      $('lwl-' + k).textContent = l ? ` nv. ${l}/${LW_MAX_LVL}` : '';
+      $('lwr-' + k).classList.toggle('equipped', si >= 0);
+      $('lwl-' + k).innerHTML = (l ? ` nv. ${l}/${LW_MAX_LVL}` : '') + (si >= 0 ? ` <span class="lw-tag">✔ Equipada (${LW_KEYS[si]})</span>` : '');
       $('lwn-' + k).textContent = l ? fx(k) : open ? 'No nível 1: ' + fx(k) : lockText(k);
       $('lwc-' + k).innerHTML = max || (!open && !l) ? '' : costHtml(c);
       const b = $('lwb-' + k);
       b.textContent = max ? 'Máximo' : l ? `Melhorar (nv. ${l + 1})` : 'Comprar';
       b.disabled = max || !open || !canAfford(c);
       $('lws-' + k).style.display = l ? '' : 'none';
-      for (let i = 0; i < 4; i++) $(`lwe-${k}-${i}`).classList.toggle('primary', sl[i] === k);
+      for (let i = 0; i < N; i++) $(`lwe-${k}-${i}`).classList.toggle('primary', sl[i] === k);
     }
     // barra de armas sobre o cenário (só à noite)
     const bar = $('weapon-bar');
     bar.classList.toggle('hidden', !S.horde.active);
-    if (!S.horde.active) return;
+    if (!S.horde.active) { $('weapon-flash').classList.add('hidden'); return; }
     const sig = sl.join() + M().cur + sl.map(k => k ? ammoOf(k) : '').join() + (S.clickCd > 0);
     if (sig === barSig) return;
     barSig = sig;
-    for (let i = 0; i < 4; i++) {
-      const k = sl[i], el = $('wsl-' + i);
-      if (!k || !owned(k)) { el.innerHTML = `<kbd>${LW_KEYS[i]}</kbd><span class="wname">vazio</span>`; el.className = 'wslot empty'; continue; }
-      const a = ammoOf(k);
-      el.className = 'wslot' + (M().cur === i ? ' active' : '') + (a < 1 ? ' dry' : '');
-      el.innerHTML = `<kbd>${LW_KEYS[i]}</kbd><span class="wicon">${LWEAPONS[k].icon}</span><span class="wname">${LWEAPONS[k].nome}</span><span class="wammo">${a === Infinity ? '∞' : a}</span>`;
+    for (let i = 0; i < N; i++) {
+      const k = sl[i], el = $('wsl-' + i), key = `<span class="hk">(${LW_KEYS[i]})</span>`;
+      el.removeAttribute('aria-pressed');
+      if (!k || !owned(k)) { el.innerHTML = `${key}<span class="wname">vazio</span>`; el.className = 'wslot empty'; el.title = 'Espaço vazio: equipe uma arma na aba Armas'; continue; }
+      const a = ammoOf(k), on = M().cur === i;
+      el.className = 'wslot' + (on ? ' active' : '') + (a < 1 ? ' dry' : '');
+      el.setAttribute('aria-pressed', on);
+      el.title = on ? `${LWEAPONS[k].nome}: equipada agora` : `Trocar para ${LWEAPONS[k].nome} (${LW_KEYS[i]})`;
+      el.innerHTML = `${on ? '<span class="wtag">EM MÃOS</span>' : ''}${key}<span class="wicon">${LWEAPONS[k].icon}</span><span class="wname">${LWEAPONS[k].nome}</span><span class="wammo">${a === Infinity ? '∞' : a}</span>`;
     }
   }
 
