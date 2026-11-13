@@ -35,7 +35,7 @@ function boot() {
     Scene.update(frameDt);
     Scene.draw();
     panelT += frameDt;
-    if (panelT > 0.15) { panelT = 0; render(); }
+    if (panelT > 0.15) { Tutorial.update(panelT); panelT = 0; render(); }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

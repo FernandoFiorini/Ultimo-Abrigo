@@ -10,7 +10,7 @@
   <meta property="og:description" content="Defenda seu abrigo de hordas de zumbis, pesquise a cura e reconstrua o mundo.">
   <meta property="og:image" content="assets/screenshot.png">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☣️</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=1.00.000">
+  <link rel="stylesheet" href="css/style.css?v=1.01.000">
 </head>
 <body>
   <header>
@@ -26,12 +26,16 @@
 
   <div class="layout">
     <div class="left">
-      <div class="stage"><canvas id="scene"></canvas></div>
+      <div class="stage">
+        <canvas id="scene"></canvas>
+        <button id="pause-badge" class="pause-badge hidden" title="Clique ou aperte Espaço para continuar">⏸ PAUSADO</button>
+      </div>
 
       <div class="quick">
         <button id="btn-scavenge" class="primary">🔍 Vasculhar</button>
         <button id="btn-recruit"></button>
         <button id="btn-repair"></button>
+        <button id="btn-merchant" class="merchant hidden"></button>
       </div>
 
       <div class="strip">
@@ -57,6 +61,8 @@
       <div class="panes">
         <section class="pane" data-pane="equipe">
           <div id="jobs"></div>
+          <h3>👥 O grupo</h3>
+          <div id="people" class="people"></div>
         </section>
 
         <section class="pane" data-pane="construir">
@@ -123,6 +129,9 @@
 
       <footer>
         <button id="btn-save">Salvar</button>
+        <button id="btn-export" title="Gerar um código com o seu progresso">Exportar</button>
+        <button id="btn-import" title="Carregar um progresso exportado">Importar</button>
+        <button id="btn-keys" title="Atalhos de teclado (H)">⌨️</button>
         <button id="btn-reset" class="danger">Reiniciar</button>
         <span id="save-status"></span>
         <span id="version" class="version"></span>
@@ -141,19 +150,31 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=1.00.000"></script>
-  <script src="js/state.js?v=1.00.000"></script>
-  <script src="js/achievements.js?v=1.00.000"></script>
-  <script src="js/shop.js?v=1.00.000"></script>
-  <script src="js/combat.js?v=1.00.000"></script>
-  <script src="js/simulation.js?v=1.00.000"></script>
-  <script src="js/progression.js?v=1.00.000"></script>
-  <script src="js/actions.js?v=1.00.000"></script>
-  <script src="js/save.js?v=1.00.000"></script>
-  <script src="js/ui.js?v=1.00.000"></script>
-  <script src="js/endgame.js?v=1.00.000"></script>
-  <script src="js/scene.js?v=1.00.000"></script>
-  <script src="js/audio.js?v=1.00.000"></script>
-  <script src="js/main.js?v=1.00.000"></script>
+  <div id="dialog" class="modal hidden">
+    <div class="modal-box dialog-box" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+      <h2 id="dialog-title"></h2>
+      <div id="dialog-body"></div>
+      <div id="dialog-actions" class="modal-actions"></div>
+    </div>
+  </div>
+
+  <div id="tip" class="tip hidden" role="status"></div>
+
+  <script src="js/config.js?v=1.01.000"></script>
+  <script src="js/state.js?v=1.01.000"></script>
+  <script src="js/achievements.js?v=1.01.000"></script>
+  <script src="js/shop.js?v=1.01.000"></script>
+  <script src="js/combat.js?v=1.01.000"></script>
+  <script src="js/simulation.js?v=1.01.000"></script>
+  <script src="js/progression.js?v=1.01.000"></script>
+  <script src="js/actions.js?v=1.01.000"></script>
+  <script src="js/save.js?v=1.01.000"></script>
+  <script src="js/ui.js?v=1.01.000"></script>
+  <script src="js/endgame.js?v=1.01.000"></script>
+  <script src="js/events.js?v=1.01.000"></script>
+  <script src="js/tutorial.js?v=1.01.000"></script>
+  <script src="js/scene.js?v=1.01.000"></script>
+  <script src="js/audio.js?v=1.01.000"></script>
+  <script src="js/main.js?v=1.01.000"></script>
 </body>
 </html>

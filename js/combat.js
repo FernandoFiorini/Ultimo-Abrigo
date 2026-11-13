@@ -269,23 +269,29 @@ function killSurvivors(n, reason, useMeds) {
     n -= meds;
     saved += meds;
   }
-  n = Math.min(n, home());
+  n = Math.max(0, Math.min(n, home()));
+  const names = [];
   for (let i = 0; i < n; i++) {
-    S.survivors--;
+    names.push(...removeSurvivors(1));
     if (idle() < 0) {
       const busy = Object.keys(S.jobs).filter(k => S.jobs[k] > 0);
       S.jobs[busy[Math.floor(Math.random() * busy.length)]]--;
     }
   }
   if (saved) { addLog(`💊 Remédios salvaram ${saved} sobrevivente(s).`, 'good'); S.meta.stats.saved += saved; }
-  if (n > 0) addLog(`☠️ ${n} sobrevivente(s) ${reason}.`, 'bad');
+  if (n === 1) addLog(`☠️ ${names[0] || 'Um sobrevivente'} ${reason}.`, 'bad');
+  else if (n > 1) addLog(`☠️ ${joinNames(names)} não resistiram (${reason.replace(/^(morreu|foi morto)/, m => m === 'morreu' ? 'morreram' : 'foram mortos')}).`, 'bad');
   if (home() <= 0 && !S.exps.length) gameOver();
   return n;
 }
 
 function gameOver() {
-  const best = S.best, kills = S.kills;
+  const best = S.best, kills = S.kills, mods = S.mods;
   S = newState(S.meta, S.diff);
+  // os desafios valem para a cidade inteira, mesmo depois de o abrigo cair
+  S.mods = mods;
+  S.wallHp = maxWall();
+  S.waveTimer = waveInterval();
   addLog(`💀 O abrigo caiu. Você chegou até a onda ${best} e abateu ${kills} zumbis. Um novo grupo recomeça...`, 'bad');
   emit('gameOver');
 }

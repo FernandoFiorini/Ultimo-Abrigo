@@ -20,10 +20,9 @@ const actions = {
   },
   recruit() {
     const c = recruitCost();
-    if (S.survivors >= maxSurv() || S.res.comida < c) return;
+    if (hasMod('isolados') || S.survivors >= maxSurv() || S.res.comida < c) return;
     S.res.comida -= c;
-    S.survivors++;
-    addLog('🧍 Um novo sobrevivente se juntou ao grupo.', 'good');
+    addLog(`🧍 ${addSurvivor()} se juntou ao grupo.`, 'good');
     emit('recruit');
   },
   repair() {
@@ -37,7 +36,7 @@ const actions = {
   jobSub(k) { if (S.jobs[k] > 0) { S.jobs[k]--; emit('unassign', { k }); } },
   build(k) {
     const c = buildCost(k);
-    if (!canAfford(c)) return;
+    if (buildBlocked(k) || !canAfford(c)) return;
     pay(c);
     S.build[k]++;
     if (k === 'muro') { S.wallHp += Math.round(50 * (1 + 0.2 * perk('engenharia'))); S.wallDown = false; S.overflow = 0; }
@@ -52,7 +51,7 @@ const actions = {
   expSub(k) { expSel[k] = Math.max(EXPED[k].min, expSel[k] - 1); },
   expGo(k) {
     const L = EXPED[k], n = expSel[k];
-    if (S.best + 1 < L.unlock || idle() < n) return;
+    if (hasMod('semexp') || S.best + 1 < L.unlock || idle() < n) return;
     S.exps.push({ loc: k, n, t: L.dur * Endgame.durMult(), dur: L.dur * Endgame.durMult() });
     addLog(`🎒 ${n} sobrevivente(s) partiram para: ${L.nome}.`);
     emit('expStart', { n });

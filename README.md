@@ -25,13 +25,15 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 
 | Sistema | Descrição |
 |---|---|
-| Sobreviventes | Seis funções (forrageiro, coletor, armeiro, guarda, médico, cientista) com consumo de comida e risco de fome |
+| Sobreviventes | Cada um com nome, em seis funções (forrageiro, coletor, armeiro, guarda, médico, cientista), com consumo de comida e risco de fome |
 | Hordas | Ondas crescentes com seis tipos de zumbi: comum, corredor, brutamontes, cuspidor, inchado (explode) e a Abominação, chefe a cada 10 ondas |
 | Noites especiais | Lua de Sangue, Neblina, Horda Dupla, Chuva Ácida e Noite dos Corredores, cada uma com regras e visual próprios |
 | Expedições e distritos | Missões com risco de morte e recompensas; esquadrões libertam distritos da cidade em troca de bônus |
 | Pesquisa | Laboratório, amostras coletadas de zumbis especiais e uma árvore com 14 tecnologias, incluindo automações |
 | Heróis | Personagens permanentes com classe, nível e armas de quatro raridades |
 | Prestígio em duas camadas | Evacuar a cidade gera Esperança e melhorias permanentes; concluir a pesquisa da Cura inicia um Novo Mundo com Legado |
+| Eventos | Dilemas com escolha durante o dia e um comerciante ambulante com trocas por tempo limitado |
+| Desafios de prestígio | Regras opcionais para cada nova cidade que aumentam a Esperança ganha |
 | Metajogo | 36 conquistas, desafios semanais, loja de boosts, recordes por dificuldade e quatro níveis de dificuldade |
 
 ## Como jogar
@@ -41,6 +43,23 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 3. Construa barracas para abrigar mais gente e torres e muro para aguentar as hordas.
 4. Durante a noite, clique nos zumbis para atirar. De dia, clique no cenário para vasculhar.
 5. Ao sobreviver à onda 10, evacue para ganhar Esperança e recomeçar mais forte.
+
+### Atalhos de teclado
+
+| Tecla | Ação |
+|---|---|
+| `1` a `9` | Trocar de aba |
+| `Espaço` | Pausar / continuar |
+| `V` | Vasculhar |
+| `R` | Recrutar |
+| `C` | Consertar o muro |
+| `M` | Ligar / desligar o som |
+| `O` | Abrir o comerciante |
+| `H` ou `?` | Lista de atalhos |
+
+### Backup do progresso
+
+O progresso fica salvo no navegador. Use **Exportar** no rodapé para gerar um código (ou baixar um `.txt`) e **Importar** para carregá-lo em outro navegador ou aparelho.
 
 ## Estrutura do projeto
 
@@ -56,9 +75,11 @@ js/
   achievements.js   conquistas e estatísticas
   shop.js           loja e moeda rara
   actions.js        ações disparadas pelo jogador
-  save.js           salvar, carregar e migrar saves antigos
+  save.js           salvar, carregar, migrar saves antigos, exportar e importar
   ui.js             painéis, abas, notificações e seletor de dificuldade
   endgame.js        pesquisa, a Cura, noites especiais, distritos, heróis e desafios semanais
+  events.js         dilemas com escolha e comerciante ambulante
+  tutorial.js       dicas do primeiro jogo e atalhos de teclado
   scene.js          renderização em pixel art no Canvas
   audio.js          música generativa e efeitos sonoros sintetizados
   main.js           inicialização e laço principal

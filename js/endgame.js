@@ -143,7 +143,7 @@ const Endgame = (() => {
       case 'prod':  return (1 + 0.15 * tl('estoque')) * (1 + 0.25 * L) * (1 + hb('comandante'));
       case 'food':  return 1 + dist('food');
       case 'scrap': return (1 + dist('scrap')) * (1 + hb('engenheiro'));
-      case 'ammo':  return 1 + dist('ammo');
+      case 'ammo':  return (1 + dist('ammo')) * (hasMod('polvora') ? 0.5 : 1);
       case 'meds':  return (1 + dist('meds')) * (1 + hb('medico'));
       case 'rp':    return (1 + dist('rp')) * (1 + 0.25 * L);
       case 'wall':  return (1 + 0.2 * tl('concreto')) * (1 + hb('engenheiro'));
@@ -270,7 +270,7 @@ const Endgame = (() => {
       onPick: diff => {
         const m = M();
         const keep = { cash: m.cash, ach: m.ach, stats: m.stats, heroes: m.heroes, weapons: m.weapons, active: m.active, hid: m.hid,
-          records: m.records, weekly: m.weekly, boosts: m.boosts, legado: m.legado + g, worlds: m.worlds + 1 };
+          records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, legado: m.legado + g, worlds: m.worlds + 1 };
         S = newState(Object.assign(newMeta(), keep), diff);
         addLog(`🌍 Bem-vindo ao Mundo ${S.meta.worlds}! +${g} de Legado (total ${S.meta.legado}).`, 'good');
         emit('evacuate', { city: 1, g: 0, world: S.meta.worlds });
@@ -352,8 +352,8 @@ const Endgame = (() => {
       if (Math.random() < 0.4 || !M().heroes.length) gainHero(`libertando ${d.nome}`);
     } else {
       const lost = Math.ceil(o.n / 2);
-      S.survivors -= lost;
-      addLog(`💀 O ataque a ${d.icon} ${d.nome} fracassou. ${lost} sobrevivente(s) não voltaram.`, 'bad');
+      const names = removeSurvivors(lost);
+      addLog(`💀 O ataque a ${d.icon} ${d.nome} fracassou. ${joinNames(names)} não ${lost > 1 ? 'voltaram' : 'voltou'}.`, 'bad');
       emit('expReturn', { n: o.n - lost });
       emit('breach');
       if (S.survivors <= 0) gameOver();
@@ -496,10 +496,9 @@ const Endgame = (() => {
   function automate() {
     if (tl('autoreparo'))
       while (S.wallHp < maxWall() * 0.5 && S.res.sucata >= REPAIR_COST) actions.repair();
-    if (tl('autorecruta') && S.survivors < maxSurv() && S.res.comida > recruitCost() * 1.5 + 20 && rates().comida > 0.1) {
+    if (tl('autorecruta') && !hasMod('isolados') && S.survivors < maxSurv() && S.res.comida > recruitCost() * 1.5 + 20 && rates().comida > 0.1) {
       S.res.comida -= recruitCost();
-      S.survivors++;
-      addLog('📢 Recrutamento automático: um novo sobrevivente chegou.', 'good');
+      addLog(`📢 Recrutamento automático: ${addSurvivor()} chegou.`, 'good');
     }
     if (tl('autofuncao')) {
       for (let guard = 0; idle() > 0 && guard < 60; guard++) {
@@ -516,7 +515,7 @@ const Endgame = (() => {
     }
     if (tl('autoconstroi') && buildT >= 20) {
       buildT = 0;
-      const opts = Object.keys(BUILD).filter(k => k !== 'radio' && k !== 'lab' && canAfford(buildCost(k)))
+      const opts = Object.keys(BUILD).filter(k => k !== 'radio' && k !== 'lab' && !buildBlocked(k) && canAfford(buildCost(k)))
         .sort((a, b) => (buildCost(a).sucata || 0) - (buildCost(b).sucata || 0));
       if (opts.length) actions.build(opts[0]);
     }

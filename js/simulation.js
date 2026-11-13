@@ -44,8 +44,7 @@ function tick(dt, live) {
 
   if (S.build.radio > 0 && S.survivors < maxSurv() && S.res.comida > 0 &&
       Math.random() < 0.004 * S.build.radio * dt) {
-    S.survivors++;
-    addLog('📻 Um sobrevivente ouviu o rádio e chegou ao abrigo.', 'good');
+    addLog(`📻 ${addSurvivor()} ouviu o rádio e chegou ao abrigo.`, 'good');
     emit('expReturn', { n: 1 });
   }
 
@@ -57,6 +56,9 @@ function tick(dt, live) {
       for (const e of done) { expReturn(e); if (S !== st) return; }
     }
   }
+
+  // dilemas e comerciante só com o jogo aberto na tela
+  if (live && !document.hidden) { Events.tick(dt); if (S !== st) return; }
 
   if (S.horde.active) {
     if (live) updateHorde(dt); else flushWave();
@@ -95,7 +97,7 @@ function simulate(seconds) {
 
 function step() {
   const now = Date.now();
-  if (modalOpen) { S.last = now; return 0; }
+  if (modalOpen || paused) { S.last = now; return 0; }
   const dt = Math.min((now - S.last) / 1000, OFFLINE_MAX);
   S.last = now;
   if (dt > 1) simulate(dt);

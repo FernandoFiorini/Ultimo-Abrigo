@@ -35,7 +35,7 @@ function buyShop(k) {
     }
     case 'aereo': S.horde.strikeT = 1.2; S.meta.stats.airstrikes++; msg = 'os aviões estão a caminho!'; break;
     case 'muro': S.wallHp = maxWall(); S.wallDown = false; S.overflow = 0; msg = 'muro restaurado!'; break;
-    case 'veterano': S.survivors++; msg = 'um veterano chegou ao abrigo!'; break;
+    case 'veterano': msg = `${addSurvivor()} chegou ao abrigo, com anos de experiência nas ruas!`; break;
     case 'medkit': S.res.remedio += 5; msg = '+5 remédios'; break;
     case 'retorno': {
       const list = S.exps;

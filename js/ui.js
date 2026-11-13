@@ -122,9 +122,17 @@ function buildUI() {
   $('btn-recruit').onclick = () => { actions.recruit(); render(); };
   $('btn-repair').onclick = () => { actions.repair(); render(); };
   $('btn-save').onclick = save;
+  $('btn-export').onclick = showExport;
+  $('btn-import').onclick = showImport;
+  $('btn-keys').onclick = showShortcuts;
+  $('btn-merchant').onclick = () => Events.openMerchant();
+  $('pause-badge').onclick = () => togglePause(false);
+  setupKeys();
+  Tutorial.setup();
   $('btn-reset').onclick = () => {
     if (!confirm('Apagar TODO o progresso, inclusive Esperança, cash, conquistas e melhorias permanentes?')) return;
     S = newState();
+    Tutorial.reset();
     emit('gameOver');
     render();
     chooseDifficulty({
@@ -139,14 +147,22 @@ function buildUI() {
 
 function render() {
   const r = rates();
+  const left = timeLeft(r);
   for (const k in RES) {
     $('r-' + k).textContent = fmt(S.res[k]);
     const el = $('rr-' + k);
-    el.textContent = fmtRate(r[k]);
+    el.textContent = fmtRate(r[k]) + (left[k] != null && left[k] < 300 ? ` · ${fmtClock(left[k])}` : '');
     el.className = 'rate ' + (r[k] > 0.001 ? 'pos' : r[k] < -0.001 ? 'neg' : '');
+    el.parentNode.classList.toggle('danger', left[k] != null && left[k] < 60);
+    el.parentNode.title = RES[k].nome + (left[k] != null ? ` (acaba em ~${fmtTime(left[k])} no ritmo atual)` : '');
   }
   $('r-hope').textContent = S.meta.hope;
-  $('diff-chip').textContent = `${D().icon} ${D().nome}`;
+  $('diff-chip').textContent = `${D().icon} ${D().nome}` + (S.mods.length ? ' · ' + S.mods.map(k => MODS[k].icon).join('') : '');
+  $('diff-chip').title = 'Dificuldade (clique para mudar)' + (S.mods.length ? '\nDesafios: ' + S.mods.map(k => MODS[k].nome).join(', ') : '');
+  $('pause-badge').classList.toggle('hidden', !paused);
+  const mc = $('btn-merchant');
+  mc.classList.toggle('hidden', !S.merchant);
+  if (S.merchant) mc.textContent = `🛒 Comerciante (${Math.ceil(S.merchant.t)}s)`;
   $('diff-chip').style.setProperty('--c', D().color);
   $('r-cash').textContent = S.meta.cash;
   const B = S.meta.boosts;
@@ -173,17 +189,18 @@ function render() {
   let info = `<b>${S.survivors}</b> / ${maxSurv()} sobreviventes · <b>${idle()}</b> ociosos`;
   if (away()) info += ` · <b>${away()}</b> em expedição`;
   info += `<br>Consumo: ${fmt(home() * foodPer())} comida/s`;
-  if (S.starve > 0) info += `<br><span class="bad-text">⚠ Sem comida! Alguém morrerá em ${Math.ceil(STARVE_TIME - S.starve)}s</span>`;
-  else if (r.comida < 0) info += `<br><span class="warn-text">⚠ A comida está acabando: coloque mais forrageiros</span>`;
+  info += alertsHtml(r, left);
   $('surv-info').innerHTML = info;
+  renderPeople();
 
   const sg = scavGain();
   $('btn-scavenge').textContent = `🔍 Vasculhar (+${sg.comida} 🥫 +${sg.sucata} 🔩)`;
 
   const rc = recruitCost();
   const full = S.survivors >= maxSurv();
-  $('btn-recruit').textContent = full ? '🧍 Lotado (construa barracas)' : `🧍 Recrutar (${RES.comida.icon} ${rc})`;
-  $('btn-recruit').disabled = full || S.res.comida < rc;
+  const iso = hasMod('isolados');
+  $('btn-recruit').textContent = iso ? '📵 Isolados: sem recrutamento' : full ? '🧍 Lotado (construa barracas)' : `🧍 Recrutar (${RES.comida.icon} ${rc})`;
+  $('btn-recruit').disabled = iso || full || S.res.comida < rc;
 
   for (const k in JOBS) {
     $('jc-' + k).textContent = S.jobs[k];
@@ -195,9 +212,11 @@ function render() {
     const c = buildCost(k);
     $('bl-' + k).textContent = S.build[k] ? ` nv. ${S.build[k]}` : '';
     $('bn-' + k).textContent = S.build[k] ? `Atual: ${BUILD_FX[k](S.build[k])}` : '';
-    $('bb-' + k).textContent = S.build[k] ? `Melhorar para nv. ${S.build[k] + 1}` : 'Construir';
-    $('bc-' + k).innerHTML = costHtml(c);
-    $('bb-' + k).disabled = !canAfford(c);
+    const blocked = buildBlocked(k);
+    $('bb-' + k).textContent = blocked ? '🚫 Bloqueado' : S.build[k] ? `Melhorar para nv. ${S.build[k] + 1}` : 'Construir';
+    $('bb-' + k).title = blocked ? 'Desafio "Sem torres" ativo nesta cidade' : '';
+    $('bc-' + k).innerHTML = blocked ? '' : costHtml(c);
+    $('bb-' + k).disabled = blocked || !canAfford(c);
   }
 
   const H = S.horde;
@@ -217,11 +236,14 @@ function render() {
   $('btn-repair').disabled = S.res.sucata < REPAIR_COST || S.wallHp >= maxWall();
 
   const scale = (1 + 0.08 * (S.wave - 1)) * hopeMult();
+  const sieged = hasMod('semexp');
   for (const k in EXPED) {
-    const L = EXPED[k], locked = S.best + 1 < L.unlock, n = expSel[k];
+    const L = EXPED[k], locked = sieged || S.best + 1 < L.unlock, n = expSel[k];
     $('er-' + k).classList.toggle('locked', locked);
     $('en-' + k).textContent = n;
-    if (locked) {
+    if (sieged) {
+      $('ed-' + k).textContent = '⛔ Cidade sitiada: expedições bloqueadas por um desafio';
+    } else if (locked) {
       $('ed-' + k).textContent = `🔒 Desbloqueia ao chegar na onda ${L.unlock}`;
     } else {
       const loot = Object.entries(L.loot).map(([r, [a, b]]) =>
@@ -241,7 +263,8 @@ function render() {
   $('prestige').innerHTML = `
     <div class="stat"><span>Cidade atual</span><span>${S.meta.city}</span></div>
     <div class="stat"><span>Esperança disponível</span><span>✨ ${S.meta.hope}</span></div>
-    <div class="stat"><span>Bônus de produção permanente</span><span>+${Math.round(S.meta.hopeTotal * 3)}%</span></div>`;
+    <div class="stat"><span>Bônus de produção permanente</span><span>+${Math.round(S.meta.hopeTotal * 3)}%</span></div>
+    <div class="stat"><span>Desafios desta cidade</span><span>${S.mods.length ? S.mods.map(k => `<span title="${MODS[k].nome}: ${MODS[k].desc}">${MODS[k].icon}</span>`).join(' ') + ` (+${Math.round(modBonus() * 100)}% ✨)` : 'nenhum'}</span></div>`;
   $('btn-evac').textContent = g ? `🚁 Evacuar (+${g} ✨ Esperança)` : `🔒 Sobreviva até a onda ${EVAC_WAVE} para evacuar`;
   $('btn-evac').disabled = !g;
   for (const k in PERKS) {
@@ -377,4 +400,162 @@ function achToast(a) {
 function openTab(name) {
   const t = document.querySelector(`.tab[data-tab="${name}"]`);
   if (t) t.click();
+}
+
+// ---------- alertas de recursos ----------
+// Segundos até cada recurso acabar no ritmo atual (só para os que estão caindo)
+function timeLeft(r) {
+  const out = {};
+  for (const k in RES) if (r[k] < -0.001 && S.res[k] > 0) out[k] = S.res[k] / -r[k];
+  return out;
+}
+
+// Estimativa grosseira da munição que a próxima horda vai gastar
+function ammoNeeded() {
+  const n = S.wave;
+  return waveSize(n) * hpMult(n) / Endgame.mult('dmg');
+}
+
+function alertsHtml(r, left) {
+  const out = [];
+  if (S.starve > 0) out.push(['bad', `⚠ Sem comida! Alguém morrerá em ${Math.ceil(STARVE_TIME - S.starve)}s`]);
+  else if (left.comida != null) out.push([left.comida < 60 ? 'bad' : 'warn', `⚠ A comida acaba em ~${fmtTime(left.comida)}: coloque mais forrageiros`]);
+  if (left.sucata != null && left.sucata < 180) out.push(['warn', `⚠ A sucata acaba em ~${fmtTime(left.sucata)}: sem ela, os armeiros param`]);
+  if (!S.horde.active && S.jobs.guarda > 0) {
+    const ammo = S.res.municao + Math.max(0, r.municao) * S.waveTimer;
+    if (ammo < ammoNeeded() * 0.6) out.push(['warn', '⚠ Pouca munição para a próxima horda: os guardas vão jogar pedras']);
+  }
+  if (!S.horde.active && S.waveTimer < 30 && S.wallHp < maxWall() * 0.4) out.push(['bad', `⚠ Muro fraco e a horda chega em ${Math.ceil(S.waveTimer)}s: repare agora`]);
+  return out.map(([c, t]) => `<br><span class="${c}-text">${t}</span>`).join('');
+}
+
+// ---------- lista de sobreviventes ----------
+let peopleSig = '';
+function renderPeople() {
+  const sig = S.people.join('|') + '|' + away();
+  if (sig === peopleSig) return;
+  peopleSig = sig;
+  $('people').innerHTML = S.people.length
+    ? S.people.map(n => `<span class="person">${n}</span>`).join('') + (away() ? `<p class="hint">${away()} estão fora, em expedições ou operações.</p>` : '')
+    : '<p class="hint">Ninguém no abrigo.</p>';
+}
+
+// ---------- janela genérica ----------
+// o: { title, body (texto ou função), buttons: [{ label, cls, onClick(d), keep, disabled(), hidden() }],
+//      cancel (true ou texto do botão de fechar), onOpt(chave, d) para elementos [data-opt], onClose, onMount(d), staticBody }
+let dlg = null;
+function openDialog(o) {
+  if (dlg) dlg.close(true);
+  const el = $('dialog'), val = v => (typeof v === 'function' ? v() : v);
+  const d = {
+    refresh(full = !o.staticBody) {
+      $('dialog-title').innerHTML = val(o.title);
+      if (full) $('dialog-body').innerHTML = val(o.body);
+      $('dialog-actions').innerHTML = (o.buttons || []).map((b, i) => b.hidden && b.hidden() ? '' :
+        `<button data-btn="${i}" class="${b.cls || ''}" ${b.disabled && b.disabled() ? 'disabled' : ''}>${val(b.label)}</button>`).join('') +
+        (o.cancel ? `<button data-btn="-1">${o.cancel === true ? 'Fechar' : o.cancel}</button>` : '');
+    },
+    close(silent) {
+      if (dlg !== d) return;
+      dlg = null;
+      el.classList.add('hidden');
+      modalOpen = !$('modal').classList.contains('hidden');
+      if (!silent && o.onClose) o.onClose();
+    },
+    get open() { return dlg === d; },
+    canCancel: !!o.cancel,
+  };
+  $('dialog-body').onclick = e => {
+    const t = e.target.closest('[data-opt]');
+    if (!t || t.disabled || !o.onOpt) return;
+    o.onOpt(t.dataset.opt, d);
+    if (d.open) d.refresh(true);
+    render();
+  };
+  $('dialog-actions').onclick = e => {
+    const t = e.target.closest('[data-btn]');
+    if (!t) return;
+    const i = +t.dataset.btn;
+    if (i < 0) { d.close(); return; }
+    const b = o.buttons[i];
+    if (b.onClick) b.onClick(d);
+    if (!b.keep) d.close(true);
+    else if (d.open) d.refresh(false);
+    render();
+  };
+  dlg = d;
+  d.refresh(true);
+  el.classList.remove('hidden');
+  modalOpen = true;
+  if (o.onMount) o.onMount(d);
+  return d;
+}
+// Esc fecha a janela aberta, se ela permitir
+function dialogEsc() {
+  if (dlg && dlg.canCancel) { dlg.close(); return true; }
+  return false;
+}
+
+// ---------- exportar / importar ----------
+function showExport() {
+  const code = exportCode();
+  openDialog({
+    title: '💾 Exportar progresso',
+    staticBody: true,
+    body: `<p class="event-text">Guarde este código em um lugar seguro. Para continuar em outro navegador ou aparelho, use <b>Importar</b> e cole o código.</p>
+      <textarea id="save-code" class="save-code" readonly spellcheck="false">${code}</textarea>
+      <p id="save-msg" class="hint"></p>`,
+    onMount: () => $('save-code').select(),
+    buttons: [
+      { label: '📋 Copiar', cls: 'primary', keep: true, onClick: () => copyCode(code) },
+      { label: '⬇️ Baixar arquivo', keep: true, onClick: () => downloadCode(code) },
+    ],
+    cancel: 'Fechar',
+  });
+}
+
+function copyCode(code) {
+  const ok = () => { $('save-msg').textContent = '✔ Código copiado.'; };
+  const fallback = () => {
+    $('save-code').select();
+    try { document.execCommand('copy'); ok(); } catch (e) { $('save-msg').textContent = 'Não deu para copiar sozinho: selecione o texto e copie.'; }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(ok, fallback);
+  else fallback();
+}
+
+function downloadCode(code) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([code], { type: 'text/plain' }));
+  a.download = `ultimo-abrigo-${new Date().toISOString().slice(0, 10)}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  $('save-msg').textContent = '✔ Arquivo baixado.';
+}
+
+function showImport() {
+  openDialog({
+    title: '📂 Importar progresso',
+    staticBody: true,
+    body: `<p class="event-text">Cole o código exportado ou escolha o arquivo <b>.txt</b>. <span class="bad-text">O progresso atual deste navegador será substituído.</span></p>
+      <textarea id="save-code" class="save-code" spellcheck="false" placeholder="UA1:..."></textarea>
+      <label class="file-pick"><input type="file" id="save-file" accept=".txt,text/plain"> 📄 Escolher arquivo</label>
+      <p id="save-msg" class="hint"></p>`,
+    onMount: () => {
+      $('save-code').focus();
+      $('save-file').onchange = e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        f.text().then(t => { $('save-code').value = t.trim(); $('save-msg').textContent = `Arquivo "${f.name}" carregado. Clique em Importar.`; });
+      };
+    },
+    buttons: [{ label: 'Importar', cls: 'primary', keep: true, onClick: () => {
+      const code = $('save-code').value;
+      if (!code.trim()) { $('save-msg').innerHTML = '<span class="bad-text">Cole um código primeiro.</span>'; return; }
+      try { importSave(code); } catch (e) { $('save-msg').innerHTML = `<span class="bad-text">${e.message}</span>`; }
+    } }],
+    cancel: 'Cancelar',
+  });
 }

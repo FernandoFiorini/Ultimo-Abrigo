@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '1.00.000';
+const VERSION = '1.01.000';
 const SAVE_KEY = 'ultimoAbrigo.v1';
 const OFFLINE_MAX = 8 * 3600;      // máximo de progresso offline (segundos)
 // (intervalo entre hordas e consumo de comida dependem da dificuldade: veja DIFFS)
@@ -9,6 +9,11 @@ const REPAIR_COST = 10;             // sucata
 const REPAIR_AMOUNT = 25;           // resistência recuperada
 const DMG_PER_DEATH = 10;           // dano que passa do muro necessário para matar 1 sobrevivente
 const EVAC_WAVE = 10;               // onda mínima sobrevivida para poder evacuar
+const EVENT_FIRST = 150;            // segundos até o primeiro dilema da cidade
+const EVENT_GAP = [200, 340];       // intervalo entre dilemas (mín., máx.)
+const MERCHANT_FIRST = 240;         // segundos até o primeiro comerciante
+const MERCHANT_GAP = [300, 480];    // intervalo entre visitas do comerciante
+const MERCHANT_STAY = 100;          // quanto tempo ele fica no abrigo
 
 const WORLD = { W: 480, H: 200, GY: 150, WALL_X: 190, SPAWN_X: 492, RANGE_X: 400, LANE_MIN: 160, LANE_MAX: 192 };
 const GUARD_CD = 2.4;     // segundos entre tiros do guarda
@@ -45,8 +50,8 @@ const DIFFS = {
               desc: 'Só para veteranos. Cada noite pode ser a última.' },
 };
 const D = () => DIFFS[(S && S.diff) || 'normal'];
-const waveInterval = () => D().interval;
-const foodPer = () => D().food;
+const waveInterval = () => D().interval * (hasMod('rapida') ? 0.7 : 1);
+const foodPer = () => D().food * (hasMod('fome') ? 1.5 : 1);
 
 const RES = {
   comida:  { nome: 'Comida',   icon: '🥫' },
@@ -128,3 +133,25 @@ const PERK_FX = {
   engenharia:  lv => `+${20 * lv}% de resistência do muro`,
   mira:        lv => `${1 + lv} de dano por tiro`,
 };
+
+// Desafios de prestígio: escolhidos ao evacuar, valem para a cidade inteira e aumentam a Esperança ganha nela
+const MODS = {
+  rapida:     { nome: 'Noites curtas',   icon: '🌘', desc: 'As hordas chegam 30% mais rápido',              bonus: 0.4 },
+  horda:      { nome: 'Hordas famintas', icon: '🧟', desc: '+25% de zumbis em cada onda',                   bonus: 0.4 },
+  semtorres:  { nome: 'Sem torres',      icon: '🚫', desc: 'Torres de vigia não podem ser construídas',     bonus: 0.35 },
+  fome:       { nome: 'Escassez',        icon: '🥀', desc: 'Cada sobrevivente come 50% mais',               bonus: 0.35 },
+  semexp:     { nome: 'Cidade sitiada',  icon: '⛔', desc: 'Expedições não podem ser enviadas',             bonus: 0.3 },
+  murofraco:  { nome: 'Muro de papel',   icon: '🧻', desc: 'O muro tem 40% menos resistência',              bonus: 0.3 },
+  isolados:   { nome: 'Isolados',        icon: '📵', desc: 'Não dá para recrutar (rádio, expedições e eventos ainda trazem gente)', bonus: 0.3 },
+  polvora:    { nome: 'Pólvora molhada', icon: '💧', desc: 'Armeiros produzem 50% menos munição',           bonus: 0.25 },
+};
+const MOD_OFFER = 4;   // quantos desafios são oferecidos a cada evacuação
+const hasMod = k => !!(typeof S !== 'undefined' && S && S.mods && S.mods.includes(k));
+const modBonus = (list = (S && S.mods) || []) => list.reduce((a, k) => a + (MODS[k] ? MODS[k].bonus : 0), 0);
+
+// Nomes dos sobreviventes comuns (os heróis têm a própria lista)
+const NAMES = ['Ana', 'Jorge', 'Marta', 'Paulo', 'Cláudia', 'Diego', 'Fernanda', 'Luiz', 'Camila', 'Roberto', 'Sueli', 'André',
+  'Patrícia', 'Wesley', 'Helena', 'Márcio', 'Renata', 'Igor', 'Beatriz', 'Sérgio', 'Aline', 'Fábio', 'Vera', 'Otávio', 'Larissa',
+  'Edson', 'Priscila', 'Gustavo', 'Simone', 'Ricardo', 'Joana', 'Murilo', 'Elaine', 'Vítor', 'Cristina', 'Davi', 'Natália', 'Hélio',
+  'Raquel', 'Thiago', 'Sandra', 'Leandro', 'Yara', 'Wagner', 'Lívia', 'Douglas', 'Irene', 'Matheus', 'Gisele', 'Alemão', 'Dona Lurdes',
+  'Seu Jair', 'Pietra', 'Caetano', 'Vânia', 'Benedito', 'Kelly', 'Osvaldo', 'Rita', 'Ivan'];
