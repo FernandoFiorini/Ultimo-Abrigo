@@ -27,6 +27,7 @@ function startWave(quiet) {
   if (!quiet) addLog(`🌙 A noite caiu. Onda ${n}: ${queue.length} zumbis se aproximam!` +
     (queue.includes('chefe') ? ' Algo ENORME vem junto...' : ''), 'warn');
   if (event && !quiet) addLog(`${Endgame.EVENTS[event].icon} NOITE ESPECIAL: ${Endgame.EVENTS[event].nome}! ${Endgame.EVENTS[event].desc}`, 'bad');
+  Weapons.refill();
   emit('waveStart', { n, count: queue.length, boss: queue.includes('chefe'), event });
 }
 
@@ -55,6 +56,7 @@ function killZombie(z, src) {
   emit('zdeath', { id: z.id, x: z.x, y: z.y, type: z.type, loot, src });
   countKill(z.type);
   Endgame.onKill(z, src);
+  if (src === 'player') Weapons.onKill(z);
   if (Z.boss) gainCash(D().bossCash, 'a Abominação foi derrotada!', z.x, zy(z) - 10);
   if (Z.explode) {
     emit('explode', { x: z.x, y: zy(z) });
@@ -101,6 +103,9 @@ function updateHorde(dt) {
 
   // Armadilhas, cerca elétrica e chuva ácida
   Endgame.hordeTick(dt);
+  // granadas em voo e zumbis em chamas
+  Weapons.hordeTick(dt);
+  if (S !== st) return;
 
   const WX = WORLD.WALL_X + 13;
   for (const z of H.zs) {
@@ -139,10 +144,12 @@ function updateHorde(dt) {
     const z = pickTarget();
     if (!z) { H.gcd[i] = Math.random() * 0.4; continue; }
     if (S.res.municao >= 1) {
+      // tiro errado também gasta munição
       S.res.municao -= 1;
       H.gcd[i] = GUARD_CD / fm * (0.85 + Math.random() * 0.3);
-      emit('shot', { src: 'guard', idx: i, x: z.x, y: zy(z) });
-      Endgame.hit(z, Endgame.mult('dmg'), 'guard');
+      const hit = Math.random() < accuracy('guard');
+      emit('shot', { src: 'guard', idx: i, x: z.x, y: zy(z), miss: !hit });
+      if (hit) Endgame.hit(z, Endgame.mult('dmg'), 'guard');
     } else {
       H.gcd[i] = ROCK_CD;
       const hit = Math.random() < ROCK_HIT;
@@ -157,22 +164,13 @@ function updateHorde(dt) {
     const z = pickTarget();
     if (!z) { H.tcd[i] = Math.random() * 0.4; continue; }
     H.tcd[i] = TOWER_CD / fm * (0.85 + Math.random() * 0.3);
-    emit('shot', { src: 'tower', idx: i, x: z.x, y: zy(z) });
-    Endgame.hit(z, Endgame.mult('dmg'), 'tower');
+    const hit = Math.random() < accuracy('tower');
+    emit('shot', { src: 'tower', idx: i, x: z.x, y: zy(z), miss: !hit });
+    if (hit) Endgame.hit(z, Endgame.mult('dmg'), 'tower');
   }
 
   H.zs = H.zs.filter(z => !z.dead);
   if (!H.queue.length && !H.zs.length) endWave();
-}
-
-function playerShoot(id) {
-  if (!S.horde.active || S.clickCd > 0) return;
-  const z = S.horde.zs.find(z => z.id === id && !z.dead);
-  if (!z) return;
-  S.clickCd = CLICK_CD;
-  S.meta.stats.shots++;
-  emit('shot', { src: 'player', x: z.x, y: zy(z) });
-  Endgame.hit(z, (1 + perk('mira')) * (furia() ? 2 : 1) * Endgame.mult('dmg'), 'player');
 }
 
 // Dano total que a defesa causa numa onda resolvida de uma vez (offline).
@@ -185,7 +183,8 @@ function offlineDefense(count) {
   S.res.municao -= armedShots;
   const rockHits = (guardShots - armedShots) * (GUARD_CD / ROCK_CD) * ROCK_HIT;
   const towerShots = S.build.torre * duration / TOWER_CD * fm * OFFLINE_EFF;
-  return armedShots + rockHits + towerShots;
+  // mesma precisão do combate ao vivo
+  return armedShots * accuracy('guard') + rockHits + towerShots * accuracy('tower');
 }
 
 // Resolve o resto da onda de uma vez (offline / aba em segundo plano)

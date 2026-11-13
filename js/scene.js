@@ -15,6 +15,8 @@ const Scene = (() => {
   let hordeVis = 0;
   const hitAt = new Map();
   let banner = null, pid = 1;
+  const ptr = { x: W / 2, y: H / 2, in: false, down: false };
+  let dayHintT = 0;
 
   const rand = (a, b) => a + Math.random() * (b - a);
   const ri = (a, b) => Math.floor(rand(a, b + 1));
@@ -376,7 +378,16 @@ const Scene = (() => {
           parts.push({ x: ox, y: oy, vx: (d.x - ox) / 0.5, vy: (d.y - oy) / 0.5 - 50, g: 200, life: 0.5, max: 0.5, c: [140, 140, 140], s: 2, solid: true });
         } else {
           const hot = S.meta.boosts.furia > 0;
-          tracers.push({ x1: ox, y1: oy, x2: d.x, y2: d.y, life: 0.07, c: hot ? '255,110,50' : d.src === 'player' ? '255,250,200' : '255,220,120' });
+          let tx = d.x, ty = d.y;
+          if (d.launch) break;   // granadas, foguetes e fogo têm efeito próprio
+          if (d.exact) {
+            if (d.miss) for (let i = 0; i < 3; i++) parts.push({ x: tx, y: ty, vx: rand(-12, 12), vy: rand(-20, -6), g: 80, life: 0.35, max: 0.35, c: [150, 135, 110], s: 1 });
+          } else if (d.miss) {
+            // passa raspando e bate no chão atrás do zumbi
+            tx = d.x + rand(8, 22); ty = Math.min(H - 6, d.y + rand(12, 24));
+            for (let i = 0; i < 4; i++) parts.push({ x: tx, y: ty, vx: rand(-14, 14), vy: rand(-26, -8), g: 80, life: 0.45, max: 0.45, c: [150, 135, 110], s: 1 });
+          }
+          tracers.push({ x1: ox, y1: oy, x2: tx, y2: ty, life: 0.07, c: hot ? '255,110,50' : d.src === 'player' ? '255,250,200' : '255,220,120' });
         }
         break;
       }
@@ -394,11 +405,25 @@ const Scene = (() => {
           x: d.x, y: d.y, vx: rand(-60, 60), vy: rand(-70, -5), g: 120, life: rand(0.3, 0.8), max: 0.8,
           c: pick(['#ffd040', '#ff8a20', '#ff5020', [90, 80, 80], [150, 120, 140]]), s: pick([1, 2, 2, 3]), floor: d.y + 14,
         });
-        flashes.push({ x: d.x, y: d.y, r: 45, c: '255,150,50', a: 0.9, life: 0.35, max: 0.35 });
-        decals.push({ x: d.x, y: d.y + 9, w: 12, life: 30, c: [40, 34, 30] });
-        shake = Math.max(shake, 3.5);
+        flashes.push({ x: d.x, y: d.y, r: d.big ? 90 : 45, c: '255,150,50', a: 0.9, life: d.big ? 0.6 : 0.35, max: d.big ? 0.6 : 0.35 });
+        decals.push({ x: d.x, y: d.y + 9, w: d.big ? 26 : 12, life: 30, c: [40, 34, 30] });
+        if (d.big) for (let i = 0; i < 30; i++) parts.push({ x: d.x + rand(-20, 20), y: d.y + rand(-10, 6), vx: rand(-25, 25), vy: rand(-30, -8), life: rand(1, 2), max: 2, c: [90, 85, 85], s: 3, a: 0.5 });
+        shake = Math.max(shake, d.big ? 7 : 3.5);
         break;
       }
+      case 'flame':
+        for (let i = 0; i < 7; i++) parts.push({ x: d.x + rand(-d.r, d.r) * 0.7, y: d.y + rand(-4, 8), vx: rand(-8, 8), vy: rand(-30, -12), life: rand(0.25, 0.5), max: 0.5, c: pick(['#ffd040', '#ff8a20', '#ff5020']), s: pick([1, 2, 2]), glow: '255,140,40' });
+        tracers.push({ x1: LEADER.x + 9, y1: LEADER.y - 11, x2: d.x, y2: d.y, life: 0.06, c: '255,150,60' });
+        break;
+      case 'pierce':
+        tracers.push({ x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, life: 0.1, c: '255,250,200' });
+        break;
+      case 'lwAmmo':
+        texts.push({ x: d.x, y: d.y, t: d.text, c: '#9be35a', life: 1.4 });
+        break;
+      case 'noAmmo':
+        texts.push({ x: ptr.x, y: ptr.y - 8, t: 'sem munição!', c: '#ff8070', life: 0.8 });
+        break;
       case 'cash': {
         const x = d.x ?? LEADER.x + 30, y = d.y ?? LEADER.y - 20;
         texts.push({ x, y, t: `+${d.n} 💵`, c: '#6fe39a', life: 2.2, big: true });
@@ -905,6 +930,45 @@ const Scene = (() => {
     ctx.globalAlpha = 1;
   }
 
+  // granada em arco; foguete em linha reta com rastro de fumaça
+  function drawProjectiles() {
+    for (const p of Weapons.projectiles) {
+      const f = Math.min(1, p.t / p.dur);
+      const x = p.x0 + (p.x - p.x0) * f;
+      const y = p.y0 + (p.y - p.y0) * f - (p.rocket ? 0 : Math.sin(f * Math.PI) * 28);
+      if (p.rocket) {
+        rect([200, 200, 190], x - 3, y - 1, 6, 2); rect([220, 60, 40], x + 3, y - 1, 2, 2);
+        light(x - 3, y, 10, '255,160,60', 0.6);
+        if (Math.random() < 0.8) parts.push({ x: x - 4, y, vx: rand(-10, 0), vy: rand(-6, 6), life: 0.6, max: 0.6, c: [170, 170, 170], s: 2, a: 0.5 });
+      } else {
+        rect([60, 70, 50], x - 1.5, y - 1.5, 3, 3);
+      }
+    }
+  }
+
+  // mira do jogador durante a horda
+  function drawReticle() {
+    if (!S.horde.active || !ptr.in || paused) return;
+    const k = Weapons.current(), w = LWEAPONS[k], st = Weapons.stat(k);
+    const dry = Weapons.ammoOf(k) < 1;
+    const r = Math.max(4, st.spread * 1.2, w.radius ? st.radius * 0.6 : 0);
+    const col = dry ? '255,90,80' : S.clickCd > 0 ? '255,220,120' : '255,255,255';
+    ctx.save();
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.arc(ptr.x, ptr.y, r, 0, 7); ctx.stroke();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      ctx.beginPath(); ctx.moveTo(ptr.x + dx * (r - 2), ptr.y + dy * (r - 2)); ctx.lineTo(ptr.x + dx * (r + 3), ptr.y + dy * (r + 3)); ctx.stroke();
+    }
+    ctx.fillStyle = `rgba(${col},1)`; ctx.fillRect(ptr.x - 0.5, ptr.y - 0.5, 1, 1);
+    // recarga: arco que se completa
+    if (S.clickCd > 0 && st.cd > 0.3) {
+      ctx.strokeStyle = 'rgba(255,220,120,0.9)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(ptr.x, ptr.y, r + 4, -Math.PI / 2, -Math.PI / 2 + (1 - S.clickCd / st.cd) * Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawLights() {
     ctx.globalCompositeOperation = 'lighter';
     for (const l of lights) {
@@ -954,9 +1018,7 @@ const Scene = (() => {
 
     ctx.textAlign = 'right'; ctx.font = 'bold 8px sans-serif';
     if (Hd.active) {
-      if (Math.sin(time * 5) > -0.4) { ctx.fillStyle = '#ffd070'; ctx.fillText('🎯 Clique nos zumbis para atirar!', W - 6, 14); }
-    } else {
-      ctx.fillStyle = 'rgba(236,230,208,0.7)'; ctx.fillText('Clique no cenário para vasculhar', W - 6, 14);
+      ctx.fillStyle = '#ffd070'; ctx.fillText('🎯 Mire e clique para atirar · Q W E R trocam de arma', W - 6, 14);
     }
   }
 
@@ -989,28 +1051,34 @@ const Scene = (() => {
     new ResizeObserver(resize).observe(cv);
     listeners.push(on);
 
+    // Mira: de noite o clique atira no ponto mirado (segurar dispara as armas automáticas).
+    // De dia o cenário não faz nada: vasculhar fica no botão.
+    const toLocal = e => { const r = cv.getBoundingClientRect(); ptr.x = (e.clientX - r.left) / r.width * W; ptr.y = (e.clientY - r.top) / r.height * H; };
+    cv.addEventListener('pointermove', e => { toLocal(e); ptr.in = true; });
+    cv.addEventListener('pointerleave', () => { ptr.in = false; ptr.down = false; });
+    cv.addEventListener('pointerup', () => { ptr.down = false; });
+    cv.addEventListener('pointercancel', () => { ptr.down = false; });
     cv.addEventListener('pointerdown', e => {
+      toLocal(e); ptr.in = true;
       if (paused) return;
-      const r = cv.getBoundingClientRect();
-      const lx = (e.clientX - r.left) / r.width * W, ly = (e.clientY - r.top) / r.height * H;
-      if (S.horde.active) {
-        let best = null, bd = Infinity;
-        for (const z of S.horde.zs) {
-          const s = ZTYPES[z.type].scale;
-          if (lx > z.x - 7 * s && lx < z.x + 7 * s && ly > z.y - 21 * s && ly < z.y + 3) {
-            const d = Math.abs(lx - z.x);
-            if (d < bd) { bd = d; best = z; }
-          }
-        }
-        if (best) { playerShoot(best.id); return; }
-      }
-      texts.push({ x: lx, y: ly, t: actions.scavenge(), c: '#ece6d0', life: 1 });
-      for (let i = 0; i < 4; i++) parts.push({ x: lx, y: ly, vx: rand(-20, 20), vy: rand(-20, 0), g: 60, life: 0.4, max: 0.4, c: [180, 170, 140], s: 1 });
+      if (S.horde.active) { ptr.down = true; Weapons.fire(ptr.x, ptr.y); return; }
+      if (!dayHintT) { texts.push({ x: ptr.x, y: ptr.y, t: 'Use o botão 🔍 Vasculhar', c: '#ece6d0', life: 1.2 }); dayHintT = 1.5; }
     });
+    cv.addEventListener('wheel', e => {
+      if (!S.horde.active) return;
+      e.preventDefault();
+      Weapons.cycle(e.deltaY > 0 ? 1 : -1);
+    }, { passive: false });
   }
 
   function update(dt) {
     time += dt;
+    dayHintT = Math.max(0, dayHintT - dt);
+    if (cv) cv.classList.toggle('aiming', S.horde.active && ptr.in);
+    if (ptr.down && S.horde.active && dt > 0 && Weapons.isAuto()) Weapons.fire(ptr.x, ptr.y);
+    // zumbis em chamas soltam fogo
+    if (S.horde.zs) for (const z of S.horde.zs) if (z.burn > 0 && Math.random() < dt * 14)
+      parts.push({ x: z.x + rand(-3, 3), y: z.y - rand(4, 16), vx: rand(-4, 4), vy: rand(-22, -10), life: 0.4, max: 0.4, c: pick(['#ffd040', '#ff8a20']), s: 1, glow: '255,140,40' });
     const Hd = S.horde;
     const target = Hd.active ? 1
       : S.waveTimer < 25 ? (25 - S.waveTimer) / 25
@@ -1102,12 +1170,14 @@ const Scene = (() => {
     drawWeather();
     drawFog();
     drawPlanes();
+    drawProjectiles();
     drawEffects();
     drawLights();
     drawTexts();
     ctx.restore();
 
     drawHUD();
+    drawReticle();
     drawBossBar();
     drawToasts();
     drawBanner();

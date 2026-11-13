@@ -6,6 +6,29 @@ As versões seguem o formato `MAIOR.MÉDIA.PEQUENA`:
 - **Média** (`1.00.000` → `1.01.000`): novos recursos ou mudanças grandes.
 - **Maior** (`1.00.000` → `2.00.000`): as maiores atualizações, que mudam o jogo como um todo.
 
+## 1.04.000
+
+Mira manual e armas do líder.
+
+- **Mira:** durante a horda, o cursor vira uma mira e o clique atira no ponto mirado. Tiro fora do zumbi erra. De dia, clicar no cenário não vasculha mais: use o botão 🔍 Vasculhar (ou V).
+- **Sete armas do líder**, numa aba nova (🔫 Armas): Pistola, Espingarda (5 projéteis em leque), Rifle de caça (atravessa zumbis), Submetralhadora (segure para atirar), Lança-granadas (dano em área), Lança-chamas (incendeia a área) e a **Bazuca**, que mata qualquer zumbi comum da área com um tiro e tira 40% da vida da Abominação. A Bazuca só é liberada na onda 25 e depois de derrotar 5 Abominações.
+- **Compra e melhorias:** armas são compradas com recursos da cidade e ficam para sempre (sobrevivem a evacuações e a novos mundos). Cada uma vai até o nível 5, com mais dano, cadência e munição, e melhorias próprias (mais projéteis, mais zumbis atravessados, área maior, fogo mais longo).
+- **Munição própria por noite:** cada arma recarrega no início da horda e não usa a munição dos guardas. Zumbis que você abate têm 20% de chance de deixar munição extra para as suas armas. A Pistola tem munição infinita.
+- **Quatro espaços (Q W E R):** escolha quais armas levar. Troque durante a horda com Q W E R, com a roda do mouse ou tocando na barra de armas sobre o cenário.
+- Cada arma tem som e efeito próprios: granadas em arco, foguete com rastro de fumaça, zumbis em chamas, explosão maior da Bazuca.
+- A melhoria permanente **Mira do líder** agora dá +40% de dano das suas armas por nível (antes +1 de dano).
+- **Atalhos:** Recrutar passou do R para o **G**; a tecla 0 abre a 10ª aba.
+
+## 1.03.000
+
+Tiros errados e precisão.
+
+- **Guardas e torres podem errar:** guardas começam acertando 65% dos tiros e torres 80%. O tiro errado passa raspando, levanta poeira no chão e às vezes ricocheteia, e **também gasta munição**. O clique do jogador continua acertando sempre.
+- **Precisão evolui com o jogo** (até 95%): o Treinamento de tiro agora dá +3% de precisão por nível, a nova pesquisa **🔭 Miras ópticas** dá +5% por nível, o talento Boa mira dá +2% por pessoa e o herói Atirador dá metade do bônus dele em precisão.
+- O painel de defesa mostra a precisão atual de guardas e torres, e o alerta de munição passou a considerar os tiros errados.
+- No progresso offline, as ondas usam a mesma precisão do jogo ao vivo, no lugar do desconto fixo de antes.
+- **Compensação no começo:** os zumbis das 6 primeiras ondas são mais fracos (30% menos vida na onda 1, chegando ao normal na onda 7) e o jogo começa com 40 de munição em vez de 30.
+
 ## 1.02.000
 
 Configurações, estilos e um grupo com mais personalidade.

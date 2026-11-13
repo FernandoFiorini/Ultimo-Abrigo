@@ -91,6 +91,7 @@ function buildUI() {
     </div>`).join('');
 
   Endgame.buildUI();
+  Weapons.buildUI();
 
   $('perks').innerHTML = Object.entries(PERKS).map(([k, p]) => `
     <div class="row">
@@ -238,7 +239,8 @@ function render() {
   $('defense').innerHTML = top + `
     <div class="stat"><span>🧱 Muro</span><span>${Math.ceil(S.wallHp)} / ${maxWall()}</span></div>
     <div class="bar ${wallPct < 30 ? 'low' : ''}"><div style="width:${wallPct}%"></div></div>
-    <div class="stat"><span>🛡️ ${S.jobs.guarda} guardas · 🗼 ${S.build.torre} torres</span><span>☠ ${fmt(S.kills)} · 🏆 onda ${S.best}</span></div>`;
+    <div class="stat"><span>🛡️ ${S.jobs.guarda} guardas · 🗼 ${S.build.torre} torres</span><span>☠ ${fmt(S.kills)} · 🏆 onda ${S.best}</span></div>
+    <div class="stat" title="Chance de acerto. Melhora com Treinamento de tiro, a pesquisa Miras ópticas, o talento Boa mira e o herói Atirador. Tiro errado também gasta munição."><span>🎯 Precisão</span><span>guardas ${Math.round(accuracy('guard') * 100)}% · torres ${Math.round(accuracy('tower') * 100)}%</span></div>`;
 
   $('btn-repair').textContent = `🔨 Reparar muro (${RES.sucata.icon} ${REPAIR_COST})`;
   $('btn-repair').disabled = S.res.sucata < REPAIR_COST || S.wallHp >= maxWall();
@@ -312,6 +314,8 @@ function render() {
   }
 
   Endgame.render();
+  Weapons.render();
+  $('tb-armas').textContent = Weapons.tabBadge() || '';
 
   if (logDirty) {
     $('log').innerHTML = S.log.map(l => `<li class="${l.type}">${l.text}</li>`).join('');
@@ -421,7 +425,7 @@ function timeLeft(r) {
 // Estimativa grosseira da munição que a próxima horda vai gastar
 function ammoNeeded() {
   const n = S.wave;
-  return waveSize(n) * hpMult(n) / Endgame.mult('dmg');
+  return waveSize(n) * hpMult(n) / Endgame.mult('dmg') / accuracy('guard');
 }
 
 function alertsHtml(r, left) {

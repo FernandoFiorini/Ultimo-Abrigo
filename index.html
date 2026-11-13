@@ -10,7 +10,7 @@
   <meta property="og:description" content="Defenda seu abrigo de hordas de zumbis, pesquise a cura e reconstrua o mundo.">
   <meta property="og:image" content="assets/screenshot.png">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☣️</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=1.02.000">
+  <link rel="stylesheet" href="css/style.css?v=1.04.000">
 </head>
 <body>
   <header>
@@ -28,6 +28,7 @@
     <div class="left">
       <div class="stage">
         <canvas id="scene"></canvas>
+        <div id="weapon-bar" class="weapon-bar hidden"></div>
         <button id="pause-badge" class="pause-badge hidden" title="Clique ou aperte Espaço para continuar">⏸ PAUSADO</button>
       </div>
 
@@ -53,6 +54,7 @@
         <button class="tab" data-tab="expedicoes">🎒 Expedições<span class="badge" id="tb-expedicoes"></span></button>
         <button class="tab" data-tab="pesquisa">🧪 Pesquisa<span class="badge" id="tb-pesquisa"></span></button>
         <button class="tab" data-tab="mapa">🗺️ Mapa<span class="badge" id="tb-mapa"></span></button>
+        <button class="tab" data-tab="armas">🔫 Armas<span class="badge" id="tb-armas"></span></button>
         <button class="tab" data-tab="herois">🦸 Heróis<span class="badge" id="tb-herois"></span></button>
         <button class="tab" data-tab="evacuacao">🚁 Evacuar<span class="badge" id="tb-evacuacao"></span></button>
         <button class="tab" data-tab="conquistas">🏆 Conquistas<span class="badge" id="tb-conquistas"></span></button>
@@ -93,6 +95,11 @@
           <div id="districts"></div>
           <h3>Operações em andamento</h3>
           <div id="ops"></div>
+        </section>
+
+        <section class="pane" data-pane="armas">
+          <p class="hint">Armas do líder: durante a horda, <b>mire e clique</b> para atirar (tiros fora do zumbi erram). Compre e melhore com recursos da cidade; as armas ficam para sempre. Cada uma tem munição própria, recarregada no início de cada noite, e zumbis que você abate às vezes deixam munição extra. Leve até quatro nos espaços <b>Q W E R</b>.</p>
+          <div id="lweapons"></div>
         </section>
 
         <section class="pane" data-pane="herois">
@@ -164,22 +171,23 @@
 
   <div id="tip" class="tip hidden" role="status"></div>
 
-  <script src="js/config.js?v=1.02.000"></script>
-  <script src="js/settings.js?v=1.02.000"></script>
-  <script src="js/state.js?v=1.02.000"></script>
-  <script src="js/achievements.js?v=1.02.000"></script>
-  <script src="js/shop.js?v=1.02.000"></script>
-  <script src="js/combat.js?v=1.02.000"></script>
-  <script src="js/simulation.js?v=1.02.000"></script>
-  <script src="js/progression.js?v=1.02.000"></script>
-  <script src="js/actions.js?v=1.02.000"></script>
-  <script src="js/save.js?v=1.02.000"></script>
-  <script src="js/ui.js?v=1.02.000"></script>
-  <script src="js/endgame.js?v=1.02.000"></script>
-  <script src="js/events.js?v=1.02.000"></script>
-  <script src="js/tutorial.js?v=1.02.000"></script>
-  <script src="js/scene.js?v=1.02.000"></script>
-  <script src="js/audio.js?v=1.02.000"></script>
-  <script src="js/main.js?v=1.02.000"></script>
+  <script src="js/config.js?v=1.04.000"></script>
+  <script src="js/settings.js?v=1.04.000"></script>
+  <script src="js/state.js?v=1.04.000"></script>
+  <script src="js/achievements.js?v=1.04.000"></script>
+  <script src="js/shop.js?v=1.04.000"></script>
+  <script src="js/combat.js?v=1.04.000"></script>
+  <script src="js/simulation.js?v=1.04.000"></script>
+  <script src="js/progression.js?v=1.04.000"></script>
+  <script src="js/actions.js?v=1.04.000"></script>
+  <script src="js/save.js?v=1.04.000"></script>
+  <script src="js/ui.js?v=1.04.000"></script>
+  <script src="js/endgame.js?v=1.04.000"></script>
+  <script src="js/weapons.js?v=1.04.000"></script>
+  <script src="js/events.js?v=1.04.000"></script>
+  <script src="js/tutorial.js?v=1.04.000"></script>
+  <script src="js/scene.js?v=1.04.000"></script>
+  <script src="js/audio.js?v=1.04.000"></script>
+  <script src="js/main.js?v=1.04.000"></script>
 </body>
 </html>

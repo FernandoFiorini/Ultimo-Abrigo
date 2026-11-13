@@ -26,6 +26,8 @@ const Endgame = (() => {
                     cost: l => ({ rp: C(30 * 1.5 ** l), gas: Math.floor(l * 0.6) }), fx: l => `+${8 * l}% de velocidade` },
     pontaoca:     { br: 'armas', icon: '💥', nome: 'Ponta oca', desc: '+8% de chance de tiro crítico (dano dobrado)', max: 6,
                     cost: l => ({ rp: C(60 * 1.8 ** l), acido: 2 + l, tecido: l }), fx: l => `${8 * l}% de chance de crítico` },
+    miras:        { br: 'armas', icon: '🔭', nome: 'Miras ópticas', desc: '+5% de precisão de guardas e torres', max: 5,
+                    cost: l => ({ rp: C(35 * 1.6 ** l), acido: l }), fx: l => `+${5 * l}% de precisão` },
     perfuracao:   { br: 'armas', icon: '🎯', nome: 'Perfuração', desc: 'Cada tiro atravessa +1 zumbi (60% do dano)', max: 3,
                     cost: l => ({ rp: C(150 * 3 ** l), tecido: 3 * (l + 1) }), fx: l => `atravessa ${l} zumbi(s)` },
     concreto:     { br: 'defesa', icon: '🧱', nome: 'Concreto armado', desc: '+20% de resistência do muro', max: Infinity,
@@ -90,7 +92,7 @@ const Endgame = (() => {
   };
 
   const HCLASS = {
-    atirador:   { nome: 'Atirador',        icon: '🎯', base: 0.10, per: 0.02,  color: [180, 60, 50],  fx: p => `+${pct(p)} de dano` },
+    atirador:   { nome: 'Atirador',        icon: '🎯', base: 0.10, per: 0.02,  color: [180, 60, 50],  fx: p => `+${pct(p)} de dano e +${pct(p / 2)} de precisão` },
     engenheiro: { nome: 'Engenheiro',      icon: '🔧', base: 0.10, per: 0.02,  color: [200, 150, 40], fx: p => `+${pct(p)} de sucata e de resistência do muro` },
     medico:     { nome: 'Médico de campo', icon: '⚕️', base: 0.10, per: 0.02,  color: [230, 230, 230], fx: p => `+${pct(p)} de remédios e ${pct(Math.min(0.5, p))} de chance de salvar alguém sem remédio` },
     batedor:    { nome: 'Batedor',         icon: '🧭', base: 0.15, per: 0.03,  color: [70, 140, 90],  fx: p => `+${pct(p)} de recompensa em expedições e operações, -${pct(p / 2)} de risco` },
@@ -153,6 +155,7 @@ const Endgame = (() => {
     return 1;
   }
   const critChance = () => 0.08 * tl('pontaoca');
+  const accBonus = () => 0.05 * tl('miras') + hb('atirador') / 2;
   const sciCap = () => S.build.lab * 2 + dist('sci');
   const durMult = () => (1 - 0.1 * tl('rotas')) * traitMult('pes');
   const riskMult = () => (1 - 0.15 * tl('rotas')) * (1 - hb('batedor') / 2);
@@ -270,7 +273,7 @@ const Endgame = (() => {
       onPick: diff => {
         const m = M();
         const keep = { cash: m.cash, ach: m.ach, stats: m.stats, heroes: m.heroes, weapons: m.weapons, active: m.active, hid: m.hid,
-          records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, memorial: m.memorial, fallen: m.fallen, legado: m.legado + g, worlds: m.worlds + 1 };
+          records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, memorial: m.memorial, fallen: m.fallen, lw: m.lw, legado: m.legado + g, worlds: m.worlds + 1 };
         S = newState(Object.assign(newMeta(), keep), diff);
         addLog(`🌍 Bem-vindo ao Mundo ${S.meta.worlds}! +${g} de Legado (total ${S.meta.legado}).`, 'good');
         emit('evacuate', { city: 1, g: 0, world: S.meta.worlds });
@@ -689,7 +692,7 @@ const Endgame = (() => {
 
   return {
     SAMPLES, TECH, CURE, EVENTS, DISTRICTS, HCLASS,
-    newMetaExtra, mult, sciCap, durMult, riskMult, scoutLoot, hb,
+    newMetaExtra, mult, accBonus, sciCap, durMult, riskMult, scoutLoot, hb,
     rollEvent, modifyQueue, hpMultEv, speedMultEv, lootMult, range, event,
     onKill, onWaveEnd, hit, hordeTick, offlineMult, offlineTrap, tick, gainHero, gainWeapon,
     buildUI, render, count,

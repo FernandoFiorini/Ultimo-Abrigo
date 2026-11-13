@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '1.02.000';
+const VERSION = '1.04.000';
 const SAVE_KEY = 'ultimoAbrigo.v1';
 const OFFLINE_MAX = 8 * 3600;      // máximo de progresso offline (segundos)
 // (intervalo entre hordas e consumo de comida dependem da dificuldade: veja DIFFS)
@@ -20,10 +20,13 @@ const GUARD_CD = 2.4;     // segundos entre tiros do guarda
 const ROCK_CD = 3;        // guarda sem munição joga pedras
 const ROCK_HIT = 0.35;
 const TOWER_CD = 1.8;
-const CLICK_CD = 0.4;     // intervalo dos tiros do jogador
 
 const AMMO_RATE = 0.4;     // munição produzida por armeiro/s
-const OFFLINE_EFF = 0.8;   // fração dos tiros que acertam quando a onda é resolvida de uma vez
+const OFFLINE_EFF = 0.9;   // fração do tempo da onda em que os atiradores têm alvo, quando ela é resolvida de uma vez
+// Precisão: chance de cada tiro acertar. O clique do jogador nunca erra.
+const GUARD_ACC = 0.65;    // guardas, sem nenhuma melhoria
+const TOWER_ACC = 0.8;     // torres (fixas, com mira melhor)
+const ACC_MAX = 0.95;      // teto: sempre sobra algum risco
 const DEATH_CAP = 1;       // fração máxima dos sobreviventes que pode morrer numa mesma onda
 
 const ZTYPES = {
@@ -109,9 +112,9 @@ const PERKS = {
   estoque:     { nome: 'Estoque inicial',     icon: '📦', desc: 'Começa com +40 de comida, sucata e munição',  cost: 1, mult: 1.5, max: 10 },
   agricultura: { nome: 'Agricultura',         icon: '🌽', desc: '+15% de produção de comida',                  cost: 2, mult: 1.5, max: 20 },
   sucateiros:  { nome: 'Sucateiros',          icon: '🧰', desc: '+15% de produção de sucata',                  cost: 2, mult: 1.5, max: 20 },
-  treino:      { nome: 'Treinamento de tiro', icon: '🎯', desc: '+12% de velocidade de tiro (guardas e torres)', cost: 3, mult: 1.6, max: 10 },
+  treino:      { nome: 'Treinamento de tiro', icon: '🎯', desc: '+12% de velocidade de tiro e +3% de precisão (guardas e torres)', cost: 3, mult: 1.6, max: 10 },
   engenharia:  { nome: 'Engenharia',          icon: '📐', desc: '+20% de resistência do muro',                 cost: 2, mult: 1.5, max: 10 },
-  mira:        { nome: 'Mira do líder',       icon: '🔭', desc: '+1 de dano nos seus tiros',                   cost: 3, mult: 1.8, max: 5 },
+  mira:        { nome: 'Mira do líder',       icon: '🔭', desc: '+40% de dano das suas armas',                 cost: 3, mult: 1.8, max: 5 },
 };
 
 // Efeito total de cada nível (mostrado no registro e no painel)
@@ -129,9 +132,9 @@ const PERK_FX = {
   estoque:     lv => `começa com +${40 * lv} de comida, sucata e munição`,
   agricultura: lv => `+${15 * lv}% de produção de comida`,
   sucateiros:  lv => `+${15 * lv}% de produção de sucata`,
-  treino:      lv => `+${12 * lv}% de velocidade de tiro`,
+  treino:      lv => `+${12 * lv}% de velocidade de tiro e +${3 * lv}% de precisão`,
   engenharia:  lv => `+${20 * lv}% de resistência do muro`,
-  mira:        lv => `${1 + lv} de dano por tiro`,
+  mira:        lv => `+${40 * lv}% de dano das suas armas`,
 };
 
 // Desafios de prestígio: escolhidos ao evacuar, valem para a cidade inteira e aumentam a Esperança ganha nela
@@ -152,7 +155,7 @@ const modBonus = (list = (S && S.mods) || []) => list.reduce((a, k) => a + (MODS
 // Talentos: alguns sobreviventes chegam com um. O bônus vale enquanto a pessoa estiver no grupo
 // (até TRAIT_CAP pessoas com o mesmo talento contam). v negativo reduz (consumo, duração).
 const TRAITS = {
-  mira:    { nome: 'Boa mira',           icon: '🎯', desc: '+6% de dano dos tiros',              v: 0.06 },
+  mira:    { nome: 'Boa mira',           icon: '🎯', desc: '+6% de dano e +2% de precisão dos tiros', v: 0.06 },
   verde:   { nome: 'Mão verde',          icon: '🌱', desc: '+8% de produção de comida',          v: 0.08 },
   jeito:   { nome: 'Jeito com máquinas', icon: '🔧', desc: '+8% de produção de sucata',          v: 0.08 },
   frugal:  { nome: 'Come pouco',         icon: '🍞', desc: '−4% no consumo de comida do grupo',  v: -0.04 },
@@ -170,3 +173,28 @@ const NAMES = ['Ana', 'Jorge', 'Marta', 'Paulo', 'Cláudia', 'Diego', 'Fernanda'
   'Edson', 'Priscila', 'Gustavo', 'Simone', 'Ricardo', 'Joana', 'Murilo', 'Elaine', 'Vítor', 'Cristina', 'Davi', 'Natália', 'Hélio',
   'Raquel', 'Thiago', 'Sandra', 'Leandro', 'Yara', 'Wagner', 'Lívia', 'Douglas', 'Irene', 'Matheus', 'Gisele', 'Alemão', 'Dona Lurdes',
   'Seu Jair', 'Pietra', 'Caetano', 'Vânia', 'Benedito', 'Kelly', 'Osvaldo', 'Rita', 'Ivan'];
+
+// Armas do líder (mira manual durante a horda). Ficam para sempre depois de compradas.
+// type: bullet (projéteis instantâneos) · grenade/rocket (explodem no ponto mirado) · flame (incendeia a área)
+// dmg: por projétil · cd: segundos entre tiros · ammo: munição própria por noite (Infinity = sem limite)
+// spread: espalhamento em pixels · pierce: zumbis atravessados · radius: área · auto: segurar para atirar
+// wave: melhor onda (de todas as cidades) para liberar · cost: preço da compra; cada melhoria custa ×LW_UP_MULT
+const LWEAPONS = {
+  pistola:    { nome: 'Pistola',         icon: '🔫', type: 'bullet', dmg: 1.5, cd: 0.4,  ammo: Infinity, spread: 0,  wave: 1,
+                cost: { sucata: 60 }, desc: 'Precisa e sem limite de munição. Sempre com você.' },
+  espingarda: { nome: 'Espingarda',      icon: '💥', type: 'bullet', dmg: 0.8, cd: 0.9,  ammo: 14, pellets: 5, spread: 9, wave: 4,
+                cost: { sucata: 150 }, desc: 'Cinco projéteis em leque. Devastadora contra grupos perto do muro.' },
+  rifle:      { nome: 'Rifle de caça',   icon: '🎯', type: 'bullet', dmg: 4,   cd: 1.1,  ammo: 10, pierce: 2, spread: 0, wave: 6,
+                cost: { sucata: 250, municao: 40 }, desc: 'Tiro lento e forte que atravessa os zumbis em fila.' },
+  smg:        { nome: 'Submetralhadora', icon: '🔥', type: 'bullet', dmg: 0.7, cd: 0.09, ammo: 70, spread: 5, auto: true, wave: 9,
+                cost: { sucata: 400, municao: 80 }, desc: 'Segure o clique para despejar balas. Pouco dano por tiro.' },
+  granadas:   { nome: 'Lança-granadas',  icon: '💣', type: 'grenade', dmg: 3,  cd: 1.4,  ammo: 6, radius: 22, wave: 12,
+                cost: { sucata: 700, municao: 120 }, desc: 'Explode onde você mirar e fere todos em volta.' },
+  chamas:     { nome: 'Lança-chamas',    icon: '🌋', type: 'flame', dmg: 1.2,  cd: 0.12, ammo: 50, radius: 16, burn: 3, auto: true, wave: 16,
+                cost: { sucata: 1200, municao: 200 }, desc: 'Segure para incendiar uma área. O fogo queima por alguns segundos.' },
+  bazuca:     { nome: 'Bazuca',          icon: '🚀', type: 'rocket', dmg: 0,   cd: 3,    ammo: 2, radius: 36, wave: 25, bosses: 5,
+                cost: { sucata: 5000, municao: 600, remedio: 10 }, desc: 'Mata qualquer zumbi comum da área com um tiro. A Abominação perde 40% da vida.' },
+};
+const LW_MAX_LVL = 5, LW_UP_MULT = 1.7;
+const LW_KEYS = ['Q', 'W', 'E', 'R'];
+const LW_DROP = 0.2;   // chance de um zumbi abatido por você deixar munição para suas armas

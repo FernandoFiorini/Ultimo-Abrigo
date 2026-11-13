@@ -7,9 +7,11 @@ const Tutorial = (() => {
     { id: 'equipe', icon: '👥', title: 'Seu grupo', tab: 'equipe', when: () => true,
       text: 'Cada sobrevivente precisa de uma função. Na aba <b>Equipe</b>, use + e −: forrageiros 🌾 produzem comida, guardas 🛡️ atiram na horda e armeiros ⚙️ fabricam munição.' },
     { id: 'noite', icon: '🌙', title: 'A horda chegou', when: () => S.horde.active,
-      text: 'Clique nos zumbis para atirar com o líder. Os guardas atiram sozinhos enquanto houver munição; sem ela, jogam pedras. Se o muro cair, sobreviventes morrem.' },
+      text: 'Mire e clique para atirar com o líder: tiros fora do zumbi erram. Os guardas atiram sozinhos enquanto houver munição; sem ela, jogam pedras. Se o muro cair, sobreviventes morrem.' },
+    { id: 'armas', icon: '🔫', title: 'Armas do líder', tab: 'armas', when: () => !S.horde.active && Math.max(S.best, S.meta.stats.bestWave) >= 4,
+      text: 'Na aba <b>Armas</b> você compra e melhora armas para o líder. Elas ficam para sempre, têm munição própria a cada noite e vão em quatro espaços: <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd>.' },
     { id: 'vasculhar', icon: '🔍', title: 'Mãos à obra', when: () => seen('equipe'),
-      text: 'Clique no cenário ou no botão <b>Vasculhar</b> para juntar comida e sucata por conta própria. Atalho: <kbd>V</kbd>.' },
+      text: 'Use o botão <b>Vasculhar</b> para juntar comida e sucata por conta própria. Atalho: <kbd>V</kbd>.' },
     { id: 'construir', icon: '🏗️', title: 'Construa', tab: 'construir', when: () => S.res.sucata >= 25,
       text: 'Barracas ⛺ abrigam mais gente, o muro 🧱 aguenta mais pancada e torres 🗼 atiram sem gastar munição.' },
     { id: 'comida', icon: '🥫', title: 'Comida no vermelho', tab: 'equipe', when: () => rates().comida < 0 && S.res.comida < 40,
@@ -19,7 +21,7 @@ const Tutorial = (() => {
     { id: 'expedicoes', icon: '🎒', title: 'Expedições', tab: 'expedicoes', when: () => S.best >= 2 && !hasMod('semexp'),
       text: 'Mande sobreviventes ociosos atrás de suprimentos. Mais gente traz mais coisa, mas cada um corre o risco de não voltar.' },
     { id: 'atalhos', icon: '⌨️', title: 'Atalhos de teclado', when: () => S.best >= 3,
-      text: '<kbd>1</kbd>–<kbd>9</kbd> trocam de aba, <kbd>Espaço</kbd> pausa, <kbd>V</kbd> vasculha, <kbd>R</kbd> recruta, <kbd>C</kbd> conserta o muro, <kbd>F</kbd> acelera o dia e <kbd>M</kbd> tira o som. <kbd>H</kbd> mostra todos.' },
+      text: '<kbd>1</kbd>–<kbd>0</kbd> trocam de aba, <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> trocam de arma, <kbd>Espaço</kbd> pausa, <kbd>V</kbd> vasculha, <kbd>G</kbd> recruta, <kbd>C</kbd> conserta o muro, <kbd>F</kbd> acelera o dia e <kbd>M</kbd> tira o som. <kbd>H</kbd> mostra todos.' },
     { id: 'backup', icon: '💾', title: 'Guarde seu progresso', when: () => S.best >= 5,
       text: 'O jogo salva sozinho neste navegador. Use <b>Exportar</b>, no rodapé, para guardar um código do save e continuar em outro aparelho.' },
     { id: 'evacuar', icon: '🚁', title: 'Evacuação liberada', tab: 'evacuacao', when: () => S.best >= EVAC_WAVE,
@@ -84,10 +86,12 @@ const Tutorial = (() => {
 
 // ---------- atalhos de teclado ----------
 const SHORTCUTS = [
-  ['1 – 9', 'Trocar de aba'],
+  ['1 – 9 e 0', 'Trocar de aba'],
+  ['Q W E R', 'Trocar de arma durante a horda (ou a roda do mouse)'],
+  ['Segurar clique', 'Disparar as armas automáticas'],
   ['Espaço', 'Pausar / continuar'],
   ['V', 'Vasculhar'],
-  ['R', 'Recrutar'],
+  ['G', 'Recrutar'],
   ['C', 'Consertar o muro'],
   ['F', 'Velocidade 2x de dia (liga / desliga)'],
   ['M', 'Ligar / desligar todo o som'],
@@ -120,9 +124,9 @@ function setupKeys() {
     if (modalOpen || awaitingChoice) return;
 
     const k = e.key.toLowerCase();
-    if (/^[1-9]$/.test(k)) {
+    if (/^[0-9]$/.test(k)) {
       const tabs = [...document.querySelectorAll('.tab')];
-      const t = tabs[+k - 1];
+      const t = tabs[k === '0' ? 9 : +k - 1];
       if (t) { t.click(); e.preventDefault(); }
       return;
     }
@@ -134,7 +138,8 @@ function setupKeys() {
         if (!e.repeat) togglePause();
         break;
       case 'v': if (!e.repeat) click('btn-scavenge'); break;
-      case 'r': click('btn-recruit'); break;
+      case 'g': click('btn-recruit'); break;
+      case 'q': case 'w': case 'e': case 'r': Weapons.select('qwer'.indexOf(k)); render(); break;
       case 'c': click('btn-repair'); break;
       case 'f': Settings.set('speed2x', !Settings.get('speed2x')); render(); break;
       case 'o': if (S.merchant) Events.openMerchant(); break;

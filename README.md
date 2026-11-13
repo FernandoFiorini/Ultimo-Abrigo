@@ -26,6 +26,8 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 | Sistema | Descrição |
 |---|---|
 | Sobreviventes | Cada um com nome (e às vezes um talento), em seis funções (forrageiro, coletor, armeiro, guarda, médico, cientista), com consumo de comida, risco de fome e um memorial para quem morreu |
+| Armas do líder | Mira manual na horda e sete armas com melhorias (da pistola à bazuca), munição própria por noite e quatro espaços em Q W E R |
+| Combate | Guardas e torres com precisão que evolui por treinamento, pesquisa, talentos e heróis; tiros errados também gastam munição |
 | Hordas | Ondas crescentes com seis tipos de zumbi: comum, corredor, brutamontes, cuspidor, inchado (explode) e a Abominação, chefe a cada 10 ondas |
 | Noites especiais | Lua de Sangue, Neblina, Horda Dupla, Chuva Ácida e Noite dos Corredores, cada uma com regras e visual próprios |
 | Expedições e distritos | Missões com risco de morte e recompensas; esquadrões libertam distritos da cidade em troca de bônus |
@@ -42,17 +44,18 @@ O jogo continua progredindo com a aba fechada: ao voltar, as ondas que acontecer
 1. Escolha a dificuldade.
 2. Na aba **Equipe**, distribua os sobreviventes: comida primeiro, depois guardas e armeiros para a munição.
 3. Construa barracas para abrigar mais gente e torres e muro para aguentar as hordas.
-4. Durante a noite, clique nos zumbis para atirar. De dia, clique no cenário para vasculhar.
+4. Durante a noite, mire e clique para atirar com o líder (Q W E R trocam de arma). De dia, use o botão Vasculhar para juntar recursos.
 5. Ao sobreviver à onda 10, evacue para ganhar Esperança e recomeçar mais forte.
 
 ### Atalhos de teclado
 
 | Tecla | Ação |
 |---|---|
-| `1` a `9` | Trocar de aba |
+| `1` a `0` | Trocar de aba |
+| `Q` `W` `E` `R` | Trocar de arma na horda (ou a roda do mouse) |
 | `Espaço` | Pausar / continuar |
 | `V` | Vasculhar |
-| `R` | Recrutar |
+| `G` | Recrutar |
 | `C` | Consertar o muro |
 | `F` | Velocidade 2x durante o dia |
 | `M` | Ligar / desligar o som |
@@ -80,6 +83,7 @@ js/
   actions.js        ações disparadas pelo jogador
   save.js           salvar, carregar, migrar saves antigos, exportar e importar
   ui.js             painéis, abas, notificações e seletor de dificuldade
+  weapons.js        armas do líder: mira, tiros, explosões, fogo, munição e melhorias
   endgame.js        pesquisa, a Cura, noites especiais, distritos, heróis e desafios semanais
   events.js         dilemas com escolha e comerciante ambulante
   tutorial.js       dicas do primeiro jogo e atalhos de teclado

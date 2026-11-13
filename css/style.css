@@ -554,3 +554,40 @@ button.speed.active { background: #12324a; border-color: #4aa3ff; color: #bfe0ff
   .opt.range { flex-wrap: wrap; }
   .opt.range span { flex-basis: 100%; }
 }
+
+/* ---------- 1.04: armas do líder ---------- */
+.stage canvas.aiming { cursor: none; }
+.weapon-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  max-width: calc(100% - 16px);
+}
+.wslot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  font-size: 12px;
+  background: rgba(10, 12, 10, 0.78);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.wslot kbd { min-width: 16px; padding: 0 4px; font-size: 10.5px; }
+.wslot .wicon { font-size: 14px; }
+.wslot .wammo { font-weight: 700; font-variant-numeric: tabular-nums; color: #ffe066; }
+.wslot.active { border-color: #ffd070; box-shadow: 0 0 0 1px #ffd070 inset; background: rgba(58, 48, 10, 0.88); }
+.wslot.dry .wammo { color: var(--bad); }
+.wslot.empty { opacity: 0.45; }
+.wslot.empty .wname { font-style: italic; }
+.lw-row.equipped { border-color: #6a5a1c; }
+.lw-slots { display: flex; gap: 4px; margin-top: 5px; }
+.lw-slots button { min-width: 30px; font-size: 11px; }
+
+@media (max-width: 700px) {
+  .wslot .wname { display: none; }
+}

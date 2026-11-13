@@ -115,6 +115,37 @@ const Sound = (() => {
     if (!music) { voices++; src.onended = () => voices--; }
   }
 
+  // Som de cada arma do líder
+  function weaponSound(w, pan) {
+    const t = ac.currentTime;
+    switch (w) {
+      case 'espingarda':
+        noise({ type: 'lowpass', f: 1400, f2: 300, d: 0.3, vol: 0.4, pan, send: 0.3 });
+        tone({ f: 95, f2: 38, d: 0.22, vol: 0.4, pan });
+        noise({ type: 'bandpass', f: 1800, q: 2, d: 0.05, vol: 0.1, t: t + 0.35, pan });   // engatilhar
+        break;
+      case 'rifle':
+        noise({ type: 'highpass', f: 2500, d: 0.07, vol: 0.32, pan, send: 0.5 });
+        tone({ f: 220, f2: 55, d: 0.18, vol: 0.3, pan, send: 0.4 });
+        break;
+      case 'smg':
+        noise({ type: 'bandpass', f: 3000, f2: 900, q: 0.8, d: 0.04, vol: 0.14, pan });
+        tone({ f: 150, f2: 70, d: 0.04, vol: 0.1, pan });
+        break;
+      case 'granadas':
+        tone({ type: 'triangle', f: 140, f2: 70, d: 0.12, vol: 0.25, pan });
+        noise({ type: 'lowpass', f: 600, d: 0.1, vol: 0.12, pan });
+        break;
+      case 'chamas':
+        noise({ type: 'bandpass', f: 700, f2: 1200, q: 0.5, d: 0.2, vol: 0.09, pan });
+        break;
+      case 'bazuca':
+        noise({ type: 'bandpass', f: 300, f2: 2500, q: 0.7, d: 0.4, vol: 0.3, pan, send: 0.4 });
+        tone({ f: 80, f2: 40, d: 0.3, vol: 0.35, pan });
+        break;
+    }
+  }
+
   // Evita sobrecarga quando muitos sons acontecem juntos
   function allow(name, gap) {
     if (!ac || ac.state !== 'running' || !P('sfx') || voices > 48) return false;
@@ -127,6 +158,8 @@ const Sound = (() => {
   const SFX = {
     shot(d) {
       const pan = panOf(d.src === 'player' ? 60 : 180);
+      if (d.quiet) return;
+      if (d.src === 'player' && d.w && d.w !== 'pistola') { weaponSound(d.w, pan); return; }
       if (d.src === 'rock') {
         noise({ type: 'highpass', f: 2500, d: 0.08, vol: 0.05, pan });
         return;
@@ -135,7 +168,19 @@ const Sound = (() => {
       noise({ type: 'bandpass', f: tw ? 1800 : 2600, f2: 500, q: 0.7, d: big ? 0.12 : 0.08, vol: big ? 0.32 : 0.16, pan });
       tone({ f: big ? 170 : 140, f2: 50, d: 0.09, vol: big ? 0.3 : 0.14, pan });
       if (big) noise({ type: 'lowpass', f: 700, d: 0.35, vol: 0.05, pan, send: 0.4 });
+      if (d.miss && Math.random() < 0.5) {
+        // ricochete (só em metade dos erros, para não poluir)
+        const t = ac.currentTime + 0.05, f = rand(2200, 3200);
+        tone({ type: 'sine', f, f2: f * 0.45, a: 0.003, d: 0.22, vol: 0.035, t, pan: pan + 0.2, send: 0.4 });
+      }
     },
+    noAmmo() { tone({ type: 'square', f: 1400, d: 0.03, vol: 0.04, filter: { f: 3000 } }); },
+    weaponSwap() {
+      const t = ac.currentTime;
+      noise({ type: 'bandpass', f: 2200, q: 3, d: 0.04, vol: 0.08 });
+      noise({ type: 'bandpass', f: 1500, q: 3, d: 0.05, vol: 0.08, t: t + 0.08 });
+    },
+    lwAmmo() { tone({ type: 'triangle', f: 990, f2: 1480, d: 0.1, vol: 0.05 }); },
     hit(d) {
       noise({ type: 'lowpass', f: 900, d: 0.06, vol: 0.1, pan: panOf(d.x) });
       tone({ f: 110, f2: 60, d: 0.05, vol: 0.06, pan: panOf(d.x) });

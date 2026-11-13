@@ -5,7 +5,8 @@ let S;
 function newMeta() {
   const perks = {};
   for (const k in PERKS) perks[k] = 0;
-  return { hope: 0, hopeTotal: 0, city: 1, perks, cash: 0, boosts: { prod: 0, furia: 0 }, stats: newStats(), ach: {}, tutorial: {}, memorial: [], fallen: 0, ...Endgame.newMetaExtra() };
+  return { hope: 0, hopeTotal: 0, city: 1, perks, cash: 0, boosts: { prod: 0, furia: 0 }, stats: newStats(), ach: {}, tutorial: {}, memorial: [], fallen: 0,
+    lw: { owned: { pistola: 1 }, slots: ['pistola', null, null, null], cur: 0 }, ...Endgame.newMetaExtra() };
 }
 
 function newState(meta = newMeta(), diff = 'normal') {
@@ -15,7 +16,7 @@ function newState(meta = newMeta(), diff = 'normal') {
   return {
     meta,
     diff,
-    res: { comida: 25 + extra, sucata: 15 + extra, municao: 30 + extra, remedio: 0 },
+    res: { comida: 25 + extra, sucata: 15 + extra, municao: 40 + extra, remedio: 0 },
     survivors: 3 + P.veteranos,
     people,
     traits,
@@ -33,6 +34,7 @@ function newState(meta = newMeta(), diff = 'normal') {
     districts: {},
     zid: 1,
     clickCd: 0,
+    lwAmmo: {},
     starve: 0,
     kills: 0,
     best: 0,
@@ -69,8 +71,15 @@ const scavGain = () => {
 const recruitCost = () => Math.round(12 * Math.pow(1.3, Math.max(0, S.survivors - 3)));
 const waveSize = n => Math.round((6 * D().count * Math.pow(D().grow, n - 1) + n) * (hasMod('horda') ? 1.25 : 1));
 const hopeGain = () => S.best >= EVAC_WAVE ? Math.floor((Math.pow(S.best - 5, 1.25) + S.kills / 200) * D().hope * (1 + modBonus())) : 0;
-// Zumbis ficam mais resistentes e mais fortes a cada onda
-const hpMult = n => D().hp * (1 + D().hpGrow * (n - 1));
+// Zumbis ficam mais resistentes e mais fortes a cada onda.
+// Nas 6 primeiras ondas eles são um pouco mais fracos, para compensar os tiros errados do começo.
+const hpMult = n => D().hp * (1 + D().hpGrow * (n - 1)) * Math.min(1, 0.7 + 0.05 * (n - 1));
+// Chance de acerto de guardas e torres: melhora com treinamento, pesquisa, talentos e o herói Atirador
+function accuracy(src) {
+  const base = src === 'tower' ? TOWER_ACC : GUARD_ACC;
+  const trained = 0.03 * perk('treino') + Endgame.accBonus() + 0.02 * Math.min(TRAIT_CAP, traitCounts().mira || 0);
+  return Math.min(ACC_MAX, base + trained);
+}
 const dmgMult = n => D().dmg * (1 + 0.04 * (n - 1));
 // A horda inteira chega em ~30s: hordas maiores = mais zumbis por segundo
 const spawnGap = n => Math.min(1, Math.max(0.12, 30 / waveSize(n)));
