@@ -95,7 +95,7 @@ function killZombie(z, src) {
   Endgame.onKill(z, src);
   if (src === 'player') Weapons.onKill(z);
   Invasion.onKill(z, src);
-  if (Z.boss) gainCash(D().bossCash, 'a Abominação foi derrotada!', z.x, zy(z) - 10);
+  if (Z.boss) { gainCash(D().bossCash, 'a Abominação foi derrotada!', z.x, zy(z) - 10); Weapons.bossLoot(); }
   if (Z.explode) {
     emit('explode', { x: z.x, y: zy(z) });
     // Explodir um inchado longe do muro fere os zumbis próximos
@@ -287,7 +287,7 @@ function flushWave() {
       bountyOf(z.type, H);
       countKill(z.type);
       Endgame.onKill({ type: z.type }, 'offline');
-      if (ZTYPES[z.type].boss) gainCash(D().bossCash, 'a Abominação foi derrotada!');
+      if (ZTYPES[z.type].boss) { gainCash(D().bossCash, 'a Abominação foi derrotada!'); Weapons.bossLoot(); }
     } else {
       pool = 0;
       leak += leakOf(z.type, H.n);

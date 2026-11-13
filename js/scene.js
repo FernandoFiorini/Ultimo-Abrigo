@@ -567,7 +567,7 @@ const Scene = (() => {
           c: pick(['#ffd040', '#ff8a20', '#ff5020', [90, 80, 80], [150, 120, 140]]), s: pick([1, 2, 2, 3]), floor: d.y + 14,
         });
         flashes.push({ x: d.x, y: d.y, r: d.big ? 90 : 45, c: '255,150,50', a: 0.9, life: d.big ? 0.6 : 0.35, max: d.big ? 0.6 : 0.35 });
-        decals.push({ x: d.x, y: d.y + 9, w: d.big ? 26 : 12, life: 30, c: [40, 34, 30] });
+        { const life = rand(90, 160); decals.push({ x: d.x, y: d.y + 9, w: d.big ? 26 : 12, life, max: life, c: [40, 34, 30] }); }
         if (d.big) for (let i = 0; i < 30; i++) parts.push({ x: d.x + rand(-20, 20), y: d.y + rand(-10, 6), vx: rand(-25, 25), vy: rand(-30, -8), life: rand(1, 2), max: 2, c: [90, 85, 85], s: 3, a: 0.5 });
         shake = Math.max(shake, d.big ? 7 : 3.5);
         break;
@@ -583,7 +583,7 @@ const Scene = (() => {
         texts.push({ x: d.x, y: d.y, t: d.text, c: '#9be35a', life: 1.4 });
         break;
       case 'noAmmo':
-        texts.push({ x: ptr.x, y: ptr.y - 8, t: 'sem munição no abrigo!', c: '#ff8070', life: 0.8 });
+        texts.push({ x: ptr.x, y: ptr.y - 8, t: d.special ? `sem ${SPECIAL_AMMO[d.special].plural}!` : 'sem munição no abrigo!', c: '#ff8070', life: 0.8 });
         break;
       case 'outOfRange':
         texts.push({ x: d.x, y: d.y - 8, t: 'longe demais', c: '#ff9a80', life: 0.6 });
@@ -647,17 +647,16 @@ const Scene = (() => {
         if (d.loot) texts.push({ x: 50, y: 140, t: d.loot, c: '#9be35a', life: 2.5 });
         break;
       case 'evacuate':
-        people.length = 0; corpses.length = 0; travelers.length = 0;
+        people.length = 0; corpses.length = 0; travelers.length = 0; decals.length = 0; pieces.length = 0;
         banner = { t: 'EVACUAÇÃO!', sub: `Cidade ${d.city} · +${d.g} ✨ Esperança`, c: '#f3d36a', life: 4, max: 4 };
         break;
       case 'zdeath': {
         if (d.type === 'explosivo') break;
         const z = { id: d.id, type: d.type };
         dismember(d, zlook(z));
-        if (corpses.length > 40) corpses.shift();
+        { const live = corpses.filter(c => c.life === Infinity && !c.kept); for (let i = 0; i < live.length - MARKS.corpses; i++) retire(live[i]); }
         blood(d.x, d.y - 8, 14, d.y + 1);
-        if (gore()) decals.push({ x: d.x + rand(-3, 3), y: d.y + rand(-1, 1), w: rand(4, 9), life: 45 });
-        if (decals.length > 60) decals.shift();
+        stain(d.x + rand(-3, 3), d.y + rand(-1, 1), rand(4, 9));
         texts.push({ x: d.x, y: d.y - 22, t: `+${d.loot} 🔩`, c: '#f0d070', life: 1.2 });
         break;
       }
@@ -703,11 +702,28 @@ const Scene = (() => {
           : { t: `ONDA ${d.n}`, sub: `${d.count} ${d.word || 'zumbis'} estão vindo!`, c: '#ff5a4a', life: 3, max: 3 };
         alert = null;
         break;
-      case 'waveEnd':
+      case 'waveEnd': {
+        // fim da onda: a maioria some em poucos segundos; 4 ou 5 corpos e algumas manchas, sorteados, ficam
+        // marcados até o fim da próxima onda, quando são trocados (se nada morreu nesta onda, as marcas antigas ficam)
+        const quick = () => rand(...MARKS.quick);
+        const fresh = corpses.filter(c => c.life === Infinity && !c.kept);
+        if (fresh.length) {
+          for (const c of corpses) if (c.kept) { c.kept = false; retire(c); }
+          const keep = new Set(sample(fresh, ri(...MARKS.keep)));
+          for (const c of fresh) { if (keep.has(c)) c.kept = true; else c.life = c.t + quick(); }
+        }
+        const spots = decals.filter(s => !s.c && !s.kept && s.life === Infinity);
+        if (spots.length) {
+          for (const s of decals) if (s.kept) { s.kept = false; s.life = MARKS.fadeOut; }
+          const keep = new Set(sample(spots, ri(...MARKS.keepBlood)));
+          for (const s of spots) { if (keep.has(s)) s.kept = true; else s.life = quick(); }
+        }
+        for (const p of pieces) if (p.life === Infinity) p.life = p.t + quick();
+      }
         banner = { t: 'ONDA SOBREVIVIDA', sub: `${d.kills} ${d.humans ? 'saqueadores repelidos' : 'zumbis abatidos'}`, c: '#9be35a', life: 3, max: 3 };
         break;
       case 'gameOver':
-        people.length = 0; corpses.length = 0; travelers.length = 0;
+        people.length = 0; corpses.length = 0; travelers.length = 0; decals.length = 0; pieces.length = 0;
         banner = { t: 'O ABRIGO CAIU', sub: 'Um novo grupo recomeça...', c: '#ff5a4a', life: 4, max: 4 };
         break;
       case 'built':
@@ -952,18 +968,9 @@ const Scene = (() => {
     return { gravel, glass, bulbs };
   })();
 
-  // ---------- ambientação fixa: manchas antigas, corpos e rastros ----------
-  const scenery = (() => {
-    const r = seeded(31), stains = [], drags = [], bodies = [];
-    for (let i = 0; i < 14; i++) {
-      stains.push({ x: 215 + r() * 255, y: 162 + r() * 32, w: 3 + r() * 9, a: 0.35 + r() * 0.35 });
-    }
-    for (let i = 0; i < 4; i++) drags.push({ x: 230 + r() * 220, y: 166 + r() * 24, len: 12 + r() * 26, a: 0.3 + r() * 0.2 });
-    // corpos de quem não chegou ao abrigo (pessoas e zumbis antigos)
-    const spots = [[262, 186, false], [318, 168, false], [352, 191, true], [404, 176, true], [448, 188, false], [236, 193, false]];
-    for (const [x, y, z] of spots) bodies.push({ x: x + r() * 6, y, zombie: z, flip: r() < 0.5, seed: Math.floor(r() * 1000) });
-    return { stains, drags, bodies };
-  })();
+  // ---------- ambientação: o cenário começa limpo ----------
+  // Sangue e corpos só aparecem com as mortes e vão sendo trocados com o tempo (veja MARKS)
+  const scenery = { stains: [], drags: [], bodies: [] };
   let bodyLooks = null;
   function sceneryLooks() {
     if (bodyLooks) return bodyLooks;
@@ -1203,7 +1210,8 @@ const Scene = (() => {
   function drawDecals() {
     for (const d of decals) {
       if (!d.c && !gore()) continue;   // manchas de sangue somem se o sangue for desligado
-      ctx.globalAlpha = Math.min(1, d.life / 5) * 0.75;
+      // as marcas que ficam de uma onda para a outra ficam mais apagadas que o sangue fresco
+      ctx.globalAlpha = Math.min(1, d.life / MARKS.fadeOut) * (d.kept ? 0.5 : 0.75) * (d.max ? 0.35 + 0.65 * d.life / d.max : 1);
       ctx.fillStyle = T(d.c || [110, 16, 16]);
       ctx.beginPath(); ctx.ellipse(d.x, d.y, d.w, d.w * 0.3, 0, 0, Math.PI * 2); ctx.fill();
     }
@@ -1295,9 +1303,20 @@ const Scene = (() => {
     ctx.fillText('★', x, y - 19 + b);
   }
 
-  // corpos de zumbis abatidos ficam no chão por um bom tempo e somem devagar
-  const CORPSE_LIFE = 40;
-  const fade = t => (t > CORPSE_LIFE - 6 ? Math.max(0, (CORPSE_LIFE - t) / 6) : 1);
+  // Corpos e sangue: durante a horda tudo fica no chão. No fim de cada onda a maioria some em poucos segundos
+  // e só alguns corpos e manchas, sorteados, ficam marcados no cenário até o fim da onda seguinte,
+  // quando dão lugar a outros sorteados dela. Passando do limite na horda, os mais antigos desbotam.
+  const MARKS = { corpses: 40, keep: [4, 5], keepBlood: [5, 8], quick: [1.2, 4], blood: 90, fadeOut: 2 };
+  const sample = (list, n) => { const a = [...list]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); };
+  const fade = c => Math.max(0, Math.min(1, (c.life - c.t) / MARKS.fadeOut));
+  const retire = o => { o.life = Math.min(o.life, o.t + MARKS.fadeOut); };   // começa a desbotar agora
+  // mancha de sangue gravada no chão
+  function stain(x, y, w) {
+    if (!gore()) return;
+    decals.push({ x, y, w, life: Infinity });
+    const live = decals.filter(d => !d.c && !d.kept && d.life === Infinity);
+    for (let i = 0; i < live.length - MARKS.blood; i++) live[i].life = MARKS.fadeOut;
+  }
   // faixas do boneco (coordenadas locais, pés em 0): cabeça, tronco, pernas
   const PART = { head: [-19, -11, -15], torso: [-12, -5, -8.5], legs: [-5, 1, -2.5], upper: [-19, -5, -11], body: [-11, 1, -5] };
   const pieces = [], blasts = [];
@@ -1314,11 +1333,11 @@ const Scene = (() => {
       const r = Math.random();
       kind = r < 0.35 ? 'fall' : r < 0.5 ? 'forward' : r < 0.7 ? 'headless' : r < 0.87 ? 'split' : 'gib';
     }
-    const c = { x: d.x, y: d.y, t: 0, look, kind, dir, spurt: 0 };
+    const c = { x: d.x, y: d.y, t: 0, life: Infinity, look, kind, dir, spurt: 0 };
     const s = look.scale || 1, cnt = Settings.get('reduceFx') ? 0.5 : 1;
     const part = (name, vx, vy, vr) => {
       const [a, b, cy] = PART[name];
-      pieces.push({ x: d.x, y: d.y + cy * s, cy, clip: [a, b], look, vx, vy, vr, rot: 0, floor: d.y - rand(0, 3) - (b - a) * s * 0.25, t: 0, rest: false });
+      pieces.push({ x: d.x, y: d.y + cy * s, cy, clip: [a, b], look, vx, vy, vr, rot: 0, floor: d.y - rand(0, 3) - (b - a) * s * 0.25, t: 0, life: Infinity, rest: false });
       if (pieces.length > 160) pieces.shift();
     };
     if (kind === 'headless') {
@@ -1332,15 +1351,15 @@ const Scene = (() => {
       part('torso', rand(-35, 35), rand(-70, -35), rand(-10, 10));
       part('legs', rand(-25, 25), rand(-45, -20), rand(-8, 8));
       for (let i = 0; i < 8 * cnt; i++) pieces.push({ chunk: true, x: d.x + rand(-3, 3), y: d.y - rand(4, 14) * s, vx: rand(-70, 70), vy: rand(-110, -30),
-        w: pick([1, 2, 2]), h: pick([1, 1, 2]), c: pick([look.skin, look.shirt, look.pants, [130, 16, 16], [100, 10, 10]]), floor: d.y - rand(-2, 4), t: 0, rest: false });
+        w: pick([1, 2, 2]), h: pick([1, 1, 2]), c: pick([look.skin, look.shirt, look.pants, [130, 16, 16], [100, 10, 10]]), floor: d.y - rand(-2, 4), t: 0, life: Infinity, rest: false });
       blood(d.x, d.y - 10, 22 * cnt, d.y + 2);
-      decals.push({ x: d.x, y: d.y + 1, w: rand(9, 14), life: 45 });
+      stain(d.x, d.y + 1, rand(9, 14));
     }
     if (kind !== 'gib') corpses.push(c);
   }
 
   function drawCorpse(c) {
-    const k = Math.min(1, c.t / 0.35), a = fade(c.t);
+    const k = Math.min(1, c.t / 0.35), a = fade(c);
     const o = { ...c.look, pose: 'zwalk', phase: 0, alpha: a };
     if (c.kind === 'forward') o.rot = -k * Math.PI / 2 * 0.95;
     else if (c.kind === 'split') {
@@ -1355,7 +1374,7 @@ const Scene = (() => {
   }
 
   function drawPiece(p) {
-    const a = fade(p.t);
+    const a = fade(p);
     if (p.chunk) { ctx.globalAlpha = a; rect(p.c, p.x, p.y, p.w, p.h); ctx.globalAlpha = 1; return; }
     drawHuman(p.x, p.y, { ...p.look, pose: 'zwalk', phase: 0, rot: p.rot, clip: p.clip, oy: -p.cy, alpha: a });
   }
@@ -1371,10 +1390,10 @@ const Scene = (() => {
         p.y = p.floor;
         if (Math.abs(p.vy) > 60 && !p.bounced) { p.vy *= -0.3; p.vx *= 0.5; p.vr = (p.vr || 0) * 0.4; p.bounced = true; }
         else { p.rest = true; if (!p.chunk) p.rot = Math.round(p.rot / (Math.PI / 2)) * (Math.PI / 2) + rand(-0.2, 0.2); }
-        if (gore() && !p.chunk && p.rest) decals.push({ x: p.x, y: p.y + 2, w: rand(2, 4), life: 45 });
+        if (!p.chunk && p.rest) stain(p.x, p.y + 2, rand(2, 4));
       }
     }
-    prune(pieces, p => p.t < CORPSE_LIFE);
+    prune(pieces, p => p.t < p.life);
     for (const c of corpses) {
       if (!(c.spurt > 0)) continue;
       c.spurt -= dt;
@@ -1441,7 +1460,7 @@ const Scene = (() => {
     ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'center';
     if (out) { ctx.fillStyle = 'rgba(255,120,100,0.95)'; ctx.fillText('fora de alcance', ptr.x, ptr.y - r - 5); }
     else if (R_) { ctx.fillStyle = 'rgba(170,205,255,0.95)'; ctx.fillText('recarregando...', ptr.x, ptr.y - r - 9); }
-    else if (dry) { ctx.fillStyle = 'rgba(255,120,100,0.95)'; ctx.fillText('sem munição no abrigo', ptr.x, ptr.y - r - 5); }
+    else if (dry) { ctx.fillStyle = 'rgba(255,120,100,0.95)'; ctx.fillText(w.special ? `sem ${SPECIAL_AMMO[w.special].plural}` : 'sem munição no abrigo', ptr.x, ptr.y - r - 5); }
     ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 0.8;
     ctx.beginPath(); ctx.arc(ptr.x, ptr.y, r, 0, 7); ctx.stroke();
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -1659,7 +1678,7 @@ const Scene = (() => {
     for (const d of decals) d.life -= dt;
     prune(decals, d => d.life > 0);
     for (const c of corpses) c.t += dt;
-    prune(corpses, c => c.t < CORPSE_LIFE);
+    prune(corpses, c => c.t < c.life);
     updateGore(dt);
 
     const reduce = Settings.get('reduceFx');
@@ -1729,5 +1748,236 @@ const Scene = (() => {
     for (let i = 0; i < 5; i++) parts.push({ x: LEADER.x, y: LEADER.y - 4, vx: rand(-20, 20), vy: rand(-25, -5), g: 60, life: 0.5, max: 0.5, c: [180, 170, 140], s: 1 });
   }
 
-  return { init, update, draw, float, gunTip, portrait };
+
+  // ---------- prévias animadas (popup ao passar o mouse em armas, loja e pesquisa) ----------
+  // Cada prévia é uma cena curta em loop, calculada só a partir do tempo t (sem estado):
+  // zs: zumbis { x0, v (px/s), y, hp, type } · ev: eventos ordenados no instante do impacto
+  // ev.k: bullet | pellets | pierce | grenade | rocket | flame | burn | bomb | trap | shock | text
+  // ev.z: índices dos zumbis atingidos · ev.d: dano em pontos (número ou lista por zumbi)
+  const DW = 200, DH = 90, DWALL = 52, DLX = 30, DLY = 58, DSTOP = DWALL + 9;
+  const every = (a, b, step, f) => { const out = []; for (let t = a; t <= b + 1e-9; t += step) out.push(f(+t.toFixed(3), out.length)); return out; };
+  const DEMOS = {
+    'lw:pistola': { gun: 'pistola', zs: [{ x0: 214, v: 60, y: 80, hp: 16 }],
+      ev: [0.9, 1.2, 1.5, 1.8].map(t => ({ t, k: 'bullet', z: [0], d: 4 })), reload: [1.85, 3.35], note: '5 tiros e recarga' },
+    'lw:espingarda': { gun: 'espingarda', zs: [{ x0: 160, v: 80, y: 77, hp: 14 }, { x0: 172, v: 80, y: 83, hp: 14 }, { x0: 190, v: 80, y: 79, hp: 20 }],
+      ev: [{ t: 1.7, k: 'pellets', z: [0, 1, 2], d: [15, 15, 8] }, { t: 2.3, k: 'pellets', z: [2], d: 15 }], reload: [2.35, 3.4], note: 'devastadora de perto' },
+    'lw:rifle': { gun: 'rifle', zs: [{ x0: 150, v: 22, y: 80, hp: 16 }, { x0: 168, v: 22, y: 80, hp: 16 }, { x0: 186, v: 22, y: 80, hp: 24 }],
+      ev: [{ t: 1.1, k: 'pierce', z: [0, 1, 2], d: [18, 18, 14] }, { t: 2.3, k: 'bullet', z: [2], d: 18 }], note: 'atravessa a fila' },
+    'lw:smg': { gun: 'smg', zs: [{ x0: 150, v: 40, y: 78, hp: 16 }, { x0: 175, v: 40, y: 83, hp: 16 }],
+      ev: every(0.9, 2.3, 0.1, (t, i) => ({ t, k: 'bullet', z: [i % 2], d: 2.2, quiet: true })), note: 'segure para atirar' },
+    'lw:granadas': { gun: 'granadas', zs: [{ x0: 140, v: 70, y: 78, hp: 16 }, { x0: 152, v: 70, y: 83, hp: 16 }, { x0: 160, v: 70, y: 76, hp: 16 }, { x0: 175, v: 70, y: 81, hp: 40, type: 'tanque' }],
+      ev: [{ t: 1.45, k: 'grenade', fly: 0.45, z: [0, 1, 2, 3], d: [10, 10, 9, 8] }, { t: 2.05, k: 'grenade', fly: 0.45, z: [0, 1, 2, 3], d: [10, 9, 10, 8] }],
+      reload: [2.1, 3.4], note: '2 granadas, raras' },
+    'lw:chamas': { gun: 'chamas', reload: [2.2, 3.4], zs: [{ x0: 110, v: 50, y: 78, hp: 16 }, { x0: 122, v: 50, y: 83, hp: 16 }, { x0: 135, v: 50, y: 80, hp: 16 }],
+      ev: [{ t: 1.2, k: 'flame', dur: 0.9, x: 72, z: [0, 1, 2], d: 2 }, ...every(1.4, 2.9, 0.25, t => ({ t, k: 'burn', z: [0, 1, 2], d: 2.4 }))], note: 'combustível raro' },
+    'lw:bazuca': { gun: 'bazuca', zs: [0, 1, 2, 3, 4].map(i => ({ x0: 150 + i * 9, v: 55, y: 76 + (i * 3) % 9, hp: 20, type: i === 2 ? 'tanque' : 'normal' })),
+      ev: [{ t: 1.4, k: 'rocket', fly: 0.3, z: [0, 1, 2, 3, 4], d: 999, big: true }], reload: [1.5, 3.4], note: '1 foguete, recarga lenta' },
+    'shop:aereo': { shooter: 'guard', zs: [0, 1, 2, 3, 4, 5].map(i => ({ x0: 120 + i * 16, v: 25, y: 76 + (i * 5) % 9, hp: 20, type: i === 3 ? 'tanque' : 'normal' })),
+      planes: [0.6, 1.7], ev: [0, 1, 2, 3, 4, 5].map(i => ({ t: 1.25 + i * 0.07, k: 'bomb', z: [i], d: 999 })), note: 'todos os zumbis na tela' },
+    'shop:furia': { shooter: 'guard', fury: true, zs: [{ x0: 170, v: 45, y: 78, hp: 20 }, { x0: 195, v: 45, y: 83, hp: 20 }],
+      ev: every(0.7, 2.2, 0.3, (t, i) => ({ t, k: 'bullet', z: [i < 3 ? 0 : 1], d: 8, col: '255,110,50' })), note: '2x mais rápido, 2x dano' },
+    'shop:muro': { zs: [], wall: [0.2, 1.3], ev: [{ t: 1.3, k: 'text', x: DWALL + 3, y: 40, text: 'MURO RESTAURADO', c: '#ffe066' }], note: 'muro inteiro na hora' },
+    'tech:perfuracao': { shooter: 'guard', zs: [{ x0: 150, v: 25, y: 80, hp: 20 }, { x0: 168, v: 25, y: 80, hp: 20 }],
+      ev: [{ t: 1, k: 'pierce', z: [0, 1], d: [10, 6] }, { t: 1.9, k: 'pierce', z: [0, 1], d: [10, 6] }, { t: 2.8, k: 'bullet', z: [1], d: 10 }], note: 'o 2º leva 60% do dano' },
+    'tech:pontaoca': { shooter: 'guard', zs: [{ x0: 170, v: 35, y: 80, hp: 30 }],
+      ev: [{ t: 1, k: 'bullet', z: [0], d: 10 }, { t: 1.7, k: 'bullet', z: [0], d: 20, crit: true }], note: 'dano dobrado' },
+    'tech:armadilhas': { zs: [{ x0: 150, v: 45, y: 79, hp: 16 }, { x0: 175, v: 45, y: 83, hp: 16 }, { x0: 200, v: 45, y: 77, hp: 16 }], traps: [92, 74],
+      ev: [0, 1, 2].flatMap(i => [92, 74].map(x => ({ t: +((150 + i * 25 - x) / 45).toFixed(2), k: 'trap', x, z: [i], d: 5 }))).sort((a, b) => a.t - b.t), note: 'dano ao se aproximar' },
+    'tech:eletrico': { zs: [{ x0: 110, v: 60, y: 78, hp: 16 }, { x0: 125, v: 60, y: 83, hp: 16 }], fence: true,
+      ev: every(1.2, 3.0, 0.3, t => ({ t, k: 'shock', z: [0, 1], d: 3 })), note: 'choque em quem ataca o muro' },
+  };
+  for (const s of Object.values(DEMOS)) s.ev.sort((a, b) => a.t - b.t);
+
+  const demoT = () => 3.4;
+  // vida, morte e posição de cada zumbi no instante t
+  function demoState(spec, t) {
+    return spec.zs.map((z, i) => {
+      let hp = z.hp, dead = null, hit = -9, burn = false, dmg = [];
+      for (const e of spec.ev) {
+        if (e.t > t) break;
+        const j = e.z ? e.z.indexOf(i) : -1;
+        if (j < 0 || dead !== null) continue;
+        const d = Array.isArray(e.d) ? e.d[j] : e.d;
+        hp -= d; hit = e.t;
+        if (e.k === 'flame' || e.k === 'burn') burn = true;
+        if (e.k !== 'burn' && e.k !== 'flame' && !e.quiet && d < 900) dmg.push({ t: e.t, d, crit: e.crit });
+        if (hp <= 0) dead = e.t;
+      }
+      const tt = dead !== null ? dead : t;
+      const x = Math.max(DSTOP + (i % 3) * 5, z.x0 - z.v * tt);
+      return { ...z, i, hp: Math.max(0, hp), dead, hit, burn, dmg, x, atWall: x <= DSTOP + (i % 3) * 5 + 0.01 };
+    });
+  }
+  // ponto onde caem a granada, o foguete e as bombas: centro dos atingidos no instante do impacto
+  function demoAim(spec, e) {
+    if (e.x != null) return { x: e.x, y: e.y ?? 74 };
+    const zs = demoState(spec, e.t - 0.001).filter((z, i) => e.z.includes(i));
+    return { x: zs.reduce((a, z) => a + z.x, 0) / zs.length, y: zs.reduce((a, z) => a + z.y, 0) / zs.length - 6 };
+  }
+
+  function demoBackground() {
+    for (let y = 0; y < 66; y += 6) rect(mix([40, 30, 70], [150, 80, 110], y / 66), 0, y, DW, 6);
+    for (let i = 0; i < 9; i++) rect([46, 36, 72], i * 24 + 6, 30 + (i * 7) % 18, 18, 40);
+    rect([66, 62, 70], 0, 66, DW, 24);
+    for (let x = 60; x < DW; x += 22) rect([150, 140, 110], x, 86, 10, 1);
+  }
+  function demoWall(spec, t) {
+    let hpFrac = 1;
+    if (spec.wall) hpFrac = t < spec.wall[1] ? 0.2 : 1;
+    rect([110, 80, 50], DWALL, 46, 7, 40);
+    for (let y = 48; y < 86; y += 4) rect([90, 64, 40], DWALL, y, 7, 1);
+    if (hpFrac < 1) {   // muro rachado
+      rect([40, 30, 26], DWALL + 2, 52, 1, 8); rect([40, 30, 26], DWALL + 3, 60, 1, 6); rect([40, 30, 26], DWALL + 1, 70, 2, 1);
+    }
+    if (spec.fence) {
+      ctx.strokeStyle = 'rgba(200,200,210,0.8)'; ctx.lineWidth = 0.6;
+      for (const y of [56, 64, 72]) { ctx.beginPath(); ctx.moveTo(DWALL + 7, y); ctx.lineTo(DWALL + 11, y); ctx.stroke(); }
+      rect([120, 120, 130], DWALL + 11, 52, 1, 30);
+    }
+    if (spec.wall) {
+      const shown = t < spec.wall[1] ? 0.2 : Math.min(1, 0.2 + (t - spec.wall[1]) * 3);
+      rect('#141414', DWALL - 8, 40, 23, 3);
+      ctx.fillStyle = shown < 0.4 ? '#e05a4f' : '#7cc96b'; ctx.fillRect(DWALL - 8, 40, 23 * shown, 3);
+      if (t > spec.wall[1] && t < spec.wall[1] + 0.8)
+        for (let k = 0; k < 10; k++) rect('#ffe066', DWALL + ((k * 37 + Math.floor(t * 20) * 13) % 9) - 1, 48 + (k * 11 + Math.floor(t * 20) * 7) % 36, 1, 1);
+    }
+  }
+  function demoShooter(spec, t) {
+    rect([122, 90, 48], DLX - 8, DLY, 16, 28); rect([90, 64, 32], DLX - 8, DLY, 16, 2);   // caixotes
+    const fired = spec.ev.some(e => e.t - (e.fly || 0) <= t && t - (e.t - (e.fly || 0)) < 0.06 && ['bullet', 'pellets', 'pierce', 'grenade', 'rocket'].includes(e.k));
+    if (spec.shooter === 'guard') {
+      drawHuman(DLX, DLY, { pose: 'aim', face: 1, phase: 0, skin: [200, 150, 110], hair: [40, 30, 20], ...JOBLOOK.guarda });
+      if (spec.fury) { ctx.fillStyle = 'rgba(255,90,40,0.25)'; ctx.beginPath(); ctx.arc(DLX, DLY - 9, 11, 0, 7); ctx.fill(); }
+    } else drawLook(DLX, DLY, Profile.look(), { pose: 'aim', face: 1, phase: 0, gun: spec.gun });
+    const tip = demoTip(spec);
+    if (fired) { rect('#fff4b0', tip.x, tip.y - 1, 3, 3); }
+    if (spec.reload && t >= spec.reload[0] && t <= spec.reload[1]) {
+      const f = (t - spec.reload[0]) / (spec.reload[1] - spec.reload[0]);
+      ctx.strokeStyle = 'rgba(150,190,255,0.95)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(DLX, DLY - 24, 4, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2); ctx.stroke();
+      ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = '#aaccff'; ctx.fillText('recarregando', DLX + 7, DLY - 22);
+    }
+  }
+  const demoTip = spec => {
+    const g = spec.gun && GUNS[spec.gun] ? GUNS[spec.gun].tip : [9, -11];
+    return { x: DLX + g[0], y: DLY + g[1] };
+  };
+  function demoZombie(z, t) {
+    const L = zlook({ id: 9000 + z.i * 7, type: z.type || 'normal' });
+    if (z.dead !== null) {
+      const age = t - z.dead, a = age > 1.2 ? Math.max(0, 1 - (age - 1.2) / 0.6) : 1;
+      if (a <= 0) return;
+      drawHuman(z.x, z.y, { ...L, rot: Math.PI / 2 * 0.95, alpha: a, pose: 'stand' });
+      return;
+    }
+    L.pose = z.atWall ? 'zattack' : 'zwalk';
+    L.phase = t * (z.atWall ? 4 : z.v * 0.3) + z.i;
+    L.flash = t - z.hit < 0.08;
+    drawHuman(z.x, z.y, L);
+    if (z.burn) for (let k = 0; k < 3; k++) rect(pick(['#ffd040', '#ff8a20', '#ff5020']), z.x - 3 + Math.random() * 6, z.y - 6 - Math.random() * 12, 1, 2);
+    if (z.hp < z.hp0) {
+      const by = z.y - 19 * (L.scale || 1) - 3;
+      rect('#141414', z.x - 6, by, 12, 2);
+      ctx.fillStyle = '#e05a4f'; ctx.fillRect(z.x - 6, by, 12 * z.hp / z.hp0, 2);
+    }
+  }
+  function demoBoom(x, y, age, big) {
+    if (age < 0 || age > 0.5) return;
+    const r = (big ? 26 : 16) * Math.min(1, age / 0.15), a = 1 - age / 0.5;
+    ctx.fillStyle = `rgba(255,180,60,${0.6 * a})`; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    ctx.fillStyle = `rgba(255,240,180,${0.8 * a})`; ctx.beginPath(); ctx.arc(x, y, r * 0.45, 0, 7); ctx.fill();
+  }
+  function demoText(x, y, s, c, age, dur = 0.7) {
+    if (age < 0 || age > dur) return;
+    ctx.globalAlpha = 1 - age / dur;
+    ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#000'; ctx.fillText(s, x + 0.5, y - age * 10 + 0.5);
+    ctx.fillStyle = c; ctx.fillText(s, x, y - age * 10);
+    ctx.globalAlpha = 1;
+  }
+  function demoEffects(spec, zs, t) {
+    const tip = spec.shooter === 'guard' ? { x: DLX + 9, y: DLY - 11 } : demoTip(spec);
+    const at = i => zs[i];
+    for (const e of spec.ev) {
+      const age = t - e.t;
+      if (age < -(e.fly || 0) - 0.01 || age > 1.2) continue;
+      const col = e.col || '255,250,200';
+      const line = (x, y) => { ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(x, y); ctx.stroke(); };
+      switch (e.k) {
+        case 'bullet': if (age >= 0 && age < 0.06) { const z = at(e.z[0]); line(z.x, z.y - 10); } break;
+        case 'pellets': if (age >= 0 && age < 0.07) { for (const i of e.z) line(at(i).x, at(i).y - 9); line(at(e.z[0]).x + 14, 70); line(at(e.z[0]).x + 10, 88); } break;
+        case 'pierce': if (age >= 0 && age < 0.09) { const far = at(e.z[e.z.length - 1]); line(far.x + 8, far.y - 10); } break;
+        case 'grenade': case 'rocket': {
+          const p = demoAim(spec, e);
+          if (age < 0) {
+            const f = 1 + age / e.fly, x = tip.x + (p.x - tip.x) * f;
+            const y = tip.y + (p.y - tip.y) * f - (e.k === 'grenade' ? Math.sin(f * Math.PI) * 18 : 0);
+            rect(e.k === 'rocket' ? [200, 200, 190] : [60, 70, 40], x - 1, y - 1, 3, 2);
+            if (e.k === 'rocket') rect('#ff9a30', x - 4, y - 1, 3, 2);
+          } else demoBoom(p.x, p.y, age, e.big);
+          break;
+        }
+        case 'flame':
+          if (age >= 0 && age <= e.dur) for (let k = 0; k < 14; k++) {
+            const f = ((k * 0.13 + t * 3) % 1), x = tip.x + (e.x + 12 - tip.x) * f, y = tip.y + (82 - tip.y) * f + Math.sin(k * 7 + t * 20) * 4 * f;
+            rect(pick(['#ffd040', '#ff8a20', '#ff5020']), x, y, 2, 2);
+          }
+          break;
+        case 'bomb': { const z = at(e.z[0]); demoBoom(z.x, z.y - 6, age, false); break; }
+        case 'trap': if (age >= 0 && age < 0.3) for (let k = 0; k < 4; k++) rect('#ffd060', e.x - 2 + k, 84 - k % 2 * 3, 1, 1); break;
+        case 'shock':
+          if (age >= 0 && age < 0.12) for (const i of e.z) {
+            const z = at(i); if (z.dead !== null && z.dead < e.t) continue;
+            ctx.strokeStyle = 'rgba(160,220,255,0.95)'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(DWALL + 11, z.y - 12);
+            for (let s = 1; s <= 4; s++) ctx.lineTo(DWALL + 11 + (z.x - DWALL - 11) * s / 4, z.y - 12 + (s % 2 ? -3 : 3));
+            ctx.stroke();
+          }
+          break;
+        case 'text': demoText(e.x, e.y, e.text, e.c, age, 1.2); break;
+      }
+    }
+    // números de dano
+    for (const z of zs) for (const h of z.dmg) {
+      const age = t - h.t;
+      demoText(z.x + 4, z.y - 22 - (z.i % 3) * 7, h.crit ? `-${h.d} CRÍTICO!` : `-${h.d}`, h.crit ? '#ffa040' : '#ffe9a0', age, 0.6);
+    }
+    if (spec.traps) for (const x of spec.traps) { rect([110, 110, 120], x - 3, 84, 7, 1); for (let k = 0; k < 3; k++) rect([170, 170, 180], x - 2 + k * 2, 82, 1, 2); }
+    if (spec.planes && t > spec.planes[0] && t < spec.planes[1]) {
+      const f = (t - spec.planes[0]) / (spec.planes[1] - spec.planes[0]);
+      for (const [dx, y] of [[0, 14], [-24, 22]]) {
+        const x = -30 + (DW + 60) * f + dx;
+        rect([70, 76, 70], x - 9, y, 18, 3); rect([60, 66, 60], x - 3, y - 3, 6, 9); rect([60, 66, 60], x - 9, y - 2, 3, 3);
+      }
+    }
+  }
+
+  // Desenha a prévia `key` no canvas c, no instante t (em loop)
+  function demo(c, key, t) {
+    const spec = DEMOS[key];
+    if (!spec) return false;
+    t %= demoT();
+    const oc = ctx, on = night;
+    ctx = c.getContext('2d'); night = 0;
+    const k = c.width / DW;
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    demoBackground();
+    demoWall(spec, t);
+    const zs = demoState(spec, t).map((z, i) => ({ ...z, hp0: spec.zs[i].hp }));
+    demoShooter(spec, t);
+    for (const z of [...zs].sort((a, b) => a.y - b.y)) demoZombie(z, t);
+    demoEffects(spec, zs, t);
+    if (spec.note) {
+      ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'right';
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(DW - ctx.measureText(spec.note).width - 8, 2, ctx.measureText(spec.note).width + 6, 9);
+      ctx.fillStyle = '#efe6c0'; ctx.fillText(spec.note, DW - 5, 9);
+    }
+    ctx = oc; night = on;
+    return true;
+  }
+  const hasDemo = key => !!DEMOS[key];
+
+  // contagem das marcas no chão (usada nos testes e no debug)
+  const marks = () => ({ corpses: corpses.length, kept: corpses.filter(c => c.kept).length, blood: decals.filter(d => !d.c).length, keptBlood: decals.filter(d => d.kept).length, pieces: pieces.length });
+  return { init, update, draw, float, gunTip, portrait, demo, hasDemo, marks };
 })();

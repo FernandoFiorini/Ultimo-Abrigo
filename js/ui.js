@@ -50,7 +50,7 @@ function buildUI() {
     </div>`).join('');
 
   $('shop').innerHTML = Object.entries(SHOP).map(([k, it]) => `
-    <div class="row">
+    <div class="row"${Demos.attr('shop:' + k)}>
       <div class="main">
         <div class="title">${it.icon} ${it.nome}</div>
         <div class="desc">${it.desc}</div>

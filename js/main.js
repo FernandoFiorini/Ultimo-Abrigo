@@ -22,6 +22,7 @@ function startGame(slot) {
   Scene.draw();
   Sound.setup();
   Debug.init();
+  Demos.init();
   listeners.push((t, d) => { if (t === 'achievement') achToast(d.a); });
   render();
 

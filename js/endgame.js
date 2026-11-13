@@ -634,7 +634,7 @@ const Endgame = (() => {
   function buildUI() {
     $('tech').innerHTML = Object.entries(BRANCHES).map(([br, label]) => `
       <h3>${label}</h3>` + Object.entries(TECH).filter(([, t]) => t.br === br).map(([k, t]) => `
-      <div class="row">
+      <div class="row"${Demos.attr('tech:' + k)}>
         <div class="main">
           <div class="title">${t.icon} ${t.nome}<span class="lvl" id="tl-${k}"></span></div>
           <div class="desc">${t.desc}</div>

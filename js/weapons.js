@@ -32,7 +32,7 @@ const Weapons = (() => {
     return {
       dmg: w.dmg * (1 + 0.25 * up),
       cd: w.cd * (1 - 0.06 * up),
-      mag: Math.round(w.mag * (1 + 0.2 * up)),
+      mag: w.mag === 1 ? 1 : Math.round(w.mag * (1 + 0.2 * up)),   // a bazuca tem sempre 1 tiro
       reload: w.reload * (1 - 0.08 * up),
       range: w.range * (1 + 0.08 * up),
       use: w.use || 0,
@@ -47,13 +47,16 @@ const Weapons = (() => {
     const s = stat(k), w = LWEAPONS[k], out = [];
     if (w.type === 'rocket') out.push('mata zumbis comuns com 1 tiro');
     else out.push(`dano ${pts(s.dmg)}${s.pellets > 1 ? ` ×${s.pellets} projéteis` : ''}${w.type === 'flame' ? '/s' : ''}`);
-    out.push(`${fmt(1 / s.cd)} tiros/s`);
+    if (s.mag > 1) out.push(`${fmt(1 / s.cd)} tiros/s`);
     out.push(`pente ${s.mag} · recarga ${fmt(s.reload)}s`);
     out.push(`alcance ${Math.round(s.range)}`);
     if (s.pierce) out.push(`atravessa ${s.pierce}`);
     if (s.radius) out.push(`raio ${Math.round(s.radius)}`);
     if (s.burn) out.push(`queima ${fmt(s.burn)}s`);
-    out.push(s.use ? `${fmt(s.use)} 🔫 por tiro` : 'não gasta munição');
+    if (w.special) {
+      const A = SPECIAL_AMMO[w.special];
+      out.push(`${A.tank ? `1 ${A.icon} ${A.nome} por carga` : `1 ${A.icon} ${A.nome} por tiro`} (você tem ${spec(w.special)}/${A.max})`);
+    } else out.push(s.use ? `${fmt(s.use)} 🔫 por tiro` : 'não gasta munição');
     return out.join(' · ');
   };
   // Quantos tiros (ou disparos) derrubam um zumbi comum na onda atual, com todos os bônus
@@ -95,6 +98,7 @@ const Weapons = (() => {
       const free = M().slots.indexOf(null);
       if (free >= 0) M().slots[free] = k;
       mags()[k] = stat(k).mag;   // o primeiro pente vem junto
+      if (LWEAPONS[k].special === 'grenade') addSpecial('grenade', 2);   // e duas granadas de reserva
       addLog(`🔫 Nova arma: ${LWEAPONS[k].icon} ${LWEAPONS[k].nome}! ${free >= 0 ? `Equipada no espaço ${LW_KEYS[free]}.` : 'Equipe na aba Armas.'}`, 'good');
     } else {
       addLog(`⬆️ ${LWEAPONS[k].icon} ${LWEAPONS[k].nome} nível ${lvl(k)}: ${fx(k)}.`, 'good');
@@ -131,10 +135,50 @@ const Weapons = (() => {
   function topUp(k) {
     const st = stat(k), cur = Math.min(ammoOf(k), st.mag), need = st.mag - cur;
     if (need <= 0) return 0;
+    const sp = LWEAPONS[k].special;
+    if (sp) {   // munição especial: foguetes e granadas um a um; um tanque de combustível enche tudo
+      if (spec(sp) < 1) return 0;
+      const n = SPECIAL_AMMO[sp].tank ? need : Math.min(need, spec(sp));
+      setSpec(sp, spec(sp) - (SPECIAL_AMMO[sp].tank ? 1 : n));
+      mags()[k] = cur + n;
+      return n;
+    }
     const n = st.use ? Math.min(need, Math.floor(S.res.municao / st.use + 1e-9)) : need;
     S.res.municao -= n * st.use;
     mags()[k] = cur + n;
     return n;
+  }
+  // ---------- munição especial (foguetes, granadas e combustível) ----------
+  const store = () => { const m = M(); if (!m.ammo || typeof m.ammo !== 'object') { m.ammo = { rocket: m.rockets || 0 }; delete m.rockets; } return m.ammo; };
+  const spec = kind => store()[kind] || 0;
+  const setSpec = (kind, n) => { store()[kind] = Math.max(0, n); };
+  const specWeapon = kind => Object.keys(LWEAPONS).find(k => LWEAPONS[k].special === kind);
+  // quanto ainda cabe: por tiro conta o que está carregado; tanques contam só os guardados
+  const room = kind => SPECIAL_AMMO[kind].max - spec(kind) - (SPECIAL_AMMO[kind].tank ? 0 : ammoOf(specWeapon(kind)));
+  function addSpecial(kind, n) { const got = Math.max(0, Math.min(n, room(kind))); setSpec(kind, spec(kind) + got); return got; }
+  // Ganha munição especial (só para armas que você já tem); devolve quanto entrou
+  function gainSpecial(kind, n, where, x, y) {
+    const A = SPECIAL_AMMO[kind];
+    if (!owned(specWeapon(kind))) return 0;
+    const got = addSpecial(kind, n);
+    if (!got) return 0;
+    addLog(`${A.icon} Você conseguiu ${got > 1 ? `${got} ${A.plural}` : `1 ${A.nome}`} ${where}! (${spec(kind)}/${A.max})`, 'good');
+    emit('lwAmmo', { x: x ?? 300, y: y ?? 140, text: `+${got} ${A.icon}` });
+    return got;
+  }
+  // Abominação derrotada: quantidades garantidas · expedição que voltou: chances por lugar
+  function bossLoot() { for (const kind in SPECIAL_DROPS.boss) gainSpecial(kind, SPECIAL_DROPS.boss[kind], 'dos restos da Abominação'); }
+  function expLoot(loc, where) {
+    const t = SPECIAL_DROPS.exp[loc];
+    if (t) for (const kind in t) if (Math.random() < t[kind]) gainSpecial(kind, 1, where);
+  }
+  // texto "onde conseguir" de cada munição especial
+  function howToGet(kind) {
+    const out = [];
+    if (SPECIAL_DROPS.boss[kind]) out.push(`${SPECIAL_DROPS.boss[kind]} por Abominação derrotada`);
+    for (const loc in SPECIAL_DROPS.exp) if (SPECIAL_DROPS.exp[loc][kind]) out.push(`${Math.round(SPECIAL_DROPS.exp[loc][kind] * 100)}% em expedições: ${EXPED[loc].nome}`);
+    for (const t in SPECIAL_DROPS.kill) if (SPECIAL_DROPS.kill[t][kind]) out.push(`${Math.round(SPECIAL_DROPS.kill[t][kind] * 100)}% ao abater um ${ZTYPES[t].nome}`);
+    return out.join(' · ');
   }
   // Início da noite: as armas levadas chegam com o pente cheio (se houver munição no abrigo)
   function refill() {
@@ -146,7 +190,8 @@ const Weapons = (() => {
   function startReload() {
     const k = current(), st = stat(k);
     if (!S.horde.active || S.reload || ammoOf(k) >= st.mag) return false;
-    if (st.use && S.res.municao < st.use) { emit('noAmmo', { k }); return false; }
+    const sp = LWEAPONS[k].special;
+    if (sp ? spec(sp) < 1 : st.use && S.res.municao < st.use) { emit('noAmmo', { k, special: sp }); return false; }
     S.reload = { k, t: st.reload, dur: st.reload };
     emit('reload', { k, phase: 'start' });
     return true;
@@ -259,6 +304,9 @@ const Weapons = (() => {
 
   // zumbi abatido pelo líder às vezes deixa um pouco de munição para o abrigo
   function onKill(z) {
+    // alguns zumbis abatidos pelo líder carregam munição especial (o policial, granadas; o Inchado, combustível)
+    const sd = SPECIAL_DROPS.kill[z.type];
+    if (sd) for (const kind in sd) if (Math.random() < sd[kind]) gainSpecial(kind, 1, `com o ${ZTYPES[z.type].nome} abatido`, z.x, z.y - 30);
     if (Math.random() >= LW_DROP) return;
     const n = 1 + Math.floor(Math.random() * 3);
     S.res.municao += n;
@@ -268,7 +316,7 @@ const Weapons = (() => {
   // ---------- interface ----------
   function buildUI() {
     $('lweapons').innerHTML = Object.entries(LWEAPONS).map(([k, w]) => `
-      <div class="row lw-row" id="lwr-${k}">
+      <div class="row lw-row" id="lwr-${k}"${Demos.attr('lw:' + k)}>
         <div class="ach-icon">${w.icon}</div>
         <div class="main">
           <div class="title">${w.nome}<span class="lvl" id="lwl-${k}"></span></div>
@@ -305,7 +353,8 @@ const Weapons = (() => {
       $('lwr-' + k).classList.toggle('locked', !open && !l);
       $('lwr-' + k).classList.toggle('equipped', si >= 0);
       $('lwl-' + k).innerHTML = (l ? ` nv. ${l}/${LW_MAX_LVL}` : '') + (si >= 0 ? ` <span class="lw-tag">✔ Equipada (${LW_KEYS[si]})</span>` : '');
-      $('lwn-' + k).textContent = l ? `${fx(k)} · ~${shotsToKill(k)} tiro(s) por zumbi comum na onda ${S.wave}` : open ? 'No nível 1: ' + fx(k) : lockText(k);
+      $('lwn-' + k).textContent = (l ? `${fx(k)} · ~${shotsToKill(k)} tiro(s) por zumbi comum na onda ${S.wave}` : open ? 'No nível 1: ' + fx(k) : lockText(k))
+        + (w.special && (l || open) ? `. ${SPECIAL_AMMO[w.special].icon} Onde conseguir: ${howToGet(w.special)}.` : '');
       $('lwc-' + k).innerHTML = max || (!open && !l) ? '' : costHtml(c);
       const b = $('lwb-' + k);
       b.textContent = max ? 'Máximo' : l ? `Melhorar (nv. ${l + 1})` : 'Comprar';
@@ -317,7 +366,7 @@ const Weapons = (() => {
     const bar = $('weapon-bar');
     bar.classList.toggle('hidden', !S.horde.active);
     if (!S.horde.active) { $('weapon-flash').classList.add('hidden'); return; }
-    const sig = sl.join() + M().cur + sl.map(k => k ? ammoOf(k) : '').join() + (S.clickCd > 0) + (S.reload ? S.reload.k : '');
+    const sig = sl.join() + M().cur + sl.map(k => k ? ammoOf(k) : '').join() + (S.clickCd > 0) + (S.reload ? S.reload.k : '') + JSON.stringify(store());
     if (sig === barSig) return;
     barSig = sig;
     for (let i = 0; i < N; i++) {
@@ -328,12 +377,12 @@ const Weapons = (() => {
       el.className = 'wslot' + (on ? ' active' : '') + (a < 1 && !rl ? ' dry' : '');
       el.setAttribute('aria-pressed', on);
       el.title = on ? `${LWEAPONS[k].nome}: equipada agora` : `Trocar para ${LWEAPONS[k].nome} (${LW_KEYS[i]})`;
-      el.innerHTML = `${on ? '<span class="wtag">EM MÃOS</span>' : ''}${key}<span class="wicon">${LWEAPONS[k].icon}</span><span class="wname">${LWEAPONS[k].nome}</span><span class="wammo">${rl ? '⟳' : `${a}/${stat(k).mag}`}</span>`;
+      el.innerHTML = `${on ? '<span class="wtag">EM MÃOS</span>' : ''}${key}<span class="wicon">${LWEAPONS[k].icon}</span><span class="wname">${LWEAPONS[k].nome}</span><span class="wammo">${rl ? '⟳' : `${a}/${stat(k).mag}`}${LWEAPONS[k].special ? ` +${spec(LWEAPONS[k].special)}${SPECIAL_AMMO[LWEAPONS[k].special].icon}` : ''}</span>`;
     }
   }
 
   const isAuto = () => !!LWEAPONS[current()].auto;
   const tabBadge = () => Object.keys(LWEAPONS).filter(k => unlocked(k) && lvl(k) < LW_MAX_LVL && canAfford(cost(k))).length;
 
-  return { fire, hordeTick, refill, onKill, select, cycle, current, isAuto, ammoOf, stat, reach, startReload, shotsToKill, buildUI, render, tabBadge, projectiles, MUZZLE };
+  return { fire, hordeTick, refill, onKill, select, cycle, current, isAuto, ammoOf, stat, reach, startReload, shotsToKill, gainSpecial, bossLoot, expLoot, spec, howToGet, buildUI, render, tabBadge, projectiles, MUZZLE };
 })();

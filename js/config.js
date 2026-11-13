@@ -241,15 +241,30 @@ const LWEAPONS = {
                 cost: { sucata: 250, municao: 40 }, desc: 'Tiro pesado e de longo alcance que atravessa os zumbis em fila.' },
   smg:        { nome: 'Submetralhadora', icon: '🔥', type: 'bullet', dmg: 0.18, cd: 0.09, mag: 30, reload: 2.2, use: 0.5, range: 110, spread: 5, auto: true, wave: 9,
                 cost: { sucata: 400, municao: 80 }, desc: 'Segure o clique para despejar balas. Pouco dano por tiro e pente que acaba rápido.' },
-  granadas:   { nome: 'Lança-granadas',  icon: '💣', type: 'grenade', dmg: 1.4, cd: 1,    mag: 4,  reload: 3,   use: 8,   range: 200, radius: 22, wave: 12,
-                cost: { sucata: 700, municao: 120 }, desc: 'Explode onde você mirar e fere todos em volta.' },
-  chamas:     { nome: 'Lança-chamas',    icon: '🌋', type: 'flame', dmg: 1,     cd: 0.12, mag: 40, reload: 3,   use: 0.4, range: 50,  radius: 16, burn: 3, auto: true, wave: 16,
-                cost: { sucata: 1200, municao: 200 }, desc: 'Segure para incendiar uma área perto do muro. O fogo queima por alguns segundos.' },
-  bazuca:     { nome: 'Bazuca',          icon: '🚀', type: 'rocket', dmg: 0,    cd: 1,    mag: 1,  reload: 4,   use: 40,  range: 230, radius: 36, wave: 25, bosses: 5,
-                cost: { sucata: 5000, municao: 600, remedio: 10 }, desc: 'Mata qualquer zumbi comum da área com um tiro. A Abominação perde 40% da vida.' },
+  granadas:   { nome: 'Lança-granadas',  icon: '💣', type: 'grenade', dmg: 1,   cd: 1,    mag: 2,  reload: 4,   use: 0,   special: 'grenade', range: 200, radius: 22, wave: 12,
+                cost: { sucata: 700, municao: 120 }, desc: 'Explode onde você mirar e fere todos em volta. Só 2 granadas por carga, recarga lenta e granadas raras.' },
+  chamas:     { nome: 'Lança-chamas',    icon: '🌋', type: 'flame', dmg: 1,     cd: 0.12, mag: 40, reload: 3,   use: 0,   special: 'fuel', range: 50,  radius: 16, burn: 3, auto: true, wave: 16,
+                cost: { sucata: 1200, municao: 200 }, desc: 'Segure para incendiar uma área perto do muro. Cada tanque de combustível enche o lança-chamas, e combustível é raro.' },
+  // special: não usa a munição do abrigo, e sim munição especial (raríssima: veja SPECIAL_AMMO)
+  bazuca:     { nome: 'Bazuca',          icon: '🚀', type: 'rocket', dmg: 0,    cd: 1,    mag: 1,  reload: 8,   use: 0,   special: 'rocket', range: 230, radius: 36, wave: 25, bosses: 5,
+                cost: { sucata: 5000, municao: 600, remedio: 10 }, desc: 'Um único foguete e recarga muito lenta. Mata qualquer zumbi comum da área e tira 40% da vida da Abominação. Guarde para o chefe.' },
 };
 const LW_MAX_LVL = 5, LW_UP_MULT = 1.7;
 const LW_KEYS = ['Q', 'W', 'E'];   // até 3 armas por noite (R recarrega durante a horda; de dia, recruta)
+// Munição especial da bazuca, do lança-granadas e do lança-chamas: não vem do abrigo e é rara de propósito.
+// Fica no metajogo (não se perde ao evacuar). max: quanto dá para guardar (para munição por tiro, contando o que está carregado)
+// tank: cada unidade enche a arma inteira (um tanque de combustível enche o lança-chamas)
+const SPECIAL_AMMO = {
+  rocket:  { nome: 'foguete',  plural: 'foguetes',  icon: '🚀', max: 3 },
+  grenade: { nome: 'granada',  plural: 'granadas',  icon: '💣', max: 6 },
+  fuel:    { nome: 'tanque de combustível', plural: 'tanques de combustível', icon: '⛽', max: 3, tank: true },
+};
+// De onde vem: Abominação (quantidade garantida), expedições (chance) e zumbis abatidos pelo líder (chance)
+const SPECIAL_DROPS = {
+  boss: { rocket: 1, grenade: 2, fuel: 1 },
+  exp:  { base: { rocket: 0.05, grenade: 0.2, fuel: 0.1 }, delegacia: { grenade: 0.08 }, ferro: { fuel: 0.1 } },
+  kill: { blindado: { grenade: 0.1 }, explosivo: { fuel: 0.05 } },
+};
 const LW_DROP = 0.15;  // chance de um zumbi abatido por você deixar um pouco de 🔫 munição para o abrigo
 const PTS = 10;        // vida e dano aparecem ×10, em números inteiros
 const pts = v => Math.max(0, Math.round(v * PTS));
