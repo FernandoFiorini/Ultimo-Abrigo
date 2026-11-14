@@ -51,9 +51,10 @@ function startGame(slot) {
   function frame(now) {
     const frameDt = Math.min(0.1, Math.max(0, (now - lastFrame) / 1000));
     lastFrame = now;
+    Guide.update(frameDt);   // o tutorial guiado pausa o jogo enquanto explica
     step();
     // pausado: a cena congela (pessoas, fogo, partículas), mas a música continua
-    Scene.update(paused ? 0 : frameDt);
+    Scene.update(paused || guidePaused ? 0 : frameDt);
     Scene.draw();
     panelT += frameDt;
     if (panelT > 0.15) { Tutorial.update(panelT); panelT = 0; render(); }

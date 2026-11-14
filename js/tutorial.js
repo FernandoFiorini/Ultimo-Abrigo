@@ -73,6 +73,8 @@ const Tutorial = (() => {
   function update(dt) {
     // dicas desligadas: no tutorial ("Pular tutorial", só neste save) ou nas Configurações (todos os saves)
     if (T().off || !Settings.get('tips')) { if (cur) { cur = null; $('tip').classList.add('hidden'); } return; }
+    // o tutorial guiado está explicando: nenhuma dica solta por cima dele
+    if (typeof Guide !== 'undefined' && Guide.active()) { if (cur) { cur = null; $('tip').classList.add('hidden'); } return; }
     if (cur || awaitingChoice || modalOpen) return;
     wait -= dt;
     if (wait > 0) return;

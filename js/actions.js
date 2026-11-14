@@ -29,7 +29,9 @@ const actions = {
   repair() {
     if (S.res.sucata < REPAIR_COST || S.wallHp >= maxWall()) return;
     S.res.sucata -= REPAIR_COST;
+    const before = S.wallHp;
     S.wallHp = Math.min(maxWall(), S.wallHp + Math.round(REPAIR_AMOUNT * (1 + Endgame.ab('repair'))));
+    emit('repair', { amount: Math.round(S.wallHp - before), from: before / maxWall(), to: S.wallHp / maxWall() });
     S.wallDown = false;
     S.overflow = 0;
   },

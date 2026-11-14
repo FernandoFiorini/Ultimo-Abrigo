@@ -26,6 +26,7 @@ Ideias aprovadas para versões futuras, ainda não implementadas.
 - [ ] **Caixas de heróis na loja:** vender caixas por cash (hoje só caem de chefes). Pensar preços, se vale vender só caixas de conteúdo garantido (se um dia o cash for vendido por dinheiro real, caixas com sorte têm regras legais em vários países) e como isso afeta o ritmo de liberar heróis.
 - [x] **Loja de skins:** usar a nova moeda (dos fragmentos repetidos) para skins de heróis, armas, sobreviventes e do líder. Feito: 35 skins de arma, 10 roupas do líder, 7 uniformes do grupo e 6 trajes de herói. Próximas: novas rodadas de protótipos quando quiser.
 
+
 ## Desenvolvimento
 - [x] **Menu de debug mais claro:** hoje é uma lista longa de botões em seções. Reorganizar em abas (Cenários, Horda, Pessoas, Recursos, Armas, Heróis, Equilíbrio), com busca, descrição curta do que cada botão faz, interruptores visíveis (ligado/desligado) agrupados no topo e o estado atual sempre à vista. Junto com o modo de teste com boneco (veja Heróis de campo).
 

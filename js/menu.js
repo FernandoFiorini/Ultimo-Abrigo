@@ -470,6 +470,7 @@ const Menu = (() => {
           <button class="mm-go" data-go="load" ${any ? '' : 'disabled'}><span>Carregar</span></button>
           <button class="mm-go" data-go="hall"><span>Hall da Fama</span></button>
           <button class="mm-go" data-go="skins"><span>Skins</span></button>
+          <button class="mm-go" data-go="settings"><span>Configurações</span></button>
           <button class="mm-go" data-go="credits"><span>Sobre</span></button>
         </nav>
         <div class="mm-foot">v${VERSION}</div>`;
@@ -608,6 +609,7 @@ const Menu = (() => {
         case 'new': pick = { slot: Slots.firstFree() || Slots.last() || 1, diff: 'normal', name: pick.name, look: pick.look || Profile.lastLook() }; break;
         case 'start': startNew(); return;
         case 'reload': location.reload(); return;
+        case 'settings': openSettings(); $('dialog').classList.add('over-menu'); return;   // a janela abre por cima do menu
       }
       screen = ds.go === 'continue' ? 'home' : ds.go;
       draw();

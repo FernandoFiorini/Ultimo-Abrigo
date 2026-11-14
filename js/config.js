@@ -52,12 +52,18 @@ const CITY_HP = 0.12, CITY_COUNT = 0.05, CITY_PER_WORLD = 5, CITY_MAX = 40;
 // Esperança: +3% de produção por ponto até HOPE_LINEAR pontos; depois cresce pela raiz (sem salto na transição)
 const HOPE_LINEAR = 30;
 const TOWERS = {
-  torreC: { slot: 0, cd: 0.35, dmg: 0.3, acc: 0.6, reach: 70, target: 'front', noArmor: true, quiet: 0.7, cdMin: 0.7, upkeep: { sucata: 0.02, municao: 0.05 },
-    guns: ['Submetralhadora', 'Metralhadora', 'Metralhadora pesada', 'Minigun'] },
-  torre: { slot: 1, cd: 1.8, dmg: 1, acc: 0.8, target: 'front', upkeep: { sucata: 0.02 },
-    guns: ['Carabina', 'Fuzil', 'Fuzil de batalha', 'Fuzil automático'] },
-  torreL: { slot: 2, cd: 6, dmg: 6, acc: 0.9, target: 'hp', head: true, upkeep: { sucata: 0.02 },
-    guns: ['Rifle de caça', 'Fuzil de precisão', 'Rifle .50', 'Rifle antimaterial'] },
+  torreC: {
+    slot: 0, cd: 0.35, dmg: 0.3, acc: 0.6, reach: 70, target: 'front', noArmor: true, quiet: 0.7, cdMin: 0.7, upkeep: { sucata: 0.02, municao: 0.05 },
+    guns: ['Submetralhadora', 'Metralhadora', 'Metralhadora pesada', 'Minigun']
+  },
+  torre: {
+    slot: 1, cd: 1.8, dmg: 1, acc: 0.8, target: 'front', upkeep: { sucata: 0.02 },
+    guns: ['Carabina', 'Fuzil', 'Fuzil de batalha', 'Fuzil automático']
+  },
+  torreL: {
+    slot: 2, cd: 6, dmg: 6, acc: 0.9, target: 'hp', head: true, upkeep: { sucata: 0.02 },
+    guns: ['Rifle de caça', 'Fuzil de precisão', 'Rifle .50', 'Rifle antimaterial']
+  },
 };
 
 const AMMO_RATE = 0.4;     // munição produzida por armeiro/s
@@ -194,11 +200,11 @@ const BOSS_POOL = Object.keys(ZTYPES).filter(k => ZTYPES[k].boss && ZTYPES[k].wa
 //   Pesadelo   (×1,5)    2   1   3   1   5   2   6   2   8
 //   Apocalipse (×2)      2   1   4   2   6   2   8   3   8
 const BOSS_SCALE = {
-  facil:      { mult: 0.5,  half: 0 },
-  normal:     { mult: 1,    half: 0 },
-  dificil:    { mult: 1.25, half: 25 },
-  pesadelo:   { mult: 1.5,  half: 15 },
-  apocalipse: { mult: 2,    half: 15 },
+  facil: { mult: 0.5, half: 0 },
+  normal: { mult: 1, half: 0 },
+  dificil: { mult: 1.25, half: 25 },
+  pesadelo: { mult: 1.5, half: 15 },
+  apocalipse: { mult: 2, half: 15 },
 };
 const BOSS_MAX = 8;
 function bossCount(n, diff = S.diff) {
@@ -388,7 +394,26 @@ const FEMALE_NAMES = new Set(['Ana', 'Marta', 'Cláudia', 'Fernanda', 'Camila', 
 //   adeus:  (opcional) últimas palavras se a pessoa morrer; ficam no memorial
 //   visual: (opcional) para reconhecer no cenário, ex.: { hair: [200, 60, 130], longHair: true }
 //           (hair, skin: cores [r, g, b]; longHair, bun, afro, bald: true; beard, mustache: cor)
+//   roupa:  (opcional) roupa fixa, que não troca nem com o uniforme do grupo: o id de uma roupa do líder
+//           (cangaceiro, bombeiro, astronauta, samurai, ninja, peste, cavaleiro, escafandro, hazmat, policial; ver oskins.js)
+//   historia: (opcional) história fixa da ficha (ao passar o mouse), no lugar da gerada
 const HONORED = [
+  {
+    nome: 'Valdecir', sexo: 'm', roupa: 'policial',
+    frases: ['Bandido bom é bandido morto.'],
+    horda: ['Bandido bom é bandido morto. E zumbi também!'],
+    historia: 'Era policial antes do apocalipse. Continua fazendo a ronda do abrigo toda noite, de farda, como se nada tivesse mudado.'
+  },
+  {
+    nome: 'Nardi', sexo: 'm', roupa: 'bombeiro',
+    frases: ['Só na loucura!'],
+    horda: ['Só na loucura! Bora pro muro!'],
+    historia: 'Era bombeiro antes do apocalipse. Já entrou em prédio pegando fogo para tirar gente lá de dentro; zumbi nenhum vai fazê-lo recuar.'
+  },
+  { nome: 'Fabiano', sexo: 'm',
+    frases: ['Até eu não conseguir o que eu quero, não vou parar. E tu me conhece, Valde.', 'Jogo acima de tudo, farmar acima de todos.'],
+    horda: ['Jogo acima de tudo, farmar acima de todos! Bora farmar zumbi!'],
+    historia: 'Era viciado antes do apocalipse, e nem é em drogas. Seu lema é: jogo acima de tudo, farmar acima de todos.' },
   // { nome: 'Fulana', sexo: 'f', frases: ['Primeira frase.', 'Segunda frase.'], horda: ['Lá vêm eles!'], adeus: ['Cuidem do abrigo por mim.'], visual: { hair: [200, 60, 130], longHair: true } },
 ];
 const HONORED_CHANCE = 0.3;     // chance de quem chega ao grupo ser um dos homenageados (se algum ainda não estiver)
@@ -476,12 +501,12 @@ const VICTORY_CASH = { facil: 10, normal: 20, dificil: 35, pesadelo: 60, apocali
 const LOOK_SKINS = [[244, 208, 178], [234, 192, 160], [224, 176, 140], [200, 150, 110], [150, 100, 70], [110, 72, 50], [80, 52, 36]];
 const LOOK_HAIRS = [[30, 25, 20], [70, 45, 25], [120, 75, 35], [190, 150, 80], [230, 200, 120], [150, 50, 25], [120, 120, 120], [235, 235, 235], [60, 90, 180], [200, 60, 130], [70, 160, 90]];
 const LOOK_STYLES = {
-  curto:    { nome: 'Curto', flags: {} },
+  curto: { nome: 'Curto', flags: {} },
   comprido: { nome: 'Comprido', flags: { longHair: true } },
-  coque:    { nome: 'Coque', flags: { bun: true } },
-  afro:     { nome: 'Afro', flags: { afro: true } },
-  moicano:  { nome: 'Moicano', flags: { mohawk: true } },
-  careca:   { nome: 'Careca', flags: { bald: true } },
+  coque: { nome: 'Coque', flags: { bun: true } },
+  afro: { nome: 'Afro', flags: { afro: true } },
+  moicano: { nome: 'Moicano', flags: { mohawk: true } },
+  careca: { nome: 'Careca', flags: { bald: true } },
 };
 const LOOK_FACES = { nada: 'Sem barba', barba: 'Barba', bigode: 'Bigode' };
 const defaultLook = sex => (sex === 'f'

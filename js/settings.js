@@ -10,6 +10,7 @@ const Settings = (() => {
     sceneStyle: 'auto',    // auto (segue a música) | classic | synth | terror
     speed2x: false,
     tips: true,            // dicas do tutorial
+    guide: true,           // tutorial guiado das ondas 1 e 2 (só aparece uma vez)
     reduceFx: false, noShake: false, colorblind: false,
     blood: true,           // sangue e mutilação (corpos se despedaçando)
   };
@@ -56,6 +57,7 @@ function applyBodyPrefs() {
 
 // ---------- janela de configurações ----------
 function openSettings() {
+  const inGame = typeof S !== 'undefined' && S && Slots.ready;   // também abre pelo menu principal, sem jogo carregado
   const seg = (key, opts) => `<div class="segs">${Object.entries(opts).map(([k, o]) => `
     <label class="seg" title="${o.desc}"><input type="radio" name="${key}" value="${k}" data-set="${key}" ${Settings.get(key) === k ? 'checked' : ''}><span>${o.nome}</span></label>`).join('')}</div>`;
   const check = (key, label, hint) => `
@@ -80,14 +82,16 @@ function openSettings() {
 
       ${pane('game', `
       ${check('speed2x', 'Velocidade 2x durante o dia', 'Acelera produção e o tempo até a horda. Volta ao normal sozinho quando a horda chega. Atalho: F')}
+      ${check('guide', 'Tutorial guiado', 'Nas duas primeiras ondas, pausa o jogo e mostra onde clicar, passo a passo. Aparece só na primeira vez.')}
       ${check('tips', 'Mostrar dicas', 'Os balões de dica do tutorial (canto da tela). Desligado, nenhuma dica aparece, em nenhum save.')}
       <div class="actions">
-        <button data-cmd="tips">Rever dicas do tutorial</button>
+        <button data-cmd="guide">🎓 Rever tutorial guiado</button>
+        ${inGame ? '<button data-cmd="tips">Rever dicas do tutorial</button>' : ''}
         <button data-cmd="keys">⌨️ Atalhos</button>
       </div>`)}
 
       ${pane('visual', `
-      <div class="actions"><button data-cmd="skins">🎨 Visual: skins e personagem</button></div>
+      ${inGame ? '<div class="actions"><button data-cmd="skins">🎨 Visual: skins e personagem</button></div>' : ''}
       <div class="opt-label">Estilo do cenário</div>
       ${seg('sceneStyle', SCENE_STYLES)}
       ${check('blood', 'Sangue e mutilação', 'Sangue no cenário e zumbis se despedaçando ao morrer. Desligado, os zumbis só caem e os impactos levantam poeira.')}
@@ -106,7 +110,7 @@ function openSettings() {
       ${seg('musicStyle', MUSIC_STYLES)}
       <p class="hint" id="style-desc">${MUSIC_STYLES[Settings.get('musicStyle')].desc}</p>`)}
 
-      ${pane('data', `
+      ${pane('data', !inGame ? `<p class="hint">O progresso é salvo automaticamente neste navegador. Abra um jogo para exportar ou importar um código de progresso.</p>` : `
       <p class="hint">O progresso é salvo automaticamente neste navegador, no <b>espaço ${Slots.cur}</b> (${escHtml(S.meta.player)}). Exporte um código para guardar uma cópia ou levar o jogo para outro aparelho.</p>
       <div class="actions">
         <button data-cmd="export">Exportar progresso</button>
@@ -138,7 +142,7 @@ function openSettings() {
         if (el.type === 'checkbox') Settings.set(k, el.checked);
         else if (el.type === 'radio') Settings.set(k, el.value);
         if (k === 'musicStyle') $('style-desc').textContent = MUSIC_STYLES[el.value].desc;
-        render();
+        if (inGame) render();
       });
       body.addEventListener('click', e => {
         const b = e.target.closest('[data-cmd]');
@@ -149,6 +153,14 @@ function openSettings() {
         else if (cmd === 'keys') showShortcuts();
         else if (cmd === 'skins') showSkins();
         else if (cmd === 'menu') Slots.toMenu();
+        else if (cmd === 'guide') {
+          Guide.reset();
+          b.textContent = '✓ O guia volta no próximo jogo novo';
+          b.disabled = true;
+          const cb = body.querySelector('[data-set="guide"]');
+          if (cb) cb.checked = true;
+          if (inGame) addLog('🎓 O tutorial guiado vai aparecer de novo nas primeiras ondas de um jogo novo.');
+        }
         else if (cmd === 'tips') { Settings.set('tips', true); Tutorial.reset(); addLog('💡 As dicas do tutorial vão aparecer de novo.'); dialogEsc(); }
       });
     },

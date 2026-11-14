@@ -445,7 +445,7 @@ const Scene = (() => {
   }
 
   // roupa de cada um: a da função e, por cima, o uniforme do grupo (skins de sobrevivente) se houver um equipado
-  const THEME_KEYS = ['scarf', 'vest', 'hardhat', 'beret', 'mask', 'body', 'head', 'boots', 'belt', 'glasses'];
+  const THEME_KEYS = ['scarf', 'vest', 'hardhat', 'beret', 'mask', 'body', 'head', 'front', 'boots', 'belt', 'glasses', 'glove', 'sleeve', 'pack', 'cape', 'noHair'];
   function styleOf(p, job) {
     const jl = JOBLOOK[job] || {};
     for (const k of THEME_KEYS) p[k] = undefined;
@@ -453,6 +453,16 @@ const Scene = (() => {
     p.pants = jl.pants || [60, 60, 70];
     p.apron = !!jl.apron; p.helmet = !!jl.helmet; p.cross = !!jl.cross; p.bandage = !!jl.bandage;
     if (typeof OSkins !== 'undefined') OSkins.applySurvivor(p, job);
+    applyHonor(p);
+  }
+  // homenageado com roupa fixa (HONORED.roupa): veste por cima de tudo, inclusive do uniforme do grupo
+  function applyHonor(p) {
+    if (!p.who || typeof Honored === 'undefined' || typeof OSkins === 'undefined') return;
+    const h = Honored.byName(p.who), d = h && h.roupa && OSkins.byId[h.roupa];
+    if (!d) return;
+    for (const k of THEME_KEYS) p[k] = undefined;
+    p.apron = false; p.cross = false; p.helmet = false;
+    Object.assign(p, d.look, { body: d.body, head: d.head, front: d.front, noHair: !!d.noHair });
   }
   function dress(p, job) {
     p.job = job;
@@ -498,6 +508,7 @@ const Scene = (() => {
         people.push(p);
       }
     }
+    assignNames();   // cada boneco com o nome de alguém do grupo (e a roupa fixa dos homenageados)
   }
 
   const plotCount = () => Math.min(5, 1 + S.build.horta);
@@ -670,7 +681,40 @@ const Scene = (() => {
   // ---------- balões de fala dos homenageados ----------
   // cada homenageado "mora" num boneco do cenário (do mesmo sexo, se der) e fala por cima dele; o visual opcional vale nesse boneco
   const bubbles = [];
+  // ---------- reparo do muro: um trabalhador martelando ao lado do muro e as fileiras novas acendendo ----------
+  let repairFx = null;   // { t, dur, from, to }
+  const REPAIR_DUR = 1.6;
+  // cada boneco do cenário representa alguém do grupo (nome e, nos homenageados, o visual)
+  function assignNames() {
+    const alive = (typeof S !== 'undefined' && S && S.people) || [], used = new Set();
+    for (const p of people) {
+      if (p.who && alive.includes(p.who) && !used.has(p.who)) { used.add(p.who); continue; }
+      const had = p.honor;
+      if (p.honorLook) { Object.assign(p, p.honorLook); delete p.honorLook; }
+      p.who = null; delete p.honor;
+      if (had) styleOf(p, p.job);   // tira a roupa fixa de quem deixou de ser o homenageado
+    }
+    for (const p of people) {
+      if (p.who) continue;
+      const pool = alive.filter(n => !used.has(n));
+      if (!pool.length) break;
+      const n = pool.find(m => isFemale(m) === !!p.fem) || pool[0];
+      p.who = n; used.add(n);
+    }
+    // homenageados com visual próprio: aplica no boneco deles
+    if (typeof Honored !== 'undefined') for (const p of people) {
+      const h = p.who && Honored.byName(p.who);
+      if (h && p.honor !== p.who) {
+        p.honor = p.who;
+        if (h.visual) { p.honorLook = Object.fromEntries(Object.keys(h.visual).map(k => [k, p[k]])); Object.assign(p, h.visual); }
+        applyHonor(p);
+      }
+    }
+  }
   function speaker(name, fem, look) {
+    assignNames();
+    const mine = people.find(q => q.who === name);
+    if (mine) return mine;
     for (const p of people) if (p.honor && !(S.people || []).includes(p.honor)) { delete p.honor; if (p.honorLook) { Object.assign(p, p.honorLook); delete p.honorLook; } }
     let p = people.find(q => q.honor === name);
     if (!p) {
@@ -955,6 +999,11 @@ const Scene = (() => {
         const p = speaker(d.name, d.fem, d.look);
         for (const b of bubbles) if (b.name === d.name) b.life = 0;
         bubbles.push({ p, name: d.name, text: d.text, life: 5.5, max: 5.5 });
+        break;
+      }
+      case 'repair': {
+        repairFx = { t: 0, dur: REPAIR_DUR, from: d.from, to: d.to, hits: 0 };
+        texts.push({ x: WALL_X + 5, y: 150, t: `+${d.amount} 🧱`, c: '#9be35a', life: 1.6 });
         break;
       }
       case 'champLevel':
@@ -1585,6 +1634,19 @@ const Scene = (() => {
     rect('#141414', x - 6, top - 10, 22, 3);
     ctx.fillStyle = hp > 0.3 ? '#8fd14f' : '#e05a4f';
     ctx.fillRect(x - 6, top - 10, 22 * Math.max(0, hp), 3);
+    if (repairFx) {
+      // brilho subindo pelas fileiras (madeira nova) e a barra de vida enchendo com destaque
+      const k = Math.min(1, repairFx.t / (repairFx.dur * 0.8)), lineY = bottom - (bottom - top) * k;
+      ctx.globalAlpha = 0.45 * (1 - Math.max(0, repairFx.t - repairFx.dur * 0.8) / (repairFx.dur * 0.2));
+      for (let y = top; y < bottom; y += 5) if (y >= lineY) rect('#fff1c0', x - 1, y, 12, 1);
+      rect('#ffffff', x - 2, Math.round(lineY), 14, 1);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillRect(x - 6 + 22 * repairFx.from, top - 10, 22 * Math.max(0, hp - repairFx.from), 3);
+      // o trabalhador de avental martelando, ao pé do muro
+      drawLook(x - 7, 196, { skin: [200, 150, 110], hair: [60, 40, 30], shirt: [80, 92, 112], pants: [50, 50, 58], apron: true, cap: [184, 112, 52] },
+        { pose: 'work', crouch: false, face: 1, phase: repairFx.t * 6.2 });
+    }
   }
 
   function drawDecals() {
@@ -2126,6 +2188,33 @@ const Scene = (() => {
     scale = cv.width / W;
   }
 
+  // ---------- passar o mouse num sobrevivente (de dia): nome, função, talento e uma história curta ----------
+  const JOBNAME = { forrageiro: 'Forrageiro', coletor: 'Coletor', armeiro: 'Armeiro', guarda: 'Guarda', medico: 'Médico', cientista: 'Cientista', ocioso: 'Sem função', ferido: 'Ferido' };
+  let tipEl = null, tipWho = null;
+  function personTip(e) {
+    if (!tipEl) {
+      tipEl = document.createElement('div'); tipEl.className = 'person-tip hidden';
+      cv.parentNode.appendChild(tipEl);
+    }
+    const hide = () => { tipEl.classList.add('hidden'); tipWho = null; cv.classList.remove('over-person'); };
+    if (!e || S.horde.active || paused || typeof Honored === 'undefined') return hide();
+    assignNames();
+    const p = people.filter(q => !q.hidden && q.who && Math.abs(ptr.x - q.x) <= 4 && ptr.y >= q.y - 20 && ptr.y <= q.y + 1).sort((a, b) => b.y - a.y)[0];
+    if (!p) return hide();
+    cv.classList.add('over-person');
+    if (tipWho !== p.who) {
+      tipWho = p.who;
+      const t = TRAITS[S.traits[p.who]], h = Honored.byName(p.who);
+      tipEl.innerHTML = `<b>${h ? '💬 ' : ''}${escHtml(p.who)}</b><small>${JOBNAME[p.job] || ''}${t ? ` · ${t.icon} ${t.nome}` : ''}</small>
+        ${h && h.frases && h.frases.length ? `<q>${escHtml(h.frases[0])}</q>` : ''}<p>${Honored.bio(p.who)}</p>`;
+    }
+    const r = cv.getBoundingClientRect(), pr = cv.parentNode.getBoundingClientRect();
+    const left = e.clientX - pr.left + 14, top = e.clientY - pr.top + 14;
+    tipEl.style.left = Math.min(left, pr.width - 250) + 'px';
+    tipEl.style.top = Math.min(top, r.bottom - pr.top - 10) + 'px';
+    tipEl.classList.remove('hidden');
+  }
+
   function init(canvas) {
     cv = canvas;
     ctx = cv.getContext('2d');
@@ -2136,7 +2225,8 @@ const Scene = (() => {
     // Mira: de noite o clique atira no ponto mirado (segurar dispara as armas automáticas).
     // De dia o cenário não faz nada: vasculhar fica no botão.
     const toLocal = e => { const r = cv.getBoundingClientRect(); ptr.x = (e.clientX - r.left) / r.width * W; ptr.y = (e.clientY - r.top) / r.height * H; };
-    cv.addEventListener('pointermove', e => { toLocal(e); ptr.in = true; });
+    cv.addEventListener('pointermove', e => { toLocal(e); ptr.in = true; personTip(e); });
+    cv.addEventListener('pointerleave', () => personTip(null));
     cv.addEventListener('pointerleave', () => { ptr.in = false; ptr.down = false; });
     cv.addEventListener('pointerup', () => { ptr.down = false; });
     cv.addEventListener('pointercancel', () => { ptr.down = false; });
@@ -2232,6 +2322,17 @@ const Scene = (() => {
     prune(tracers, t => t.life > 0);
     for (const t of texts) { t.life -= dt; t.y -= 14 * dt; }
     for (const b of bubbles) b.life -= dt;
+    if (repairFx) {
+      repairFx.t += dt;
+      const hit = Math.floor(repairFx.t / 0.32);
+      if (hit > repairFx.hits && repairFx.t < repairFx.dur - 0.2) {
+        repairFx.hits = hit;
+        const top = GY - 10 - Math.min(S.build.muro, 6) * 3, y = 196 - (196 - top) * Math.min(1, repairFx.t / (repairFx.dur * 0.8)) * 0.9;
+        for (let i = 0; i < 6; i++) parts.push({ x: WALL_X - 1, y, vx: rand(-14, 4), vy: rand(-18, 2), g: 70, life: 0.45, max: 0.45, c: pick([[200, 170, 120], [170, 140, 100], [230, 210, 160]]), s: 1 });
+        for (let i = 0; i < 2; i++) parts.push({ x: WALL_X - 1, y, vx: rand(-20, -4), vy: rand(-20, -6), life: 0.18, max: 0.18, c: '#fff4b0', s: 1 });
+      }
+      if (repairFx.t >= repairFx.dur) repairFx = null;
+    }
     prune(bubbles, b => b.life > 0);
     prune(texts, t => t.life > 0);
     for (const d of decals) d.life -= dt;

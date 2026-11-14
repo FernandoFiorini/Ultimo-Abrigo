@@ -728,6 +728,19 @@ const Sound = (() => {
       [72, 76, 79, 84].slice(0, r + 1).forEach((m, i) => tone({ type: 'triangle', f: mtof(m + 2 * r), d: 0.3, vol: 0.05, t: t + i * 0.06, send: 0.5 }));
       tone({ type: 'sine', f: mtof(96 + 2 * r), d: 0.5, vol: 0.02, t: t + 0.2, send: 0.7 });
     },
+    // reparo do muro: marteladas na madeira, a tábua encaixando e um acorde curto de "pronto"
+    repair() {
+      const t = ac.currentTime;
+      for (let i = 0; i < 4; i++) {
+        const tt = t + i * 0.32;
+        tone({ type: 'triangle', f: 220 - i * 8, f2: 120, d: 0.07, vol: 0.12, t: tt });
+        noise({ type: 'bandpass', f: 1800 + i * 120, q: 3, d: 0.05, vol: 0.12, t: tt });
+        noise({ type: 'lowpass', f: 500, d: 0.08, vol: 0.06, t: tt + 0.01 });
+      }
+      noise({ type: 'bandpass', f: 700, f2: 1400, q: 2, d: 0.25, vol: 0.06, t: t + 1.32 });   // tábua deslizando
+      tone({ type: 'triangle', f: 160, f2: 110, d: 0.1, vol: 0.12, t: t + 1.55 });             // encaixe
+      [72, 76, 79].forEach((m, i) => tone({ type: 'triangle', f: mtof(m), d: 0.35, vol: 0.035, t: t + 1.62 + i * 0.06, send: 0.4 }));
+    },
     // ---- invocação de herói
     // cada fragmento encaixando: um "tlin" de cristal, subindo de tom
     summonShard(d) {

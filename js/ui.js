@@ -149,7 +149,13 @@ function buildUI() {
   $('btn-scavenge').onclick = () => { if (paused) return; Scene.float(actions.scavenge()); render(); };
   $('btn-recruit').onclick = () => { actions.recruit(); render(); };
   $('btn-repair').onclick = () => { actions.repair(); render(); };
-  $('btn-save').onclick = save;
+  // salvar na mão: confirma com um toast curto
+  $('btn-save').onclick = () => {
+    const ok = save();
+    toast(ok
+      ? { icon: '💾', label: 'Progresso', name: 'Jogo salvo', desc: `Espaço ${Slots.cur} · ${new Date().toLocaleTimeString('pt-BR')}`, time: 2500 }
+      : { icon: '⚠️', label: 'Progresso', name: 'Não foi possível salvar', desc: 'O armazenamento do navegador está cheio ou bloqueado.', time: 4000 });
+  };
   $('btn-export').onclick = showExport;
   $('btn-import').onclick = showImport;
   $('btn-keys').onclick = showShortcuts;
@@ -422,7 +428,7 @@ function chooseDifficulty({ title, sub, cancel, onPick, only = null }) {
 
 const TOAST_TIME = 7000;
 
-function toast({ icon, label, name, desc, btn, onBtn }) {
+function toast({ icon, label, name, desc, btn, onBtn, time = TOAST_TIME }) {
   const box = $('toasts');
   const el = document.createElement('div');
   el.className = 'toast';
@@ -434,7 +440,7 @@ function toast({ icon, label, name, desc, btn, onBtn }) {
       <div class="tdesc">${desc}</div>
     </div>
     ${btn ? `<button class="cashbtn">${btn}</button>` : ''}
-    <div class="timer" style="animation-duration:${TOAST_TIME}ms"></div>`;
+    <div class="timer" style="animation-duration:${time}ms"></div>`;
   const close = () => {
     if (el.classList.contains('out')) return;
     el.classList.add('out');
@@ -445,7 +451,7 @@ function toast({ icon, label, name, desc, btn, onBtn }) {
   el.onclick = close;
   box.appendChild(el);
   while (box.children.length > 3) box.firstChild.remove();
-  setTimeout(close, TOAST_TIME);
+  setTimeout(close, time);
 }
 
 function achToast(a) {

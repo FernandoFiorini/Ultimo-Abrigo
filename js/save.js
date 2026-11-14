@@ -4,11 +4,12 @@
 const saveJson = () => JSON.stringify(S, (k, v) => (k === 'horde' && v && v.train ? { active: false, queue: [], zs: [] } : v));
 
 function save() {
-  if (awaitingChoice || importing || Slots.dead || !Slots.ready) return;
+  if (awaitingChoice || importing || Slots.dead || !Slots.ready) return false;
   try {
     localStorage.setItem(Slots.key(Slots.cur), saveJson());
     $('save-status').textContent = 'Salvo às ' + new Date().toLocaleTimeString('pt-BR');
-  } catch (e) { /* armazenamento indisponível */ }
+    return true;
+  } catch (e) { return false; /* armazenamento indisponível */ }
 }
 
 // Junta o save com os valores padrão (campos novos ganham o padrão; listas vêm do save)

@@ -150,7 +150,7 @@ function simulate(seconds) {
 
 function step() {
   const now = Date.now();
-  if (modalOpen || paused || Slots.dead) { S.last = now; return 0; }
+  if (modalOpen || paused || (typeof guidePaused !== 'undefined' && guidePaused) || Slots.dead) { S.last = now; return 0; }
   const away = (now - S.last) / 1000;
   // aba congelada ou computador dormindo por muito tempo: mesmo limite do offline, com aviso de retorno
   if (away >= RETURN_NOTICE) {
