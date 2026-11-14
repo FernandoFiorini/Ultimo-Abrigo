@@ -69,9 +69,14 @@ function tick(dt, live) {
     if (S !== st) return;
   }
 
-  if (S.horde.active) {
+  if (S.horde.train) {
+    // campo de treino (debug): ondas pausadas, só roda ao vivo
+    if (live) { updateHorde(dt); Debug.trainTick(dt); }
+  } else if (S.horde.active) {
     if (live) updateHorde(dt); else flushWave();
   } else {
+    // entre as hordas os guardas descansam
+    if (S.fatigue > 0) S.fatigue = S.fatigue < 0.001 ? 0 : S.fatigue * Math.exp(-dt * restRate());
     const before = Math.ceil(S.waveTimer);
     S.waveTimer -= dt;
     // ao vivo, o evento da próxima onda é sorteado um pouco antes: se for perigosa, toca o alarme e conta
@@ -87,31 +92,57 @@ function tick(dt, live) {
     if (live && now !== before && now <= 5 && now > 0 && Endgame.danger(S.pending, S.wave)) emit('countdown', { n: now });
     if (S.waveTimer <= 0) {
       if (live) startWave(false);
-      else { startWave(true); flushWave(); }
+      else offlineWave();
     }
   }
 }
 
-function offlineProgress() {
-  const el = Math.min((Date.now() - S.last) / 1000, OFFLINE_MAX);
-  if (el < 10) return;
-  const r0 = { ...S.res }, s0 = S.survivors, w0 = S.wave;
-  simulate(el);
-  const parts = Object.keys(RES).map(k => {
-    const d = S.res[k] - r0[k];
-    return `${d >= 0 ? '+' : ''}${fmt(d)} ${RES[k].nome.toLowerCase()}`;
-  });
-  addLog(`⏳ Você ficou fora por ${fmtTime(el)}. ${Math.max(0, S.wave - w0)} onda(s) enfrentada(s). ` +
-    `Sobreviventes: ${s0} → ${S.survivors}. ${parts.join(', ')}.`, 'warn');
+// Produção por segundo do abrigo, sem consumo nenhum (comida, sucata gasta pelos armeiros) e sem o boost de produção
+function offlineRates() {
+  const boost = boostMult();
+  return {
+    comida: S.jobs.forrageiro * 0.6 * foodMult() / boost,
+    sucata: S.jobs.coletor * 0.5 * scrapMult() / boost,
+    municao: S.jobs.armeiro * AMMO_RATE * prodMult() / boost * Endgame.mult('ammo'),
+    remedio: Math.max(0, S.jobs.medico - treating()) * 0.04 * prodMult() / boost * Endgame.mult('meds'),
+    rp: S.jobs.cientista * 0.12 * (1 + 0.25 * Math.max(0, S.build.lab - 1)) * Endgame.mult('rp'),
+  };
+}
+
+// Ausência: o abrigo fica parado (sem hordas, consumo, expedições ou feridos piorando) e só produz,
+// por no máximo OFFLINE_MAX; o resto do tempo se perde. Registra no log e devolve o resumo para o aviso de retorno.
+function catchUp(away) {
+  const el = Math.min(away, OFFLINE_MAX), r = offlineRates(), gain = {};
+  for (const k of Object.keys(RES)) { gain[k] = r[k] * el * OFFLINE_YIELD; S.res[k] += gain[k]; }
+  gain.rp = r.rp * el * OFFLINE_YIELD;
+  S.meta.rp += gain.rp;
+  const rep = { away, el, lost: Math.max(0, away - el), gain };
+  const parts = Object.keys(RES).filter(k => gain[k] > 0).map(k => `+${fmt(gain[k])} ${RES[k].nome.toLowerCase()}`);
+  if (gain.rp > 0) parts.push(`+${fmt(gain.rp)} de pesquisa`);
+  addLog(`⏳ Você ficou fora por ${fmtTime(away)}. O abrigo produziu ${fmtTime(el)}: ${parts.join(', ') || 'nada (ninguém produzindo)'}.` +
+    (rep.lost > 60 ? ` ${fmtTime(rep.lost)} não contaram: a produção offline vai só até ${fmtTime(OFFLINE_MAX)}.` : ''), 'warn');
   S.last = Date.now();
+  return rep;
+}
+
+// Ao abrir o jogo: o resumo fica guardado para o aviso de retorno, mostrado depois que a interface existir
+let returnReport = null;
+function offlineProgress() {
+  const away = (Date.now() - S.last) / 1000;
+  if (away < 10) return;
+  const rep = catchUp(away);
+  if (away >= RETURN_NOTICE) returnReport = rep;
 }
 
 function simulate(seconds) {
   simulating = true;
+  const st = S;
   while (seconds > 0) {
     const d = Math.min(1, seconds);
     tick(d, false);
     seconds -= d;
+    // o abrigo caiu: o novo grupo só começa quando o jogador voltar
+    if (S !== st) break;
   }
   simulating = false;
 }
@@ -119,7 +150,14 @@ function simulate(seconds) {
 function step() {
   const now = Date.now();
   if (modalOpen || paused || Slots.dead) { S.last = now; return 0; }
-  let dt = Math.min((now - S.last) / 1000, OFFLINE_MAX);
+  const away = (now - S.last) / 1000;
+  // aba congelada ou computador dormindo por muito tempo: mesmo limite do offline, com aviso de retorno
+  if (away >= RETURN_NOTICE) {
+    const rep = catchUp(away);
+    if (!Slots.dead) showReturn(rep);
+    return 0;
+  }
+  let dt = Math.min(away, OFFLINE_MAX);
   S.last = now;
   // 2x só no jogo ao vivo (nunca no progresso offline) e só de dia
   if (dt < 0.5 && fastOn()) dt *= 2;

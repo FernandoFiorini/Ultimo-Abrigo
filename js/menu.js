@@ -28,19 +28,29 @@ function skinPickerHtml() {
       <label>Capa <input type="color" data-col="cape" value="${C.cape}"></label>
       <label><input type="checkbox" data-col="crown" ${C.crown ? 'checked' : ''}> Coroa</label>
     </div>` : '';
+  const body = `<div class="skin-body"><span>Corpo do líder:</span>
+      <button class="${P.body !== 'f' ? 'on' : ''}" data-body="m">🧔 Masculino</button>
+      <button class="${P.body === 'f' ? 'on' : ''}" data-body="f">👩 Feminino</button></div>`;
   return `<p class="hint">A skin vale para o líder no telhado em todos os seus saves. Vença (encontre a Cura) para liberar mais.</p>
-    <div class="skin-list">${cards}</div>${custom}`;
+    ${body}<div class="skin-list">${cards}</div>${custom}`;
 }
 function bindSkinPicker(root) {
   const paint = () => root.querySelectorAll('canvas[data-prev]').forEach(c => {
     const k = c.dataset.prev;
-    Scene.portrait(c, k === 'custom' ? customLook() : LEADER_SKINS[k]);
+    Scene.portrait(c, Profile.body(k === 'custom' ? customLook() : LEADER_SKINS[k]));
   });
   const customLook = () => {
     const c = Profile.get().custom, rgb = h => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
     return { shirt: rgb(c.shirt), pants: rgb(c.pants), hair: rgb(c.hair), cape: rgb(c.cape), crown: !!c.crown };
   };
   root.onclick = e => {
+    const bd = e.target.closest('[data-body]');
+    if (bd) {
+      Profile.setBody(bd.dataset.body);
+      root.querySelectorAll('[data-body]').forEach(x => x.classList.toggle('on', x === bd));
+      paint();
+      return;
+    }
     const b = e.target.closest('[data-skin]');
     if (!b || b.disabled) return;
     Profile.setSkin(b.dataset.skin);

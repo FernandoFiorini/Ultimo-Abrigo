@@ -54,6 +54,8 @@ const Endgame = (() => {
                     cost: l => ({ rp: C(40 * 1.7 ** l), gas: 1 + l }), fx: l => `${fmt(0.5 * l)} de dano em cada zumbi` },
     eletrico:     { br: 'defesa', icon: '🔌', nome: 'Cerca elétrica', desc: 'Zumbis atacando o muro levam choque (+0,6 de dano/s)', max: 5,
                     cost: l => ({ rp: C(80 * 1.8 ** l), acido: 2 + l, gas: 1 + l }), fx: l => `${fmt(0.6 * l)} de dano/s` },
+    turnos:       { br: 'defesa', icon: '🔄', nome: 'Turnos de vigia', desc: 'Guardas revezam no muro: cada tiro cansa 15% menos', max: 4,
+                    cost: l => ({ rp: C(45 * 1.7 ** l), tecido: l }), fx: l => `-${15 * l}% de cansaço por tiro` },
     estoque:      { br: 'logistica', icon: '🏭', nome: 'Linhas de produção', desc: '+15% de toda a produção', max: Infinity,
                     cost: l => ({ rp: C(25 * 1.45 ** l) }), fx: l => `+${15 * l}% de produção` },
     rotas:        { br: 'logistica', icon: '🧭', nome: 'Rotas seguras', desc: 'Expedições e operações 10% mais rápidas e 15% menos arriscadas', max: 5,
@@ -227,7 +229,7 @@ const Endgame = (() => {
       case 'prod':  return (1 + 0.15 * tl('estoque')) * (1 + 0.25 * L) * (1 + hb('comandante'));
       case 'food':  return 1 + dist('food');
       case 'scrap': return (1 + dist('scrap')) * (1 + hb('engenheiro'));
-      case 'ammo':  return (1 + dist('ammo')) * (hasMod('polvora') ? 0.5 : 1);
+      case 'ammo':  return (1 + dist('ammo')) * (hasMod('polvora') ? 0.5 : 1) * (1 + Champions.val('ammo'));
       case 'meds':  return (1 + dist('meds')) * (1 + hb('medico')) * traitMult('socorro');
       case 'rp':    return (1 + dist('rp')) * (1 + 0.25 * L);
       case 'wall':  return (1 + 0.2 * tl('concreto')) * (1 + hb('engenheiro'));
@@ -247,14 +249,15 @@ const Endgame = (() => {
 
   function rollEvent(n) {
     // ondas de chefe não têm noite especial, exceto às vezes os saqueadores (com o Chefe Saqueador)
-    if (n % 10 === 0) return n >= 20 && Math.random() < 0.2 ? 'saque' : null;
+    if (bossCount(n)) return n % 10 === 0 && n >= 20 && Math.random() < 0.2 ? 'saque' : null;
     if (n < EVENT_MIN_WAVE || Math.random() > EVENT_CHANCE) return null;
     return pick(Object.keys(EVENTS).filter(k => n >= (EVENTS[k].min || 0)));
   }
   // Onda perigosa (alarme e contagem regressiva): noites marcadas como perigosas e ondas de chefe
   function danger(ev, n) {
     if (ev && EVENTS[ev] && EVENTS[ev].danger) return { icon: EVENTS[ev].icon, nome: EVENTS[ev].nome };
-    if (n % 10 === 0) return { icon: '👹', nome: 'Chefe' };
+    const b = bossCount(n);
+    if (b) return { icon: '👹', nome: b > 1 ? `${b} chefes` : 'Chefe' };
     return null;
   }
 
@@ -300,6 +303,22 @@ const Endgame = (() => {
       const v = drops[k];
       const n = v >= 1 ? v * mul : (Math.random() < v ? mul : 0);
       addSample(k, n, z.x, z.y != null ? z.y - 20 : null);
+    }
+  }
+
+  // k abates do mesmo tipo de uma vez (offline): mesmo efeito médio de k chamadas a onKill
+  function onKills(type, k) {
+    if (k === 1) { onKill({ type }, 'offline'); return; }
+    const ev = event();
+    count('kills', k);
+    if (ev) count('evKills', k);
+    if (ZTYPES[type].boss) { count('bosses', k); for (let i = 0; i < k; i++) if (Math.random() < 0.15) gainHero(`derrotando ${Bosses.the(type)}`, 'chefe'); }
+    const drops = DROPS[type];
+    if (!drops) return;
+    const mul = (ev && ev.samples) || 1;
+    for (const s in drops) {
+      const v = drops[s], x = v >= 1 ? v * k : k * v;
+      addSample(s, (Math.floor(x) + (Math.random() < x % 1 ? 1 : 0)) * mul);
     }
   }
 
@@ -368,7 +387,7 @@ const Endgame = (() => {
       onPick: diff => {
         const m = M();
         const keep = { cash: m.cash, ach: m.ach, stats: m.stats, heroes: m.heroes, weapons: m.weapons, active: m.active, hid: m.hid,
-          records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, memorial: m.memorial, fallen: m.fallen, lw: m.lw, legado: m.legado + g, worlds: m.worlds + 1,
+          records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, memorial: m.memorial, fallen: m.fallen, lw: m.lw, champ: m.champ, legado: m.legado + g, worlds: m.worlds + 1,
           player: m.player, runId: m.runId, minDiff: m.minDiff, wins: m.wins, diffChosen: true };
         S = newState(Object.assign(newMeta(), keep), diff);
         addLog(`🌍 Bem-vindo ao Mundo ${S.meta.worlds}! +${g} de Legado (total ${S.meta.legado}).`, 'good');
@@ -474,7 +493,7 @@ const Endgame = (() => {
     addLog(`🦸 Um herói se juntou a você ${where}: ${C_.icon} ${h.nome}, ${C_.nome}! Habilidade: ✦ ${H.ab.nome}.`, 'good');
     emit('hero', { h });
     toast({ icon: C_.icon, label: '🦸 Novo herói', name: `${h.nome}, ${C_.nome}`, desc: `${C_.fx(heroPower(h))} · ✦ ${H.ab.nome}: ${H.ab.desc}`,
-      btn: 'Ver heróis', onBtn: () => openTab('herois') });
+      btn: 'Ver heróis', onBtn: () => (window.openArmy ? openArmy('apoio') : openTab('herois')) });
   }
 
   function gainWeapon(where) {
@@ -552,7 +571,7 @@ const Endgame = (() => {
   function hit(z, base, src, opts = {}) {
     if (ZTYPES[z.type].armor) {
       let head = !!opts.head;
-      if (!head && (src === 'guard' || src === 'tower')) head = Math.random() < ARMOR_HEAD[src];
+      if (!head && (src === 'guard' || src === 'tower')) head = Math.random() < ARMOR_HEAD[src] + Champions.val('head');
       if (head) {
         M().stats.headshots = (M().stats.headshots || 0) + 1;
         emit('headshot', { x: z.x, y: zy(z) - 7 * zsc(z), src });
@@ -636,7 +655,7 @@ const Endgame = (() => {
     }
     if (tl('autoconstroi') && buildT >= 20) {
       buildT = 0;
-      const opts = Object.keys(BUILD).filter(k => k !== 'radio' && k !== 'lab' && !buildBlocked(k) && canAfford(buildCost(k)))
+      const opts = Object.keys(BUILD).filter(k => k !== 'radio' && k !== 'lab' && !buildBlocked(k) && !buildLocked(k) && canAfford(buildCost(k)))
         .sort((a, b) => (buildCost(a).sucata || 0) - (buildCost(b).sucata || 0));
       if (opts.length) actions.build(opts[0]);
     }
@@ -752,9 +771,33 @@ const Endgame = (() => {
       : '<div class="desc">Nenhuma operação em andamento.</div>');
     for (const o of S.ops) if ($('ot-' + o.k)) $('ot-' + o.k).textContent = Math.ceil(o.t) + 's';
 
+    // os 3 espaços de ativos no topo da Equipe de apoio
+    const slotsChanged = setIfChanged('hero-slots', JSON.stringify([m.active, m.heroes.map(h => [h.id, h.lvl, h.weapon && h.weapon.rar])]), () =>
+      Array.from({ length: HERO_ACTIVE }, (_, i) => {
+        const h = m.heroes.find(x => x.id === m.active[i]);
+        if (!h) return `<div class="hslot empty"><div class="hslot-plus">+</div><div class="desc">${m.heroes.length > m.active.length ? 'Ative um herói abaixo' : 'Espaço livre'}</div></div>`;
+        const c = HCLASS[h.cls];
+        return `<div class="hslot">
+          <canvas class="hero-face" width="48" height="48" data-hero="${h.key}"></canvas>
+          <div class="hslot-name">${h.nome}</div>
+          <div class="lvl">${c.icon} ${c.nome} · nv. ${h.lvl}</div>
+          <div class="desc now">${c.fx(heroPower(h))}</div>
+          <button class="small" data-act="heroToggle" data-k="${h.id}" title="Tirar dos ativos">Desativar</button>
+        </div>`;
+      }).join(''));
+    if (slotsChanged) for (const cv of $('hero-slots').querySelectorAll('canvas[data-hero]')) Scene.portrait(cv, heroLook(cv.dataset.hero));
+    // elenco agrupado por classe (liberados primeiro em cada grupo)
     const heroesChanged = setIfChanged('heroes', JSON.stringify([m.heroes, m.active, m.weapons.length && m.weapons[0].rar]), () =>
       (m.heroes.length ? '' : '<p class="hint">Nenhum herói ainda. Veja abaixo quem pode se juntar a você e onde encontrar cada um.</p>') +
-      Object.keys(HEROES).map(k => {
+      Object.keys(HCLASS).map(cls => {
+        const ks = Object.keys(HEROES).filter(k => HEROES[k].cls === cls);
+        if (!ks.length) return '';
+        ks.sort((a, b) => !!m.heroes.find(x => x.key === b) - !!m.heroes.find(x => x.key === a));
+        const C = HCLASS[cls], got = ks.filter(k => m.heroes.find(x => x.key === k)).length;
+        return `<h4 class="cls-head">${C.icon} ${C.nome} <span class="lvl">${got}/${ks.length}</span></h4>` + ks.map(heroRow).join('');
+      }).join(''));
+    function heroRow(k) {
+      {
         const H = HEROES[k], c = HCLASS[H.cls], h = m.heroes.find(x => x.key === k);
         if (!h) {
           return `
@@ -785,9 +828,16 @@ const Endgame = (() => {
               <button data-act="heroEquip" data-k="${h.id}" ${canEquip ? '' : 'disabled'}>Equipar melhor</button>
             </div>
           </div>`;
-        }).join(''));
+      }
+    }
     if (heroesChanged) for (const cv of $('heroes').querySelectorAll('canvas[data-hero]')) Scene.portrait(cv, heroLook(cv.dataset.hero));
     $('hero-count').textContent = `${m.active.length}/${HERO_ACTIVE} ativos · ${m.heroes.length}/${HERO_MAX} heróis`;
+    // badges das sub-abas: "!" quando há algo a fazer (espaço livre com herói parado, arma melhor para equipar)
+    const slotFree = m.active.length < HERO_ACTIVE && m.heroes.length > m.active.length;
+    const betterGun = m.weapons.length && m.heroes.some(h => !h.weapon || m.weapons[0].rar > h.weapon.rar);
+    const sbA = $('sb-apoio'), sbW = $('sb-arsenal');
+    if (sbA) { sbA.textContent = slotFree ? '!' : m.heroes.length ? `${m.active.length}/${HERO_ACTIVE}` : ''; sbA.classList.toggle('gold', !!slotFree); }
+    if (sbW) { sbW.textContent = betterGun ? '!' : m.weapons.length || ''; sbW.classList.toggle('gold', !!betterGun); }
 
     setIfChanged('weapons', JSON.stringify(m.weapons.map(w => w.id)), () => m.weapons.length
       ? m.weapons.map(w => `
@@ -829,7 +879,7 @@ const Endgame = (() => {
     SAMPLES, TECH, CURE, EVENTS, DISTRICTS, HCLASS, HEROES,
     newMetaExtra, mult, accBonus, sciCap, durMult, riskMult, scoutLoot, hb, ab, heroLook, migrateHeroes,
     rollEvent, danger, modifyQueue, hpMultEv, speedMultEv, lootMult, range, event,
-    onKill, onWaveEnd, hit, hordeTick, offlineMult, offlineTrap, tick, gainHero, gainWeapon,
+    onKill, onKills, onWaveEnd, hit, hordeTick, offlineMult, offlineTrap, tick, gainHero, gainWeapon,
     buildUI, render, count, tl,
   };
 })();

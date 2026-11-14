@@ -142,7 +142,7 @@ const Invasion = (() => {
 
   function heal(dt) {
     if (!S.injured.length) { S.injT = 0; return; }
-    const k = treating(), speed = Endgame.mult('meds') * (1 + Endgame.ab('heal'));
+    const k = treating(), speed = Endgame.mult('meds') * (1 + Endgame.ab('heal') + Champions.val('heal'));
     for (let i = 0; i < k; i++) S.injured[i].t -= dt * speed;
     const done = S.injured.filter(w => w.t <= 0);
     if (done.length) {
@@ -234,7 +234,7 @@ const Invasion = (() => {
         } },
       { label: `Liberar ${name}`, hint: `Sem luto · ${name} deixa o abrigo e provavelmente volta na próxima horda como um zumbi mais forte. Com sorte, resiste à infecção e volta curado`,
         run: () => {
-          if (Math.random() < CURE_CHANCE) S.returning.push({ n: name, t: rnd(150, 300) });
+          if (Math.random() < CURE_CHANCE + Champions.val('cure')) S.returning.push({ n: name, t: rnd(150, 300) });
           else S.turned.push(name);
           return [`${name} pegou uma mochila, agradeceu com os olhos e saiu pelo portão. Ninguém sabe o que vai acontecer.`, 'warn'];
         } },

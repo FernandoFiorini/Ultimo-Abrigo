@@ -9,6 +9,7 @@ const Settings = (() => {
     musicStyle: 'synth',   // classic | synth | terror
     sceneStyle: 'auto',    // auto (segue a música) | classic | synth | terror
     speed2x: false,
+    tips: true,            // dicas do tutorial
     reduceFx: false, noShake: false, colorblind: false,
     blood: true,           // sangue e mutilação (corpos se despedaçando)
   };
@@ -79,6 +80,7 @@ function openSettings() {
 
       ${pane('game', `
       ${check('speed2x', 'Velocidade 2x durante o dia', 'Acelera produção e o tempo até a horda. Volta ao normal sozinho quando a horda chega. Atalho: F')}
+      ${check('tips', 'Mostrar dicas', 'Os balões de dica do tutorial (canto da tela). Desligado, nenhuma dica aparece, em nenhum save.')}
       <div class="actions">
         <button data-cmd="tips">Rever dicas do tutorial</button>
         <button data-cmd="keys">⌨️ Atalhos</button>
@@ -147,7 +149,7 @@ function openSettings() {
         else if (cmd === 'keys') showShortcuts();
         else if (cmd === 'skins') showSkins();
         else if (cmd === 'menu') Slots.toMenu();
-        else if (cmd === 'tips') { Tutorial.reset(); addLog('💡 As dicas do tutorial vão aparecer de novo.'); dialogEsc(); }
+        else if (cmd === 'tips') { Settings.set('tips', true); Tutorial.reset(); addLog('💡 As dicas do tutorial vão aparecer de novo.'); dialogEsc(); }
       });
     },
   });

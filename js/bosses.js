@@ -15,7 +15,8 @@ const Bosses = (() => {
   // ---------- quais chefes vêm na onda ----------
   // Sorteados entre os já liberados pela onda, sem repetir o anterior. Na Noite dos Saqueadores vem o Chefe Saqueador.
   function assign(queue, n) {
-    const e = n + D().early;
+    // no Fácil (especiais 1 onda depois) a onda 10 contaria como 9 e não haveria chefe liberado: o mínimo é o grupo da onda 10
+    const e = Math.max(10, n + D().early);
     const pool = BOSS_POOL.filter(k => e >= ZTYPES[k].wave);
     let lastB = S.lastBoss;
     const chosen = [];
@@ -425,17 +426,7 @@ const Bosses = (() => {
 
   // ---------- offline ----------
   // Lista de zumbis de uma onda resolvida de uma vez: chefes ficam mais duros e a Matriarca traz crias
-  function offline(list) {
-    const extra = [];
-    for (const z of list) {
-      const Z = ZTYPES[z.type];
-      if (Z.off) z.hp *= Z.off;
-      if (Z.ai === 'brood') for (let i = 0; i < 8; i++) extra.push({ type: 'cria', hp: ZTYPES.cria.hp * hpMult(S.horde.n) });
-    }
-    list.push(...extra);
-  }
-
-  return { assign, spawned, guard, hurt, onDeath, tick, hordeTick, status, warn, offline, the, ofThe };
+  return { assign, spawned, guard, hurt, onDeath, tick, hordeTick, status, warn, the, ofThe };
 })();
 
 // ---------- conquistas dos chefes ----------

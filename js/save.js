@@ -1,9 +1,12 @@
 'use strict';
 
+// o campo de treino do debug não vai para o save (volta como se não houvesse horda)
+const saveJson = () => JSON.stringify(S, (k, v) => (k === 'horde' && v && v.train ? { active: false, queue: [], zs: [] } : v));
+
 function save() {
   if (awaitingChoice || importing || Slots.dead || !Slots.ready) return;
   try {
-    localStorage.setItem(Slots.key(Slots.cur), JSON.stringify(S));
+    localStorage.setItem(Slots.key(Slots.cur), saveJson());
     $('save-status').textContent = 'Salvo às ' + new Date().toLocaleTimeString('pt-BR');
   } catch (e) { /* armazenamento indisponível */ }
 }
@@ -60,7 +63,7 @@ let firstRun = false, legacyChoice = false, awaitingChoice = false, modalOpen = 
 const SAVE_PREFIX = 'UA1:';
 function exportCode() {
   save();
-  const bytes = new TextEncoder().encode(JSON.stringify(S));
+  const bytes = new TextEncoder().encode(saveJson());
   let bin = '';
   for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
   return SAVE_PREFIX + btoa(bin);

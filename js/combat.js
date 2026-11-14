@@ -1,9 +1,12 @@
 'use strict';
 
-function waveComposition(n) {
+const WAVE_SPECIAL = ['tanque', 'cuspidor', 'explosivo', 'arremessador', 'uivador', 'hospedeiro', 'blindado'];
+
+// Quantos zumbis de cada tipo vêm na onda n (sem montar a fila): { tipo: quantidade }
+function waveCounts(n) {
   const total = waveSize(n), e = n + D().early;
-  const count = {
-    chefe: n % 10 === 0 ? n / 10 : 0,
+  const c = {
+    chefe: bossCount(n),   // tabela por dificuldade (BOSS_SCALE, em config.js)
     tanque: e >= 4 ? Math.floor((e - 1) / 3) : 0,
     cuspidor: e >= 6 ? Math.floor((e - 3) / 3) : 0,
     explosivo: e >= 8 ? Math.floor((e - 5) / 3) : 0,
@@ -13,13 +16,18 @@ function waveComposition(n) {
     hospedeiro: e >= 9 ? Math.floor((e - 5) / 4) : 0,
     blindado: e >= 11 ? Math.floor((e - 8) / 3) : 0,
   };
-  const SPECIAL = ['tanque', 'cuspidor', 'explosivo', 'arremessador', 'uivador', 'hospedeiro', 'blindado'];
-  const specials = count.chefe + SPECIAL.reduce((a, t) => a + count[t], 0);
-  const q = [...Array(Math.max(0, total - specials - count.corredor)).fill('normal'), ...Array(count.corredor).fill('corredor')];
+  const specials = c.chefe + WAVE_SPECIAL.reduce((a, t) => a + c[t], 0);
+  c.normal = Math.max(0, total - specials - c.corredor);
+  return c;
+}
+
+function waveComposition(n) {
+  const c = waveCounts(n);
+  const q = [...Array(c.normal).fill('normal'), ...Array(c.corredor).fill('corredor')];
   for (let i = q.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [q[i], q[j]] = [q[j], q[i]]; }
-  for (const t of SPECIAL)
-    for (let i = 0; i < count[t]; i++) q.splice(Math.floor(q.length * (0.3 + Math.random() * 0.7)), 0, t);
-  for (let i = 0; i < count.chefe; i++) q.push('chefe');
+  for (const t of WAVE_SPECIAL)
+    for (let i = 0; i < c[t]; i++) q.splice(Math.floor(q.length * (0.3 + Math.random() * 0.7)), 0, t);
+  for (let i = 0; i < c.chefe; i++) q.push('chefe');
   return q;
 }
 
@@ -34,7 +42,7 @@ function startWave(quiet) {
   // quem foi liberado depois de uma mordida e não resistiu volta com a horda (saqueadores não trazem ninguém)
   const turned = Endgame.EVENTS[event] && Endgame.EVENTS[event].humans ? [] : Invasion.addTurned(queue);
   S.horde = { active: true, n, queue, event, spawnT: 1.5, zs: [], kills: 0, loot: 0, food: 0, ammo: 0, dmg: 0, gcd: [], tcd: [], mcd: [], turned,
-    deaths: 0, deathCap: Math.max(1, Math.ceil(home() * DEATH_CAP)) };
+    deaths: 0, deathCap: Math.max(1, Math.ceil(home() * DEATH_CAP)), ghurt: 0, unpaid: payUpkeep(quiet) };
   // Investida: uma massa chega toda de uma vez no meio da noite (offline, entra direto na fila)
   if (Endgame.EVENTS[event] && Endgame.EVENTS[event].rush) {
     const mass = rushComposition(n);
@@ -46,6 +54,33 @@ function startWave(quiet) {
   if (event && !quiet) addLog(`${Endgame.EVENTS[event].icon} NOITE ESPECIAL: ${Endgame.EVENTS[event].nome}! ${Endgame.EVENTS[event].desc}`, 'bad');
   Weapons.refill();
   emit('waveStart', { n, count: queue.length + (S.horde.rush ? S.horde.rush.length : 0), boss: queue.some(t => ZTYPES[t].boss), event, word });
+}
+
+// Manutenção das torres, cobrada no começo da horda. Devolve as torres que ficaram sem pagar.
+function payUpkeep(quiet) {
+  const unpaid = [];
+  for (const k in TOWERS) {
+    if (!S.build[k]) continue;
+    const c = towerUpkeep(k);
+    if (canAfford(c)) pay(c); else unpaid.push(k);
+  }
+  if (unpaid.length && !quiet) addLog(`🔧 Sem recursos para a manutenção: ${unpaid.map(k => `${BUILD[k].icon} ${BUILD[k].nome}`).join(', ')} atira${unpaid.length > 1 ? 'm' : ''} na metade da velocidade nesta horda.`, 'warn');
+  return unpaid;
+}
+
+// Guarda ferido em cima do muro (ácido do cuspidor ou pancada no muro): vai para os feridos e sai da função
+function hurtGuard(kind) {
+  const H = S.horde;
+  if (S.jobs.guarda < 2 || (H.ghurt || 0) >= 1 + Math.floor(H.n / GUARD_HURT.perWave) || Math.random() >= GUARD_HURT[kind]) return;
+  const pool = S.people.filter(n => !S.injured.some(w => w.n === n));
+  if (pool.length <= 1) return;
+  const name = pool[Math.floor(Math.random() * pool.length)];
+  S.injured.push({ n: name, t: HEAL_TIME });
+  S.jobs.guarda--;
+  H.ghurt = (H.ghurt || 0) + 1;
+  fixJobs();
+  addLog(`🤕 ${name} se feriu de guarda no muro (${kind === 'spit' ? 'ácido de cuspidor' : 'pancada de zumbi'}). Um médico pode tratar.`, 'bad');
+  emit('injured', { x: WORLD.WALL_X - 10, y: 168, name });
 }
 
 // A massa da Investida: no mínimo 20, cresce com a onda, com alguns brutamontes no meio
@@ -72,6 +107,17 @@ function spawnZombie(type, H, opts = {}) {
 const zsc = z => z.scale || ZTYPES[z.type].scale;
 const zy = z => z.y - (z.lift || 0) - 9 * zsc(z);
 
+// Alvo de uma torre: a longa mira no mais resistente, a curta só em quem já chegou perto do muro (e não perde tempo com blindados)
+function towerTarget(T) {
+  const max = T.reach ? WORLD.WALL_X + T.reach : Endgame.range();
+  let best = null;
+  for (const z of S.horde.zs) {
+    if (z.dead || z.under || z.x > max || (T.noArmor && ZTYPES[z.type].armor)) continue;
+    if (!best || (T.target === 'hp' ? z.hp > best.hp || (z.hp === best.hp && z.x < best.x) : z.x < best.x)) best = z;
+  }
+  return best;
+}
+
 function pickTarget() {
   let best = null;
   for (const z of S.horde.zs) if (!z.dead && !z.under && z.x <= Endgame.range() && (!best || z.x < best.x)) best = z;
@@ -82,6 +128,8 @@ function pickTarget() {
 function damageZombie(z, dmg, src, o = {}) {
   if (z.dead) return;
   if (ZTYPES[z.type].ai) { dmg = Bosses.guard(z, dmg, src, o); if (!(dmg > 0)) return; }
+  // boneco do campo de treino (debug): só registra o dano e nunca morre
+  if (z.dummy) { emit('hit', { id: z.id, x: z.x, y: zy(z) }); Debug.dummyHit(z, dmg, src, o); return; }
   z.hp -= dmg;
   emit('hit', { id: z.id, x: z.x, y: zy(z) });
   if (z.hp <= 0) killZombie(z, src);
@@ -90,6 +138,7 @@ function damageZombie(z, dmg, src, o = {}) {
 
 function killZombie(z, src) {
   if (z.dead) return;
+  if (z.dummy) { Debug.dummyHit(z, z.maxHp, src, { kill: true }); return; }   // abate direto no boneco
   const H = S.horde, Z = ZTYPES[z.type];
   const loot = src === 'wall' ? 0 : Math.round(Z.loot * Endgame.lootMult());
   z.hp = 0; z.dead = true;
@@ -100,6 +149,7 @@ function killZombie(z, src) {
   if (Z.onDeath) zombieBuff(z, Z.onDeath);
   countKill(z.type);
   Endgame.onKill(z, src);
+  Champions.onKill(z, src);
   if (src === 'player') Weapons.onKill(z);
   Invasion.onKill(z, src);
   if (Z.boss) { gainCash(D().bossCash, `${Bosses.the(z.type)} foi derrotad${Z.art || 'a'}!`, z.x, zy(z) - 10); Weapons.bossLoot(z.type); }
@@ -114,9 +164,9 @@ function killZombie(z, src) {
 }
 
 // Comida e munição de quem foi abatido: saqueadores carregam suprimentos; a Horda Furiosa rende comida
-function bountyOf(type, H) {
+function bountyOf(type, H, k = 1) {
   const Z = ZTYPES[type], ev = Endgame.event(), m = Endgame.lootMult();
-  const food = Math.round(((Z.food || 0) + ((ev && ev.food) || 0)) * m), ammo = Math.round((Z.ammo || 0) * m);
+  const food = Math.round(((Z.food || 0) + ((ev && ev.food) || 0)) * m) * k, ammo = Math.round((Z.ammo || 0) * m) * k;
   if (food) { S.res.comida += food; H.food = (H.food || 0) + food; }
   if (ammo) { S.res.municao += ammo; H.ammo = (H.ammo || 0) + ammo; }
 }
@@ -194,6 +244,8 @@ function updateHorde(dt) {
   const WX = WORLD.WALL_X + 13;
   for (const z of H.zs) {
     if (z.dead) continue;
+    // o boneco do campo de treino fica parado e não ataca
+    if (z.dummy) { if (z.stun > 0) z.stun = Math.max(0, z.stun - dt); continue; }
     const Z = ZTYPES[z.type];
     // atordoado (grito de morte do Rei Uivador, crias e pedaços recém-nascidos)
     if (z.stun > 0) { z.stun -= dt; continue; }
@@ -208,7 +260,7 @@ function updateHorde(dt) {
     if (z.state === 'invade') {
       if (!Invasion.zombie(z, dt)) return;
     } else if (z.state === 'walk') {
-      z.x -= z.speed * dt;
+      z.x -= z.speed * dt * Champions.slow(z);
       if (Z.spit && !S.wallDown && z.spits < Z.spit.count && z.x <= WX + Z.spit.range) { z.state = 'spit'; z.t = 0; }
       else if (z.x <= WX + (Z.boss ? 8 : 0)) { z.x = WX + (Z.boss ? 8 : 0); z.state = 'attack'; z.t = 0; }
     } else if (z.state === 'spit') {
@@ -219,6 +271,7 @@ function updateHorde(dt) {
         const gren = Z.ai === 'warlord' && z.spits % 2 === 0;
         emit('spit', { x: z.x - 4, y: zy(z) - 4, ty: z.y, proj: gren ? 'grenade' : Z.spit.proj });
         H.dmg += wallDamage(Z.spit.dmg * (gren ? 1.6 : 1) * dmgMult(H.n), z.y);
+        if (S === st && !S.wallDown) hurtGuard('spit');
         if (S !== st) return;
         if (z.spits >= Z.spit.count || S.wallDown) z.state = 'walk';
       }
@@ -231,6 +284,7 @@ function updateHorde(dt) {
         if (Z.boss) emit('boss', { k: 'smash', x: z.x, y: z.y, type: z.type, id: z.id });
         H.dmg += wallDamage(Z.dmg * (z.dmgM || 1) * dmgMult(H.n), z.y);
         if (S !== st) return;
+        if (!S.wallDown) hurtGuard('smash');
         if (z.hits >= Z.hits) killZombie(z, 'melee');
       }
     }
@@ -239,7 +293,7 @@ function updateHorde(dt) {
   // sobreviventes lutando corpo a corpo com quem entrou
   Invasion.fight(dt);
 
-  const g = S.jobs.guarda, fm = fireMult();
+  const g = S.jobs.guarda, fm = fireMult(), gfm = fm * guardFire() * (1 + Champions.val('gfire'));
   for (let i = 0; i < g; i++) {
     H.gcd[i] = (H.gcd[i] ?? Math.random() * GUARD_CD) - dt;
     if (H.gcd[i] > 0) continue;
@@ -248,80 +302,179 @@ function updateHorde(dt) {
     if (S.res.municao >= 1) {
       // tiro errado também gasta munição
       S.res.municao -= 1;
-      H.gcd[i] = GUARD_CD / fm * (0.85 + Math.random() * 0.3);
+      H.gcd[i] = GUARD_CD / gfm * (0.85 + Math.random() * 0.3);
+      tire(1);
       const hit = Math.random() < accuracy('guard');
       emit('shot', { src: 'guard', idx: i, x: z.x, y: zy(z), miss: !hit });
       if (hit) Endgame.hit(z, Endgame.mult('dmg'), 'guard');
     } else {
-      H.gcd[i] = ROCK_CD;
+      H.gcd[i] = ROCK_CD / guardFire();
+      tire(1);
       const hit = Math.random() < ROCK_HIT;
       emit('shot', { src: 'rock', idx: i, x: z.x, y: zy(z), hit });
       if (hit) damageZombie(z, 1, 'rock');
     }
   }
 
-  for (let i = 0; i < S.build.torre; i++) {
-    H.tcd[i] = (H.tcd[i] ?? Math.random() * TOWER_CD) - dt;
-    if (H.tcd[i] > 0) continue;
-    const z = pickTarget();
-    if (!z) { H.tcd[i] = Math.random() * 0.4; continue; }
-    H.tcd[i] = TOWER_CD / fm / (1 + Endgame.ab('tower')) * (0.85 + Math.random() * 0.3);
-    const hit = Math.random() < accuracy('tower');
-    emit('shot', { src: 'tower', idx: i, x: z.x, y: zy(z), miss: !hit });
-    if (hit) Endgame.hit(z, Endgame.mult('dmg'), 'tower');
+  // torres: cada tipo tem seus atiradores, arma e alvo preferido (veja TOWERS)
+  const tfm = fm * (1 + Endgame.ab('tower'));
+  let j = 0;
+  for (const k in TOWERS) {
+    if (!S.build[k]) continue;
+    const T = TOWERS[k], ts = towerStat(k);
+    for (let i = 0; i < ts.crew; i++, j++) {
+      H.tcd[j] = (H.tcd[j] ?? Math.random() * ts.cd) - dt;
+      if (H.tcd[j] > 0) continue;
+      const z = towerTarget(T);
+      if (!z) { H.tcd[j] = Math.random() * 0.4; continue; }
+      H.tcd[j] = ts.cd / tfm / towerPay(k) * (0.85 + Math.random() * 0.3);
+      const hit = Math.random() < ts.acc;
+      emit('shot', { src: 'tower', tw: T.slot, idx: i, x: z.x, y: zy(z), miss: !hit, quiet: T.quiet && Math.random() < T.quiet });
+      if (hit) { Endgame.hit(z, ts.dmg * Endgame.mult('dmg'), 'tower', { head: T.head }); Champions.onTowerHit(z); }
+    }
   }
 
+  // herói de campo: ataque básico, urso, zumbis confusos e contagem das habilidades
+  Champions.hordeTick(dt);
+
   H.zs = H.zs.filter(z => !z.dead);
-  if (!H.queue.length && !H.zs.length && !H.rush) endWave();
+  if (!H.queue.length && !H.zs.length && !H.rush && !H.train) endWave();
 }
 
-// Dano total que a defesa causa numa onda resolvida de uma vez (offline).
+// Dano que a defesa (guardas e torres) causa numa onda de `count` zumbis, sem mexer no estado.
 // Estima a duração da onda (zumbis surgindo + caminhada até o muro) e quantos tiros cabem nela.
-function offlineDefense(count) {
+// ammo: munição disponível para os guardas. Devolve { dmg, armed (munição gasta), guardShots }.
+function defenseEstimate(count, n, ammo = S.res.municao) {
   const fm = fireMult(), g = S.jobs.guarda;
-  const duration = count * spawnGap(S.horde.n || S.wave) + 15 / D().speed;
-  const guardShots = g * duration / GUARD_CD * fm * OFFLINE_EFF;
-  const armedShots = Math.min(guardShots, Math.floor(S.res.municao));
-  S.res.municao -= armedShots;
-  const rockHits = (guardShots - armedShots) * (GUARD_CD / ROCK_CD) * ROCK_HIT;
-  const towerShots = S.build.torre * duration / TOWER_CD * fm * (1 + Endgame.ab('tower')) * OFFLINE_EFF;
+  const duration = count * spawnGap(n) + 15 / D().speed;
+  // o cansaço sobe durante a onda: usa o cansaço médio estimado (começo + metade do que a onda vai cansar)
+  const f0 = S.fatigue || 0, fresh = duration / GUARD_CD * fm * OFFLINE_EFF * (1 - FAT_FIRE * f0);
+  const fAvg = Math.min(1, f0 + fresh * fatigueShot() / 2);
+  const guardShots = g * duration / GUARD_CD * fm * (1 - FAT_FIRE * fAvg) * OFFLINE_EFF;
+  const armed = Math.min(guardShots, Math.floor(ammo));
+  const rockHits = (guardShots - armed) * (GUARD_CD / ROCK_CD) * ROCK_HIT;
+  // torres: a curta só atira em parte da onda (quando os zumbis chegam perto) e o tiro da longa
+  // não vale mais que o dobro da vida de um zumbi comum (o resto seria desperdiçado em quem morre com 1 tiro)
+  let tower = 0;
+  for (const k in TOWERS) {
+    if (!S.build[k]) continue;
+    const T = TOWERS[k], ts = towerStat(k);
+    const shots = ts.crew * duration / ts.cd * fm * (1 + Endgame.ab('tower')) * towerPay(k) * OFFLINE_EFF * (T.reach ? 0.5 : 1);
+    const per = T.target === 'hp' ? Math.min(ts.dmg, 2 * hpMult(n)) : ts.dmg;
+    tower += shots * ts.acc * per;
+  }
   // mesma precisão do combate ao vivo
-  return armedShots * accuracy('guard') + rockHits + towerShots * accuracy('tower');
+  return { dmg: armed * accuracy('guard') + rockHits + tower, armed, guardShots };
 }
 
-// Resolve o resto da onda de uma vez (offline / aba em segundo plano)
+// Dano total que a defesa causa numa onda resolvida de uma vez (offline): gasta a munição e cansa os guardas
+function offlineDefense(count) {
+  const e = defenseEstimate(count, S.horde.n || S.wave);
+  S.res.municao -= e.armed;
+  tire(e.guardShots);
+  return e.dmg;
+}
+
+// Ameaça de uma onda: vida total dos zumbis (o blindado vale ARMOR_OFFLINE, como no offline). Para o debug.
+function waveThreat(n) {
+  const c = waveCounts(n);
+  return Object.keys(c).reduce((a, t) => a + c[t] * ZTYPES[t].hp * hpMult(n) * (ZTYPES[t].armor ? ARMOR_OFFLINE : 1), 0);
+}
+
+// Resolve o resto da onda de uma vez (aba em segundo plano no meio de uma horda)
 function flushWave() {
-  const st = S, H = S.horde;
-  const list = [
-    ...H.zs.filter(z => !z.dead).map(z => ({ type: z.type, hp: z.hp })),
-    ...[...H.queue, ...(H.rush || [])].map(t => ({ type: t, hp: Math.max(0.1, ZTYPES[t].hp * hpMult(H.n) * Endgame.hpMultEv() - Endgame.offlineTrap()) })),
-  ];
-  // o blindado só cai com tiros na cabeça: custa bem mais tiros
-  for (const z of list) if (ZTYPES[z.type].armor) z.hp *= ARMOR_OFFLINE;
-  // chefes com fases e armaduras ficam mais duros; a Matriarca traz crias
-  Bosses.offline(list);
+  const H = S.horde, g = {};
+  const add = (t, n, hp) => { const e = g[t] || (g[t] = { n: 0, hp: 0 }); e.n += n; e.hp += hp; };
+  for (const z of H.zs) if (!z.dead) add(z.type, 1, z.hp);
+  for (const t of [...H.queue, ...(H.rush || [])]) add(t, 1, queuedHp(t, H.n));
   H.rush = null;
-  let pool = offlineDefense(list.length) * Endgame.mult('dmg') * Endgame.offlineMult(), leak = 0;
-  for (const z of list) {
-    if (pool >= z.hp) {
-      pool -= z.hp;
-      const loot = Math.round(ZTYPES[z.type].loot * Endgame.lootMult());
-      S.res.sucata += loot; S.kills++; H.kills++; H.loot += loot;
-      bountyOf(z.type, H);
-      countKill(z.type);
-      Endgame.onKill({ type: z.type }, 'offline');
-      if (ZTYPES[z.type].boss) { gainCash(D().bossCash, `${Bosses.the(z.type)} foi derrotad${ZTYPES[z.type].art || 'a'}!`); Weapons.bossLoot(z.type); }
-      // o Hospedeiro Gigante e seus brotos se dividem
-      const sp = ZTYPES[z.type].split;
-      if (sp) for (let i = 0; i < sp.n; i++) list.push({ type: sp.type, hp: ZTYPES[sp.type].hp * hpMult(H.n) * Endgame.hpMultEv() });
-    } else {
-      pool = 0;
-      leak += leakOf(z.type, H.n);
+  resolveGroups(g);
+}
+
+// vida de um zumbi que ainda não entrou na cena (as armadilhas já descontam no offline)
+const queuedHp = (t, n) => Math.max(0.1, ZTYPES[t].hp * hpMult(n) * Endgame.hpMultEv() - Endgame.offlineTrap());
+
+// Onda inteira resolvida de uma vez, sem montar a fila zumbi por zumbi (progresso offline).
+// Sem chefes: no offline, as ondas de chefe vêm só com a horda comum. Saque, cash e conquistas de chefe só saem jogando.
+function offlineWave() {
+  const n = S.wave;
+  const event = S.pending !== undefined ? S.pending : Endgame.rollEvent(n);
+  delete S.pending;
+  const E = Endgame.EVENTS[event];
+  S.horde = { active: true, n, queue: [], event, spawnT: 0, zs: [], kills: 0, loot: 0, food: 0, ammo: 0, dmg: 0, gcd: [], tcd: [], mcd: [], turned: [],
+    deaths: 0, deathCap: Math.max(1, Math.ceil(home() * DEATH_CAP)), ghurt: 0, unpaid: payUpkeep(true) };
+  const c = waveCounts(n);
+  delete c.chefe;
+  // noites especiais, como em modifyQueue (sem o chefe)
+  if (E && E.runners) { c.corredor += c.normal; c.normal = 0; }
+  if (E && E.humans) {
+    const tot = Object.values(c).reduce((a, b) => a + b, 0), inc = Math.round(tot * 0.3);
+    for (const t in c) delete c[t];
+    c.saqueador = tot - inc; c.incendiario = inc;
+  }
+  if (E && E.count && E.count !== 1) for (const t in c) c[t] = Math.round(c[t] * E.count);
+  if (E && E.rush) {
+    const k = Math.max(20, Math.round(waveSize(n) * 0.6)), tanks = n >= 6 ? Math.floor(k / 9) : 0, runners = Math.round((k - tanks) * 0.35);
+    c.tanque = (c.tanque || 0) + tanks; c.corredor = (c.corredor || 0) + runners; c.normal = (c.normal || 0) + k - tanks - runners;
+  }
+  // quem foi liberado depois de uma mordida e não resistiu volta com a horda (saqueadores não trazem ninguém)
+  if (!(E && E.humans)) { S.horde.turned = Invasion.addTurned([]); if (S.horde.turned.length) c.mordido = (c.mordido || 0) + S.horde.turned.length; }
+  Weapons.refill();
+  const g = {};
+  for (const t in c) if (c[t] > 0) g[t] = { n: c[t], hp: c[t] * queuedHp(t, n) };
+  resolveGroups(g);
+}
+
+// Resolve grupos de zumbis { tipo: { n, hp (vida somada) } } contra o dano estimado da defesa.
+// A fila é embaralhada, então cada grupo cai na mesma proporção; quem sobra passa pelo muro.
+function resolveGroups(groups) {
+  const st = S, H = S.horde;
+  for (const t in groups) {
+    const Z = ZTYPES[t], e = groups[t];
+    // o blindado só cai com tiros na cabeça: custa bem mais tiros · chefes com fases e armaduras ficam mais duros
+    if (Z.armor) e.hp *= ARMOR_OFFLINE;
+    if (Z.off) e.hp *= Z.off;
+    // a Matriarca traz crias
+    if (Z.ai === 'brood') { const cr = groups.cria || (groups.cria = { n: 0, hp: 0 }); cr.n += 8 * e.n; cr.hp += 8 * e.n * ZTYPES.cria.hp * hpMult(H.n); }
+  }
+  const total = Object.values(groups).reduce((a, e) => a + e.n, 0);
+  let pool = offlineDefense(total) * Endgame.mult('dmg') * Endgame.offlineMult(), leak = 0;
+  let cur = groups;
+  for (let pass = 0; pass < 4 && Object.keys(cur).length; pass++) {
+    const hpAll = Object.values(cur).reduce((a, e) => a + e.hp, 0);
+    const f = hpAll > 0 ? Math.min(1, pool / hpAll) : 1;
+    pool = Math.max(0, pool - hpAll * f);
+    const next = {};
+    for (const t in cur) {
+      const e = cur[t], k = f >= 1 ? e.n : Math.min(e.n, Math.floor(e.n * f + Math.random()));
+      if (k > 0) killGroup(t, k, H, next);
+      if (S !== st) return;
+      const left = e.n - k;
+      if (left > 0) {
+        leak += leakOf(t, H.n) * left;
+        const spit = ZTYPES[t].spit ? 'spit' : 'smash';
+        for (let i = 0, m = Math.min(left, 30); i < m; i++) hurtGuard(spit);
+      }
     }
+    cur = next;
   }
   H.queue = []; H.zs = [];
   H.dmg += wallDamage(leak);
   if (S === st) endWave();
+}
+
+// k zumbis do mesmo tipo abatidos de uma vez: saque, recompensas, amostras e conquistas
+function killGroup(t, k, H, next) {
+  const Z = ZTYPES[t];
+  const loot = Math.round(Z.loot * Endgame.lootMult()) * k;
+  S.res.sucata += loot; S.kills += k; H.kills += k; H.loot += loot;
+  bountyOf(t, H, k);
+  countKill(t, k);
+  Endgame.onKills(t, k);
+  if (Z.boss) for (let i = 0; i < k; i++) { gainCash(D().bossCash, `${Bosses.the(t)} foi derrotad${Z.art || 'a'}!`); Weapons.bossLoot(t); }
+  // o Hospedeiro Gigante e seus brotos se dividem
+  const sp = Z.split;
+  if (sp) { const e = next[sp.type] || (next[sp.type] = { n: 0, hp: 0 }); e.n += sp.n * k; e.hp += sp.n * k * ZTYPES[sp.type].hp * hpMult(H.n) * Endgame.hpMultEv(); }
 }
 
 function endWave() {
@@ -338,6 +491,7 @@ function endWave() {
   const st = S.meta.stats;
   st.bestWave = Math.max(st.bestWave, H.n);
   Endgame.onWaveEnd(H);
+  Champions.onWaveEnd(H);
   Invasion.onWaveEnd(H);
   if (H.dmg === 0 && !H.inv && !S.wallDown && H.n >= 5) st.flawless++;
   if (H.n === EVAC_WAVE) addLog('🚁 Um helicóptero respondeu ao rádio! Agora você pode EVACUAR para outra cidade (painel Evacuação).', 'good');

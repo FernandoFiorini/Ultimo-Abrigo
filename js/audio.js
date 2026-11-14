@@ -6,6 +6,7 @@ const Sound = (() => {
 
   let ac = null, master, musicBus, sfxBus, musicVerb, sfxVerb, noiseBuf;
   const moodGain = {};
+  const MOODS = ['menu', 'day', 'tension', 'night', 'boss'];   // momentos com música própria
   let mood = 'day', step = 0, nextTime = 0, bar = 0;
   let voices = 0;
   const last = {};
@@ -48,7 +49,7 @@ const Sound = (() => {
     const nd = noiseBuf.getChannelData(0);
     for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
 
-    for (const m of ['day', 'night']) {
+    for (const m of MOODS) {
       moodGain[m] = ac.createGain();
       moodGain[m].gain.value = 0;
       moodGain[m].connect(musicBus);
@@ -633,6 +634,163 @@ const Sound = (() => {
       noise({ type: 'bandpass', f: 3000, f2: 7000, q: 3, d: 0.35, vol: 0.06, t });
       tone({ type: 'sine', f: 1800 + (d.rar || 0) * 400, d: 0.6, vol: 0.03 + (d.rar || 0) * 0.01, t: t + 0.1, send: 0.6 });
     },
+    // ---- caixas de herói
+    // a caixa sendo sacudida: batidas de madeira e coisas chacoalhando dentro (mais rápido a cada estrela)
+    boxShake(d) {
+      const t = ac.currentTime, n = d.n || 1, hits = 5 + n * 2, gap = 0.62 / hits;
+      for (let i = 0; i < hits; i++) {
+        const tt = t + i * gap + rand(0, 0.015), pan = i % 2 ? 0.25 : -0.25;
+        tone({ type: 'triangle', f: rand(140, 210) + n * 20, f2: 80, d: 0.06, vol: 0.09, t: tt, pan });
+        noise({ type: 'bandpass', f: rand(1800, 3200), q: 3, d: 0.035, vol: 0.06, t: tt + 0.01, pan: -pan });
+      }
+      noise({ type: 'lowpass', f: 500, a: 0.1, d: 0.5, vol: 0.05, t });
+    },
+    // subida de estrela: arpejo crescente, mais alto e mais longo a cada nível (★ é só um brilho de leve)
+    boxStar(d) {
+      const t = ac.currentTime, n = d.n || 1;
+      if (n <= 1) { tone({ type: 'sine', f: mtof(84), d: 0.4, vol: 0.03, t, send: 0.6 }); return; }
+      const notes = n >= 3 ? [72, 76, 79, 84, 88, 91, 96] : [67, 72, 76, 79];
+      notes.forEach((m, i) => {
+        tone({ type: 'square', f: mtof(m), d: 0.16, vol: 0.025 + n * 0.008, t: t + i * 0.055, filter: { f: 3500 } });
+        tone({ type: 'triangle', f: mtof(m + 12), d: 0.3, vol: 0.03, t: t + i * 0.055, send: 0.6 });
+      });
+      const end = t + notes.length * 0.055;
+      tone({ type: 'triangle', f: mtof(notes[notes.length - 1]), a: 0.02, d: n >= 3 ? 1.6 : 0.9, vol: 0.06, t: end, send: 0.8 });
+      noise({ type: 'highpass', f: 6000, d: n >= 3 ? 1.2 : 0.6, vol: 0.03 + n * 0.01, t: end });
+      tone({ f: 90, f2: 40, d: 0.35, vol: 0.12 + n * 0.06, t });   // pancada grave junto com o tremor
+      if (n >= 3) for (let i = 0; i < 8; i++) tone({ type: 'sine', f: pick([2637, 3136, 3520, 4186]), d: 0.2, vol: 0.02, t: end + 0.1 + i * 0.08, pan: rand(-0.7, 0.7), send: 0.6 });
+    },
+    // não subiu: "uóó-uó" descendo e a caixa caindo de volta
+    boxFail() {
+      const t = ac.currentTime;
+      tone({ type: 'triangle', f: mtof(64), f2: mtof(62), d: 0.18, vol: 0.06, t });
+      tone({ type: 'triangle', f: mtof(60), f2: mtof(55), d: 0.4, vol: 0.06, t: t + 0.18 });
+      tone({ f: 110, f2: 55, d: 0.12, vol: 0.12, t: t + 0.02 });
+      noise({ type: 'lowpass', f: 700, d: 0.08, vol: 0.06, t: t + 0.02 });
+    },
+    // a caixa abre: fanfarra, bem maior no ★★★
+    boxOpen(d) {
+      const t = ac.currentTime, n = d.n || 1;
+      noise({ type: 'bandpass', f: 400, f2: 3000, q: 0.8, d: 0.35, vol: 0.12, t });   // tampa estourando
+      tone({ f: 120, f2: 45, d: 0.3, vol: 0.25, t });
+      if (n <= 1) {
+        [72, 76, 79].forEach((m, i) => tone({ type: 'triangle', f: mtof(m), d: 0.4, vol: 0.06, t: t + 0.1 + i * 0.09, send: 0.5 }));
+        return;
+      }
+      if (n === 2) {
+        [[67, 0], [72, 0.12], [76, 0.24], [79, 0.36]].forEach(([m, dt]) => {
+          tone({ type: 'square', f: mtof(m), d: 0.18, vol: 0.035, t: t + 0.1 + dt, filter: { f: 3000 } });
+          tone({ type: 'triangle', f: mtof(m + 12), d: 0.25, vol: 0.03, t: t + 0.1 + dt, send: 0.4 });
+        });
+        [72, 76, 79, 84].forEach(m => tone({ type: 'triangle', f: mtof(m), a: 0.02, d: 1.2, vol: 0.04, t: t + 0.6, send: 0.7 }));
+        return;
+      }
+      // ★★★: fanfarra de metais, acorde longo, rufar e chuva de brilhos
+      for (let i = 0; i < 10; i++) noise({ type: 'bandpass', f: 250, q: 1, d: 0.06, vol: 0.12, t: t + i * 0.045 });
+      [[60, 0.45], [64, 0.6], [67, 0.75], [72, 0.9], [67, 1.1], [72, 1.25]].forEach(([m, dt]) => {
+        tone({ type: 'sawtooth', f: mtof(m), d: 0.2, vol: 0.04, t: t + dt, filter: { f: 2600 }, send: 0.4 });
+        tone({ type: 'square', f: mtof(m + 12), d: 0.18, vol: 0.025, t: t + dt, filter: { f: 3500 } });
+      });
+      [60, 64, 67, 72, 76, 84].forEach(m => tone({ type: 'sawtooth', f: mtof(m), a: 0.05, hold: 0.6, d: 1.8, vol: 0.03, t: t + 1.45, filter: { f: 2200 }, send: 0.8 }));
+      tone({ f: 70, f2: 30, d: 1.2, vol: 0.4, t: t + 1.45 });
+      noise({ type: 'lowpass', f: 1500, f2: 100, d: 1.2, vol: 0.2, t: t + 1.45, send: 0.5 });
+      for (let i = 0; i < 14; i++) tone({ type: 'sine', f: pick([2093, 2637, 3136, 3520, 4186]), d: 0.25, vol: 0.02, t: t + 1.5 + i * 0.09, pan: rand(-0.8, 0.8), send: 0.7 });
+    },
+    // cada carta de prêmio virando: um "flip" de papel e um brilho, mais alto e mais rico quanto mais raro
+    boxItem(d) {
+      const t = ac.currentTime, r = d.rare || 0;
+      noise({ type: 'bandpass', f: 2600, f2: 1200, q: 1.5, d: 0.07, vol: 0.06, t });
+      const notes = [[79], [79, 84], [79, 83, 86], [72, 76, 79, 84, 88]][r];
+      notes.forEach((m, i) => tone({ type: 'triangle', f: mtof(m), d: 0.25 + r * 0.15, vol: 0.035 + r * 0.01, t: t + 0.05 + i * 0.05, send: 0.3 + r * 0.15 }));
+      if (r >= 3) noise({ type: 'highpass', f: 6000, d: 0.8, vol: 0.04, t: t + 0.1 });
+    },
+    // caixa de herói caindo: baque de madeira no chão e um "plim" dourado chamando atenção
+    box() {
+      const t = ac.currentTime;
+      tone({ f: 110, f2: 50, d: 0.25, vol: 0.3, t });
+      noise({ type: 'lowpass', f: 900, f2: 200, d: 0.2, vol: 0.2, t });
+      tone({ type: 'triangle', f: 160, f2: 90, d: 0.08, vol: 0.12, t: t + 0.12 });   // quique
+      [84, 88, 91, 96].forEach((m, i) => tone({ type: 'triangle', f: mtof(m), d: 0.4, vol: 0.045, t: t + 0.25 + i * 0.07, send: 0.6 }));
+      noise({ type: 'highpass', f: 6000, d: 0.6, vol: 0.035, t: t + 0.3 });
+    },
+    // grau de habilidade aprendido: "tchin" metálico subindo, mais cheio a cada grau
+    skillUp(d) {
+      const t = ac.currentTime, r = d.r || 1;
+      noise({ type: 'bandpass', f: 3000, q: 3, d: 0.05, vol: 0.06, t });
+      [72, 76, 79, 84].slice(0, r + 1).forEach((m, i) => tone({ type: 'triangle', f: mtof(m + 2 * r), d: 0.3, vol: 0.05, t: t + i * 0.06, send: 0.5 }));
+      tone({ type: 'sine', f: mtof(96 + 2 * r), d: 0.5, vol: 0.02, t: t + 0.2, send: 0.7 });
+    },
+    // ---- invocação de herói
+    // cada fragmento encaixando: um "tlin" de cristal, subindo de tom
+    summonShard(d) {
+      const t = ac.currentTime, m = [72, 74, 76, 79, 81, 84][d.i || 0];
+      noise({ type: 'bandpass', f: 4000, q: 4, d: 0.04, vol: 0.05, t });
+      tone({ type: 'triangle', f: mtof(m), d: 0.35, vol: 0.05, t, send: 0.5 });
+      tone({ type: 'sine', f: mtof(m + 19), d: 0.25, vol: 0.02, t: t + 0.01, send: 0.6 });
+    },
+    // carregando: zumbido que sobe até estourar
+    summonCharge() {
+      const t = ac.currentTime;
+      tone({ type: 'sawtooth', f: 110, f2: 880, a: 0.9, d: 0.15, vol: 0.05, t, filter: { f: 1800 }, send: 0.4 });
+      tone({ type: 'sine', f: 220, f2: 1760, a: 0.9, d: 0.1, vol: 0.04, t });
+      noise({ type: 'bandpass', f: 300, f2: 5000, q: 1.5, a: 0.9, d: 0.1, vol: 0.06, t });
+    },
+    // o herói aparece: estouro grave e brilho
+    summonBoom() {
+      const t = ac.currentTime;
+      tone({ f: 80, f2: 30, d: 0.9, vol: 0.4, t });
+      noise({ type: 'lowpass', f: 2500, f2: 120, d: 0.9, vol: 0.25, t, send: 0.6 });
+      [72, 76, 79, 84].forEach(m => tone({ type: 'triangle', f: mtof(m), a: 0.02, d: 1.6, vol: 0.035, t: t + 0.05, send: 0.8 }));
+      noise({ type: 'highpass', f: 6000, d: 1.2, vol: 0.04, t: t + 0.05 });
+    },
+    // som característico de cada herói, quando ele aparece
+    champCry(d) {
+      const t = ac.currentTime + 0.25;
+      switch (d.k) {
+        case 'profeta':   // trovão estalando e rolando, com um coro grave
+          noise({ type: 'highpass', f: 2500, d: 0.08, vol: 0.4, t });
+          noise({ type: 'lowpass', f: 1800, f2: 90, d: 1.8, vol: 0.45, t: t + 0.03, send: 0.8 });
+          tone({ f: 60, f2: 32, d: 1.4, vol: 0.35, t });
+          [45, 52, 57, 64].forEach(m => tone({ type: 'sawtooth', f: mtof(m), a: 0.3, hold: 0.6, d: 1.2, vol: 0.025, t: t + 0.4, filter: { f: 900 }, send: 0.9 }));
+          break;
+        case 'x9':        // robô ligando: servo subindo, bipes e o "clunk" de pronto
+          tone({ type: 'sawtooth', f: 180, f2: 900, a: 0.02, d: 0.5, vol: 0.05, t, filter: { f: 2200, q: 4 } });
+          [[1200, 0.6], [1600, 0.72], [2400, 0.84]].forEach(([f, dt]) => tone({ type: 'square', f, d: 0.07, vol: 0.035, t: t + dt, filter: { f: 4000 } }));
+          tone({ type: 'square', f: 110, f2: 55, d: 0.25, vol: 0.12, t: t + 1.0, filter: { f: 700 } });
+          noise({ type: 'bandpass', f: 1200, q: 3, d: 0.06, vol: 0.12, t: t + 1.0 });
+          tone({ type: 'sine', f: 60, a: 0.1, hold: 0.4, d: 0.5, vol: 0.12, t: t + 1.05 });
+          break;
+        case 'bilu':      // "tcharã!" de circo e o urso rugindo
+          [[72, 0, 0.12], [76, 0.12, 0.12], [79, 0.24, 0.12], [84, 0.38, 0.6]].forEach(([m, dt, dd]) => {
+            tone({ type: 'square', f: mtof(m), d: dd, vol: 0.04, t: t + dt, filter: { f: 3000 } });
+            tone({ type: 'triangle', f: mtof(m - 12), d: dd, vol: 0.04, t: t + dt });
+          });
+          noise({ type: 'highpass', f: 5000, d: 0.5, vol: 0.05, t: t + 0.38 });   // prato
+          tone({ type: 'sawtooth', f: 85, f2: 60, a: 0.12, hold: 0.3, d: 0.5, vol: 0.12, t: t + 1.0, filter: { f: 500, q: 3 } });
+          noise({ type: 'lowpass', f: 380, a: 0.12, d: 0.8, vol: 0.2, t: t + 1.0 });
+          break;
+        case 'imune':     // batidas de coração, sussurros e um acorde dissonante
+          [0, 0.22, 0.9, 1.12].forEach(dt => tone({ f: 70, f2: 40, d: 0.18, vol: 0.3, t: t + dt }));
+          noise({ type: 'bandpass', f: 1800, f2: 3500, q: 6, a: 0.4, d: 1.4, vol: 0.06, t, pan: -0.6, send: 0.8 });
+          noise({ type: 'bandpass', f: 2600, f2: 1400, q: 6, a: 0.5, d: 1.2, vol: 0.05, t: t + 0.4, pan: 0.6, send: 0.8 });
+          [[440, 0], [466, 6], [659, -4]].forEach(([f, det]) => tone({ type: 'sine', f, detune: det, a: 0.7, hold: 0.5, d: 1.2, vol: 0.03, t: t + 0.2, send: 0.9 }));
+          break;
+        case 'waldir':    // disco voador: teremim ondulando e o zumbido do motor
+          for (let i = 0; i < 10; i++) tone({ type: 'sine', f: 700 + i * 40, f2: i % 2 ? 620 + i * 40 : 900 + i * 40, d: 0.12, vol: 0.05, t: t + i * 0.12, send: 0.6 });
+          tone({ type: 'sawtooth', f: 55, a: 0.3, hold: 0.8, d: 0.6, vol: 0.05, t, filter: { f: 300 } });
+          tone({ type: 'sine', f: 1800, f2: 300, d: 0.5, vol: 0.04, t: t + 1.2, send: 0.6 });   // "piuuu"
+          break;
+        case 'ze':        // power chord distorcido e a batida da bateria
+          [41.2, 82.4, 123.5, 164.8].forEach(f => {
+            tone({ type: 'sawtooth', f, a: 0.01, hold: 0.7, d: 1.0, vol: 0.06, t, filter: { f: 1600, q: 2 }, send: 0.5 });
+            tone({ type: 'square', f: f * 1.005, a: 0.01, hold: 0.7, d: 1.0, vol: 0.025, t, filter: { f: 1200 } });
+          });
+          tone({ f: 90, f2: 45, d: 0.3, vol: 0.4, t });
+          noise({ type: 'bandpass', f: 1800, q: 1, d: 0.15, vol: 0.12, t: t + 0.01 });
+          noise({ type: 'highpass', f: 5000, d: 1.4, vol: 0.06, t, send: 0.6 });
+          break;
+      }
+    },
     district() {
       const t = ac.currentTime;
       tone({ type: 'sawtooth', f: mtof(55), a: 0.2, hold: 0.4, d: 0.8, vol: 0.08, filter: { f: 1200 }, send: 0.5 });
@@ -964,6 +1122,93 @@ const Sound = (() => {
     if (bossOnScreen() && (s === 2 || s === 6 || s === 10 || s === 14)) v({ type: 'sine', f: 95, f2: 50, a: 0.003, d: 0.35, vol: 0.28, send: 0.4 });
   }
 
+  // ---------- Momentos especiais (valem para os 3 estilos, com o timbre de cada um) ----------
+  // flavor: 'classic' (cordas e madeiras), 'synth' (serras desafinadas) ou 'terror' (caixinha de música e metal)
+  const flavor = () => (STYLES[P('musicStyle')] ? P('musicStyle') : 'synth');
+  const TENSION_TIME = 20;   // segundos antes da horda em que a música de tensão entra
+  const MN = { bpm: 68, chords: [[52, 55, 59, 66], [48, 52, 55, 59], [55, 59, 62, 66], [54, 57, 62, 69]], arp: [[64, 67, 71, 74], [60, 64, 67, 71], [62, 67, 71, 74], [62, 66, 69, 74]] };
+  const TN = { bpm: 96 };
+  const BS = { bpm: 144, root: [38, 38, 39, 36], lead: [[74, 75, 74, 72], [74, 77, 75, 74], [75, 74, 72, 70], [72, 74, 75, 77]] };
+
+  // Menu principal: tema calmo e melancólico (Em9, Cmaj7, G6, D/F#), arpejo lento e vento
+  function menuStep(s, t) {
+    const i = bar % 4, chord = MN.chords[i], barLen = stepDur() * 16, sd = stepDur(), v = mv('menu', t), nz = mn('menu', t), f = flavor();
+    if (s === 0) {
+      for (const n of chord) {
+        if (f === 'synth') {
+          v({ type: 'sawtooth', f: mtof(n), a: 1.6, hold: barLen - 1.4, d: 1.8, vol: 0.012, detune: -9, filter: { f: 900 }, send: 0.9, pan: -0.3 });
+          v({ type: 'sawtooth', f: mtof(n), a: 1.6, hold: barLen - 1.4, d: 1.8, vol: 0.012, detune: 9, filter: { f: 900 }, send: 0.9, pan: 0.3 });
+        } else v({ type: f === 'terror' ? 'sine' : 'triangle', f: mtof(n), a: 1.6, hold: barLen - 1.4, d: 1.8, vol: 0.02, detune: f === 'terror' ? -15 : 0, filter: { f: 1100 }, send: 0.8 });
+      }
+      v({ type: 'sine', f: mtof(chord[0] - 12), a: 1, hold: barLen - 1, d: 1.6, vol: 0.05, send: 0.5 });
+      if (bar % 2 === 0) nz({ type: 'lowpass', f: 600, f2: 250, q: 2, a: 2, d: barLen, vol: 0.025, pan: rand(-0.5, 0.5), send: 0.5 });
+    }
+    if (bar >= 1 && s % 2 === 0 && Math.random() < 0.9) {
+      const n = MN.arp[i][[0, 1, 2, 3, 2, 1, 3, 2][s / 2]];
+      if (f === 'terror') musicBox(v, mtof(n + 12), 0.028, Math.sin(bar + s) * 14, rand(-0.3, 0.3));
+      else v({ type: 'triangle', f: mtof(n + (f === 'synth' ? 12 : 0)), a: 0.005, d: 1.1, vol: 0.035, send: 0.7, pan: rand(-0.3, 0.3) });
+      if (f === 'synth') v({ type: 'square', f: mtof(n + 12), a: 0.005, d: 0.3, vol: 0.006, filter: { f: 1800 }, send: 0.8, t: t + sd * 3 });
+    }
+  }
+
+  // Tensão (últimos segundos antes da horda): relógio e coração que aceleram, drone subindo, acordes dissonantes
+  function tensionStep(s, t) {
+    const sd = stepDur(), barLen = sd * 16, v = mv('tension', t), nz = mn('tension', t), f = flavor();
+    const left = typeof S !== 'undefined' ? S.waveTimer : TENSION_TIME, u = Math.max(0, Math.min(1, 1 - left / TENSION_TIME));
+    // relógio: tique nas semínimas, depois nas colcheias, e nas semicolcheias nos últimos segundos
+    const every = u > 0.8 ? 1 : u > 0.45 ? 2 : 4;
+    if (s % every === 0) {
+      nz({ type: 'highpass', f: s % 8 === 0 ? 4500 : 6500, d: 0.02, vol: 0.03 + u * 0.02, pan: s % 8 < 4 ? -0.3 : 0.3 });
+      if (f === 'terror') v({ type: 'square', f: s % 8 === 0 ? 1400 : 1900, d: 0.015, vol: 0.006, filter: { f: 3000 } });
+    }
+    // coração
+    if (s === 0 || s === 8) v({ type: 'sine', f: 70, f2: 36, a: 0.003, d: 0.2, vol: 0.22 + u * 0.15 });
+    if (s === 3 || s === 11) v({ type: 'sine', f: 64, f2: 34, a: 0.003, d: 0.16, vol: 0.14 + u * 0.12 });
+    if (s === 0) {
+      // drone grave com segunda menor e filtro abrindo conforme a horda se aproxima
+      const r = 38, ff = 260 + u * 1100;
+      const type = f === 'classic' ? 'triangle' : 'sawtooth';
+      v({ type, f: mtof(r), a: 0.8, hold: barLen - 0.6, d: 0.8, vol: f === 'classic' ? 0.05 : 0.03, detune: f === 'synth' ? -10 : 0, filter: { f: ff, q: 3 }, send: 0.5 });
+      v({ type, f: mtof(r + 1), a: 1.2, hold: barLen - 1, d: 0.8, vol: 0.012 + u * 0.018, detune: f === 'synth' ? 10 : -20, filter: { f: ff, q: 3 }, send: 0.6 });
+      // acorde dissonante a cada 2 compassos
+      if (bar % 2 === 1) for (const n of [62, 65, 68]) v({ type: f === 'synth' ? 'sawtooth' : 'triangle', f: mtof(n), a: 0.01, d: 0.9, vol: 0.016, filter: { f: 1600 }, send: 0.8 });
+      if (f === 'terror' && bar % 2 === 0) musicBox(v, mtof(pick([81, 80, 77, 76])), 0.02, -40, rand(-0.5, 0.5));
+    }
+    // subida final: ruído crescendo nos últimos segundos
+    if (s === 0 && left <= 4.5 && left > 0) nz({ type: 'bandpass', f: 300, f2: 5000, q: 1.2, a: barLen * 0.9, d: 0.15, vol: 0.06, send: 0.6 });
+  }
+
+  // Chefe: trilha própria, rápida e pesada (frígio: Ré e Mi bemol), bumbo duplo, ostinato, power chords, coro e tambores
+  function bossStep(s, t) {
+    const i = bar % 4, root = BS.root[i], sd = stepDur(), barLen = sd * 16, v = mv('boss', t), nz = mn('boss', t), f = flavor();
+    // bumbo duplo e caixa
+    if (s % 4 === 0 || s === 2 || s === 10 || (bar % 4 === 3 && s >= 12)) v({ type: 'sine', f: 150, f2: 40, a: 0.002, d: 0.2, vol: 0.4 });
+    if (s === 4 || s === 12) { nz({ type: 'bandpass', f: 1500, q: 0.8, d: 0.2, vol: 0.15, send: 0.6 }); v({ type: 'triangle', f: 220, f2: 140, d: 0.09, vol: 0.09 }); }
+    nz({ type: 'highpass', f: 8000, d: 0.025, vol: s % 2 ? 0.015 : 0.03 });
+    // ostinato no grave com a segunda menor
+    const o = [0, 0, 12, 0, 1, 0, 12, 0][s % 8];
+    v({ type: f === 'classic' ? 'triangle' : 'sawtooth', f: mtof(root + o), a: 0.003, d: sd * 0.9, vol: f === 'classic' ? 0.11 : 0.07, filter: { f: 600, q: 4 } });
+    // power chords
+    if ([0, 6, 10].includes(s)) {
+      const type = f === 'terror' ? 'square' : 'sawtooth', ff = f === 'classic' ? 900 : 1500;
+      for (const [n, dt] of [[root + 12, -8], [root + 19, 8], [root + 24, 0]])
+        v({ type, f: mtof(n), a: 0.01, hold: sd * (s === 0 ? 4 : 2), d: 0.3, vol: 0.022, detune: dt, filter: { f: ff, q: 2 }, send: 0.4 });
+    }
+    // coro sustentado
+    if (s === 0) for (const n of [root + 24, root + 27, root + 31]) v({ type: 'sine', f: mtof(n), a: 0.6, hold: barLen - 0.6, d: 0.8, vol: 0.02, detune: rand(-8, 8), send: 0.9 });
+    // tambores graves no fim de cada 4 compassos
+    if (bar % 4 === 3 && s >= 8 && s % 2 === 0) v({ type: 'sine', f: 110 - (s - 8) * 6, f2: 55, a: 0.002, d: 0.3, vol: 0.3, send: 0.5 });
+    // melodia a partir do 5o compasso
+    if (bar >= 4 && [0, 4, 8, 12].includes(s)) {
+      const n = BS.lead[i][s / 4];
+      if (f === 'terror') musicBox(v, mtof(n), 0.03, -30, 0);
+      else {
+        v({ type: 'sawtooth', f: mtof(n), a: 0.01, hold: sd * 2.5, d: 0.3, vol: 0.02, detune: -6, filter: { f: f === 'classic' ? 1400 : 2600, q: 2 }, send: 0.6 });
+        v({ type: f === 'classic' ? 'triangle' : 'sawtooth', f: mtof(n), a: 0.01, hold: sd * 2.5, d: 0.3, vol: 0.02, detune: 6, filter: { f: 2400 }, send: 0.6 });
+      }
+    }
+  }
+
   const STYLES = {
     classic: { day: CL_DAY, night: CL_NIGHT, dayStep: classicDay, nightStep: classicNight },
     synth:   { day: SW_DAY, night: SW_NIGHT, dayStep: synthDay, nightStep: synthNight },
@@ -973,8 +1218,17 @@ const Sound = (() => {
   const style = () => STYLES[P('musicStyle')] || STYLES.synth;
   const bossOnScreen = () => typeof S !== 'undefined' && S.horde.zs && S.horde.zs.some(z => ZTYPES[z.type].boss);
 
-  const currentMood = () => (typeof S !== 'undefined' && S.horde && S.horde.active) ? 'night' : 'day';
-  const stepDur = () => 60 / (mood === 'day' ? style().day.bpm : style().night.bpm) / 4;
+  // qual música toca agora: menu principal, dia, tensão (últimos segundos antes da horda), horda, chefe na tela
+  function currentMood() {
+    const menu = document.getElementById('main-menu');
+    if (menu && !menu.classList.contains('hidden')) return 'menu';
+    if (typeof S === 'undefined' || !S || !S.horde) return 'menu';
+    if (S.horde.active) return bossOnScreen() ? 'boss' : 'night';
+    return S.waveTimer <= TENSION_TIME ? 'tension' : 'day';
+  }
+  const BPM = { menu: () => MN.bpm, day: () => style().day.bpm, tension: () => TN.bpm, night: () => style().night.bpm, boss: () => BS.bpm };
+  const stepDur = () => 60 / BPM[mood]() / 4;
+  const FADE = { menu: 2, day: 3, tension: 2, night: 1.2, boss: 0.8 };
 
   function setMood(m) {
     if (m === mood) return;
@@ -983,7 +1237,7 @@ const Sound = (() => {
       const g = moodGain[k].gain;
       g.cancelScheduledValues(t);
       g.setValueAtTime(g.value, t);
-      g.linearRampToValueAtTime(k === m ? 1 : 0, t + (m === 'night' ? 1.2 : 3));
+      g.linearRampToValueAtTime(k === m ? 1 : 0, t + FADE[m]);
     }
     mood = m; step = 0; bar = 0;
     nextTime = t + 0.05;
@@ -998,7 +1252,12 @@ const Sound = (() => {
     if (nextTime < ac.currentTime - 0.5) nextTime = ac.currentTime + 0.05;
     const st = style();
     while (nextTime < ac.currentTime + 0.15) {
-      if (mood === 'day') st.dayStep(step % 16, nextTime); else st.nightStep(step % 16, nextTime);
+      const sx = step % 16;
+      if (mood === 'day') st.dayStep(sx, nextTime);
+      else if (mood === 'night') st.nightStep(sx, nextTime);
+      else if (mood === 'tension') tensionStep(sx, nextTime);
+      else if (mood === 'boss') bossStep(sx, nextTime);
+      else menuStep(sx, nextTime);
       nextTime += stepDur();
       step++;
       if (step % 16 === 0) bar++;

@@ -28,6 +28,8 @@ function startGame(slot) {
 
   if (firstRun) startFirstRun();
   else if (legacyChoice) startLegacyChoice();
+  else if (returnReport) showReturn(returnReport);
+  returnReport = null;
 
   // Conquistas que ficaram pendentes (ou que foram desbloqueadas enquanto você estava fora)
   checkAchievements();

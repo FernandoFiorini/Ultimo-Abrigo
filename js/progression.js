@@ -45,7 +45,7 @@ function evacuate() {
       meta.city++;
       meta.stats.evacs++;
       S = newState(meta, diff);
-      addLog(`🚁 Evacuação concluída! Cidade ${meta.city} (${DIFFS[diff].icon} ${DIFFS[diff].nome}). +${g} de Esperança (agora +${Math.round(meta.hopeTotal * 3)}% de produção).`, 'good');
+      addLog(`🚁 Evacuação concluída! Cidade ${meta.city} (${DIFFS[diff].icon} ${DIFFS[diff].nome}). +${g} de Esperança (agora +${hopePct(meta.hopeTotal)}% de produção).`, 'good');
       emit('evacuate', { city: meta.city, g });
       save();
       chooseMods();

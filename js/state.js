@@ -9,6 +9,7 @@ function newMeta() {
     lw: { owned: { pistola: 1 }, slots: ['pistola', null, null], cur: 0 },
     // player: nome do jogador · runId: identidade do save (morte permanente) · minDiff: menor dificuldade permitida · wins: vitórias por dificuldade
     player: 'Sobrevivente', runId: '', minDiff: 0, wins: {},
+    champ: Champions.blank(),
     ...Endgame.newMetaExtra() };
 }
 
@@ -26,7 +27,8 @@ function newState(meta = newMeta(), diff = 'normal') {
     traits,
     mods: [],
     jobs: { forrageiro: 1, coletor: 1, armeiro: 0, guarda: 1, medico: 0, cientista: 0 },
-    build: { muro: 0, horta: 0, oficina: 0, beliche: 0, torre: 0, radio: 0, lab: 0 },
+    build: { muro: 0, horta: 0, oficina: 0, beliche: 0, torreC: 0, torre: 0, torreL: 0, alojamento: 0, radio: 0, lab: 0 },
+    fatigue: 0,      // cansaço médio dos guardas (0 a 1)
     wallHp: Math.round(100 * (1 + 0.2 * P.engenharia)),
     wallDown: false,
     overflow: 0,
@@ -58,15 +60,18 @@ function newState(meta = newMeta(), diff = 'normal') {
 }
 
 const perk = k => S.meta.perks[k];
-const hopeMult = () => 1 + 0.03 * S.meta.hopeTotal;
+const hopeMult = (h = S.meta.hopeTotal) => h <= HOPE_LINEAR ? 1 + 0.03 * h
+  : 1 + 0.03 * HOPE_LINEAR + 0.06 * Math.sqrt(HOPE_LINEAR) * (Math.sqrt(h) - Math.sqrt(HOPE_LINEAR));
+// bônus de produção da Esperança em % (para os textos)
+const hopePct = (h = S.meta.hopeTotal) => Math.round((hopeMult(h) - 1) * 100);
 const boostMult = () => S.meta.boosts.prod > 0 ? 2 : 1;
 const prodMult = () => boostMult() * D().prod * Endgame.mult('prod') * (S.mourn > 0 ? 1 - MOURN_PENALTY : 1);
 const furia = () => S.meta.boosts.furia > 0;
 const foodMult = () => (1 + 0.25 * S.build.horta) * (1 + 0.15 * perk('agricultura')) * hopeMult() * prodMult() * Endgame.mult('food') * traitMult('verde');
 const scrapMult = () => (1 + 0.25 * S.build.oficina) * (1 + 0.15 * perk('sucateiros')) * hopeMult() * prodMult() * Endgame.mult('scrap') * traitMult('jeito');
-const fireMult = () => (1 + 0.12 * perk('treino')) * (furia() ? 2 : 1) * Endgame.mult('fire');
+const fireMult = () => (1 + 0.12 * perk('treino')) * (furia() ? 2 : 1) * Endgame.mult('fire') * Champions.fury();
 const maxSurv = () => 4 + S.build.beliche * 2 + perk('veteranos') + Endgame.ab('beds');
-const maxWall = () => Math.round((100 + S.build.muro * 50) * (1 + 0.2 * perk('engenharia')) * Endgame.mult('wall') * (hasMod('murofraco') ? 0.6 : 1) * traitMult('forca'));
+const maxWall = () => Math.round((100 + S.build.muro * 50) * (1 + 0.2 * perk('engenharia')) * Endgame.mult('wall') * (hasMod('murofraco') ? 0.6 : 1) * traitMult('forca') * (1 + Champions.val('wall')));
 const assigned = () => Object.values(S.jobs).reduce((a, b) => a + b, 0);
 const away = () => S.exps.reduce((a, e) => a + e.n, 0) + S.ops.reduce((a, o) => a + o.n, 0);
 const home = () => S.survivors - away();
@@ -104,17 +109,25 @@ const recruitCost = () => Math.round(12 * Math.pow(1.3, Math.max(0, Math.min(S.r
 const bumpRecruit = w => { S.recruits = Math.min((S.recruits ?? Math.max(0, S.survivors - 4)) + w, S.survivors); };
 // Chamado depois de addSurvivor quando a pessoa foi paga com comida: completa o passo inteiro
 const countRecruit = () => bumpRecruit(1 - FREE_JOIN_WEIGHT);
-const waveSize = n => Math.round((6 * D().count * Math.pow(D().grow, n - 1) + n) * (hasMod('horda') ? 1.25 : 1));
+// Ameaça da cidade: quantas cidades (e mundos) já ficaram para trás. Deixa os zumbis mais duros e numerosos.
+const cityThreat = () => Math.min(CITY_MAX, ((S.meta && S.meta.city) || 1) - 1 + CITY_PER_WORLD * (((S.meta && S.meta.worlds) || 1) - 1));
+const waveSize = n => Math.round((6 * D().count * Math.pow(D().grow, n - 1) + n) * (hasMod('horda') ? 1.25 : 1) * (1 + CITY_COUNT * cityThreat()));
 const hopeGain = () => S.best >= EVAC_WAVE ? Math.floor((Math.pow(S.best - 5, 1.25) + S.kills / 200) * D().hope * (1 + modBonus())) : 0;
 // Zumbis ficam mais resistentes e mais fortes a cada onda.
 // Nas 6 primeiras ondas eles são um pouco mais fracos, para compensar os tiros errados do começo.
-const hpMult = n => D().hp * (1 + D().hpGrow * (n - 1)) * Math.min(1, 0.7 + 0.05 * (n - 1));
+const hpMult = n => D().hp * (1 + D().hpGrow * (n - 1)) * Math.min(1, 0.7 + 0.05 * (n - 1)) * (1 + CITY_HP * cityThreat());
 // Chance de acerto de guardas e torres: melhora com treinamento, pesquisa, talentos e o herói Atirador
-function accuracy(src) {
-  const base = src === 'tower' ? TOWER_ACC : GUARD_ACC;
-  const trained = 0.03 * perk('treino') + Endgame.accBonus() + 0.02 * Math.min(TRAIT_CAP, traitCounts().mira || 0);
-  return Math.min(ACC_MAX, base + trained);
+// base: precisão própria do tipo de torre (sem ela, a da torre média)
+function accuracy(src, base = src === 'tower' ? TOWER_ACC : GUARD_ACC) {
+  const trained = 0.03 * perk('treino') + Endgame.accBonus() + 0.02 * Math.min(TRAIT_CAP, traitCounts().mira || 0) + (src === 'guard' ? Champions.val('acc') : 0);
+  const tired = src === 'guard' ? FAT_ACC * (S.fatigue || 0) : 0;
+  return Math.max(0.05, Math.min(ACC_MAX, base + trained) - tired);
 }
+// Cansaço dos guardas: multiplicador de cadência, quanto cada tiro cansa e a velocidade de recuperação
+const guardFire = () => 1 - FAT_FIRE * (S.fatigue || 0);
+const fatigueShot = () => FAT_SHOT * (1 - 0.15 * Endgame.tl('turnos'));
+const restRate = () => (1 + 0.3 * (S.build.alojamento || 0)) * (1 + Champions.val('rest')) / FAT_TAU;
+const tire = shots => { if (S.jobs.guarda > 0) S.fatigue = Math.min(1, (S.fatigue || 0) + shots * fatigueShot() / S.jobs.guarda); };
 const dmgMult = n => D().dmg * (1 + 0.04 * (n - 1));
 // A horda inteira chega em ~30s: hordas maiores = mais zumbis por segundo
 const spawnGap = n => Math.min(1, Math.max(0.12, 30 / waveSize(n)));
@@ -124,7 +137,39 @@ function scaledCost(base, mult, lvl) {
   for (const r in base) c[r] = Math.ceil(base[r] * Math.pow(mult, lvl));
   return c;
 }
-const buildBlocked = k => k === 'torre' && hasMod('semtorres');
+const isTower = k => k in TOWERS;
+const buildBlocked = k => isTower(k) && hasMod('semtorres');
+// Torres curta e longa só aparecem depois de algumas ondas (quem já construiu mantém)
+const buildLocked = k => !!BUILD[k].unlock && !S.build[k] && S.wave < BUILD[k].unlock;
+const towerLevels = () => Object.keys(TOWERS).reduce((a, k) => a + (S.build[k] || 0), 0);
+// Atributos de uma torre no nível lv (atiradores, arma, dano por tiro, segundos entre tiros, precisão)
+function towerStat(k, lv = S.build[k]) {
+  const T = TOWERS[k], up = Math.max(0, lv - 1), tier = Math.min(T.guns.length - 1, Math.floor(lv / TOWER_GUN_EVERY));
+  return {
+    crew: lv > 0 ? 1 + Math.floor(lv / TOWER_CREW_EVERY) : 0,
+    gun: T.guns[tier],
+    dmg: T.dmg * (1 + TOWER_LVL_DMG * up) * Math.pow(TOWER_GUN_MULT, tier),
+    cd: T.cd * Math.max(T.cdMin || TOWER_CD_MIN, Math.pow(TOWER_LVL_CD, up)),
+    acc: accuracy('tower', T.acc),
+  };
+}
+// Manutenção cobrada a cada horda (fração do custo do próximo nível)
+function towerUpkeep(k) {
+  const c = buildCost(k), u = TOWERS[k].upkeep, out = {};
+  for (const r in u) out[r] = Math.ceil((c[r] || 0) * u[r]);
+  return out;
+}
+const upkeepTotal = () => {
+  const t = {};
+  for (const k in TOWERS) if (S.build[k]) for (const [r, v] of Object.entries(towerUpkeep(k))) t[r] = (t[r] || 0) + v;
+  return t;
+};
+// Torre sem manutenção paga nesta horda atira mais devagar
+const towerPay = k => S.horde.active && (S.horde.unpaid || []).includes(k) ? TOWER_UNPAID : 1;
+function towerFx(k, lv) {
+  const t = towerStat(k, lv), next = (Math.floor(lv / TOWER_CREW_EVERY) + 1) * TOWER_CREW_EVERY;
+  return `${t.crew} atirador(es) com ${t.gun} · dano ${pts(t.dmg)} · ${t.cd >= 1 ? `1 tiro a cada ${fmt(t.cd)}s` : `${fmt(1 / t.cd)} tiros/s`} cada · ${Math.round(t.acc * 100)}% de acerto · +1 atirador no nv. ${next} · manutenção ${Object.entries(towerUpkeep(k)).map(([r, v]) => `${fmt(v)} ${RES[r].icon}`).join(' + ')} por horda`;
+}
 const buildCost = k => { const c = scaledCost(BUILD[k].cost, BUILD[k].mult, S.build[k]), f = 1 - Endgame.ab('build'); for (const r in c) c[r] = Math.ceil(c[r] * f); return c; };
 const perkCost = k => Math.ceil(PERKS[k].cost * Math.pow(PERKS[k].mult, perk(k)));
 const canAfford = c => Object.entries(c).every(([r, v]) => S.res[r] >= v);

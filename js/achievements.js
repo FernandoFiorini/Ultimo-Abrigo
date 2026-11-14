@@ -7,11 +7,11 @@ function newStats() {
 let achT = 0;
 const stat = k => S.meta.stats[k];
 
-function countKill(type) {
+function countKill(type, k = 1) {
   const st = S.meta.stats;
-  st.kills++;
-  if (ZTYPES[type].boss) { st.bosses++; if (!st.bk) st.bk = {}; st.bk[type] = (st.bk[type] || 0) + 1; }
-  if (type === 'explosivo') st.bloaters++;
+  st.kills += k;
+  if (ZTYPES[type].boss) { st.bosses += k; if (!st.bk) st.bk = {}; st.bk[type] = (st.bk[type] || 0) + k; }
+  if (type === 'explosivo') st.bloaters += k;
 }
 
 // val: valor atual · goal: meta · cash: recompensa

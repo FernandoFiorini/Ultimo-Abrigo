@@ -35,6 +35,7 @@
         <canvas id="scene"></canvas>
         <div id="weapon-bar" class="weapon-bar hidden"></div>
         <div id="weapon-flash" class="weapon-flash hidden" aria-live="polite"></div>
+        <div id="box-float" class="box-float hidden"></div>
         <button id="pause-badge" class="pause-badge hidden" title="Clique ou aperte Espaço para continuar">⏸
           PAUSADO</button>
       </div>
@@ -66,7 +67,7 @@
         <button class="tab" data-tab="pesquisa">🧪 Pesquisa <span class="hk">(4)</span><span class="badge" id="tb-pesquisa"></span></button>
         <button class="tab" data-tab="mapa">🗺️ Mapa <span class="hk">(5)</span><span class="badge" id="tb-mapa"></span></button>
         <button class="tab" data-tab="armas">🔫 Armas <span class="hk">(6)</span><span class="badge" id="tb-armas"></span></button>
-        <button class="tab" data-tab="herois">🦸 Heróis <span class="hk">(7)</span><span class="badge" id="tb-herois"></span></button>
+        <button class="tab" data-tab="herois">🪖 Exército <span class="hk">(7)</span><span class="badge" id="tb-herois"></span></button>
         <button class="tab" data-tab="evacuacao">🚁 Evacuar <span class="hk">(8)</span><span class="badge" id="tb-evacuacao"></span></button>
         <button class="tab" data-tab="conquistas">🏆 Conquistas <span class="hk">(9)</span><span class="badge" id="tb-conquistas"></span></button>
         <button class="tab" data-tab="loja">💵 Loja <span class="hk">(0)</span><span class="badge" id="tb-loja"></span></button>
@@ -123,18 +124,32 @@
         </section>
 
         <section class="pane" data-pane="herois">
-          <div class="ach-head"><span id="hero-count"></span></div>
-          <p class="hint">Heróis são permanentes (ficam mesmo após evacuar). Até 3 ficam ativos, dão o bônus da classe e
-            ganham experiência a cada onda. Cada um tem uma <b>habilidade única</b>, que vale enquanto ele estiver ativo.
-            Armas multiplicam o bônus da classe.</p>
-          <div id="heroes"></div>
-          <h3>🗡️ Arsenal</h3>
-          <div id="weapons"></div>
+          <nav class="subtabs" id="army-tabs">
+            <button class="subtab" data-sub="campo" title="Herói de campo: o que luta no telhado, ao lado do líder">⭐ Herói<span class="badge" id="sb-campo"></span></button>
+            <button class="subtab" data-sub="apoio" title="Equipe de apoio: bônus passivos">🦸 De apoio<span class="badge" id="sb-apoio"></span></button>
+            <button class="subtab" data-sub="arsenal" title="Armas da equipe de apoio">🗡️ Arsenal<span class="badge" id="sb-arsenal"></span></button>
+          </nav>
+          <div class="subpane" data-subpane="campo">
+            <div id="champ"></div>
+          </div>
+          <div class="subpane" data-subpane="apoio">
+            <p class="hint sub-intro">Dão <b>bônus passivos</b> ao abrigo. São permanentes (ficam mesmo após evacuar). Até
+              <b>3 ficam ativos</b>: eles dão o bônus da classe, ganham experiência a cada onda e usam a <b>habilidade única</b>.
+              Armas do Arsenal multiplicam o bônus da classe.</p>
+            <div class="ach-head"><span id="hero-count"></span></div>
+            <div id="hero-slots" class="hero-slots"></div>
+            <div id="heroes"></div>
+          </div>
+          <div class="subpane" data-subpane="arsenal">
+            <p class="hint sub-intro">Armas para a <b>equipe de apoio</b>: cada uma multiplica o bônus da classe do herói que a usa
+              (equipe na aba Equipe de apoio). Armas repetidas ou fracas podem ser desmontadas em 🔬 pesquisa.</p>
+            <div id="weapons"></div>
+          </div>
         </section>
 
         <section class="pane" data-pane="evacuacao">
           <p class="hint">Ao sobreviver à onda 10, um helicóptero pode levar o grupo para outra cidade. Você recomeça do
-            zero, mas ganha <b>✨ Esperança</b>: cada ponto dá +3% de produção para sempre e pode ser gasto em melhorias
+            zero, mas ganha <b>✨ Esperança</b>: cada ponto dá +3% de produção para sempre (depois de 30 pontos, o ganho por ponto vai diminuindo) e pode ser gasto em melhorias
             permanentes.</p>
           <div id="prestige"></div>
           <div class="actions"><button id="btn-evac" class="primary" data-act="evacuate"></button></div>
@@ -157,11 +172,20 @@
         </section>
 
         <section class="pane" data-pane="loja">
-          <div class="cash-big">💵 <span id="shop-cash"></span> <small>cash</small></div>
-          <p class="hint">O cash é raro e nunca se perde, nem ao evacuar. Só há duas formas de ganhar: completando <b>🏆
-              conquistas</b> ou derrotando a <b>👹 Abominação</b> (+5), o zumbi mais forte, que aparece na horda a cada
-            10 ondas.</p>
-          <div id="shop"></div>
+          <nav class="subtabs" id="shop-tabs">
+            <button class="subtab" data-sub="cash">💵 Cash<span class="badge" id="sb-cash"></span></button>
+            <button class="subtab" data-sub="skins">🏷️ Skins<span class="badge" id="sb-skins"></span></button>
+          </nav>
+          <div class="subpane" data-subpane="cash">
+            <div class="cash-big">💵 <span id="shop-cash"></span> <small>cash</small></div>
+            <p class="hint">O cash é raro e nunca se perde, nem ao evacuar. Só há duas formas de ganhar: completando <b>🏆
+                conquistas</b> ou derrotando a <b>👹 Abominação</b> (+5), o zumbi mais forte, que aparece nas ondas de
+              chefe.</p>
+            <div id="shop"></div>
+          </div>
+          <div class="subpane" data-subpane="skins">
+            <div id="skins-shop"></div>
+          </div>
         </section>
       </div>
 
@@ -216,6 +240,7 @@
   <script src="js/ui.js?v=1.07.000"></script>
   <script src="js/endgame.js?v=1.07.000"></script>
   <script src="js/weapons.js?v=1.07.000"></script>
+  <script src="js/champions.js?v=1.07.000"></script>
   <script src="js/events.js?v=1.07.000"></script>
   <script src="js/invasion.js?v=1.07.000"></script>
   <script src="js/bosses.js?v=1.07.000"></script>

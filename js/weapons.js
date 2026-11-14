@@ -115,6 +115,22 @@ const Weapons = (() => {
     sl[i] = k;
   }
 
+  // Debug: arma no nível máximo, no espaço atual, com pente e munição especial cheios
+  function dbgGive(k) {
+    M().owned[k] = LW_MAX_LVL;
+    const sl = M().slots, prev = sl.indexOf(k), i = M().cur;
+    if (prev >= 0 && prev !== i) sl[prev] = sl[i];
+    sl[i] = k;
+    mags()[k] = stat(k).mag;
+    const sp = LWEAPONS[k].special;
+    if (sp) setSpec(sp, SPECIAL_AMMO[sp].max);
+    if (S.reload) S.reload = null;
+    emit('weaponSwap', { k });
+  }
+  function dbgMaxAll() {
+    for (const k in LWEAPONS) { M().owned[k] = LW_MAX_LVL; mags()[k] = stat(k).mag; const sp = LWEAPONS[k].special; if (sp) setSpec(sp, SPECIAL_AMMO[sp].max); }
+  }
+
   function select(i) {
     if (!M().slots[i] || !owned(M().slots[i])) return;
     if (M().cur === i) { if (S.horde.active) flash(); return; }
@@ -216,7 +232,8 @@ const Weapons = (() => {
     return best;
   }
 
-  const baseDmg = k => stat(k).dmg * (1 + 0.2 * perk('mira')) * (furia() ? 2 : 1) * Endgame.mult('dmg') * (1 + Endgame.ab('leader'));
+  const dbg = f => typeof Debug !== 'undefined' && Debug.flags[f];
+  const baseDmg = k => dbg('maxDmg') ? 1e9 : stat(k).dmg * (1 + 0.2 * perk('mira')) * (furia() ? 2 : 1) * Endgame.mult('dmg') * (1 + Endgame.ab('leader'));
 
   function fire(x, y) {
     if (!S.horde.active || paused || S.clickCd > 0) return false;
@@ -224,7 +241,7 @@ const Weapons = (() => {
     if (S.reload) return false;
     if (ammoOf(k) < 1) { S.clickCd = 0.2; startReload(); return false; }
     if (x > far + 4) { S.clickCd = 0.15; emit('outOfRange', { x, y }); return false; }
-    mags()[k] = ammoOf(k) - 1;
+    if (!dbg('infAmmo')) mags()[k] = ammoOf(k) - 1;
     S.clickCd = st.cd;
     const dmg = baseDmg(k);
     let hits = 0;
@@ -276,7 +293,7 @@ const Weapons = (() => {
       const d = Math.hypot(z.x - p.x, ((z.y - 8) - p.y) * 1.4);
       if (d > p.r) continue;
       if (p.rocket) {
-        if (ZTYPES[z.type].boss) damageZombie(z, z.maxHp * 0.4, 'player', { blast: true, rocket: true });
+        if (ZTYPES[z.type].boss) damageZombie(z, z.maxHp * (dbg('maxDmg') ? 1 : 0.4), 'player', { blast: true, rocket: true });
         else killZombie(z, 'player');
       } else {
         Endgame.hit(z, p.dmg * (1 - 0.5 * d / p.r), 'player', { blast: true });
@@ -388,5 +405,5 @@ const Weapons = (() => {
   const isAuto = () => !!LWEAPONS[current()].auto;
   const tabBadge = () => Object.keys(LWEAPONS).filter(k => unlocked(k) && lvl(k) < LW_MAX_LVL && canAfford(cost(k))).length;
 
-  return { fire, hordeTick, refill, onKill, select, cycle, current, isAuto, ammoOf, stat, reach, startReload, shotsToKill, gainSpecial, bossLoot, expLoot, spec, howToGet, buildUI, render, tabBadge, projectiles, MUZZLE };
+  return { dbgGive, dbgMaxAll, fire, hordeTick, refill, onKill, select, cycle, current, isAuto, ammoOf, stat, reach, startReload, shotsToKill, gainSpecial, bossLoot, expLoot, spec, howToGet, buildUI, render, tabBadge, projectiles, MUZZLE };
 })();

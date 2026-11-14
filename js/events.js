@@ -167,7 +167,7 @@ const Events = (() => {
     },
   ];
 
-  const fightChance = () => Math.min(0.9, 0.25 + 0.07 * S.jobs.guarda + 0.05 * S.build.torre);
+  const fightChance = () => Math.min(0.9, 0.25 + 0.07 * S.jobs.guarda + 0.05 * towerLevels());
 
   function airdrop(n, risk, mult) {
     let dead = 0;
@@ -179,33 +179,63 @@ const Events = (() => {
   }
 
   // ---------- dilemas ----------
+  // O jogo pausa enquanto o dilema está aberto. Se ninguém escolher em DILEMMA_TIME segundos (jogador ausente),
+  // o grupo decide sozinho: uma das opções possíveis, sorteada (e arca com as consequências). O resultado
+  // fecha sozinho depois de DILEMMA_CLOSE segundos, para o jogo não ficar parado.
+  const DILEMMA_TIME = 20, DILEMMA_CLOSE = 10;
+  const clock = s => `0:${String(Math.max(0, Math.ceil(s))).padStart(2, '0')}`;
   function openDilemma(D) {
     const data = D.setup ? D.setup() : {};
     const val = (v, ...a) => (typeof v === 'function' ? v(...a) : v);
-    let result = null;
+    let result = null, auto = null, closeAt = 0;
+    const deadline = Date.now() + DILEMMA_TIME * 1000;
+    const left = () => (deadline - Date.now()) / 1000;
     const dlg = openDialog({
       title: `${D.icon} ${D.title}`,
       body: () => result
-        ? `<p class="event-result ${result[1]}">${result[0]}</p>`
-        : `<p class="event-text">${val(D.text, data)}</p>
+        ? `${auto ? `<p class="event-auto">⏱️ O tempo acabou e o grupo decidiu sozinho: <b>${auto}</b>.</p>` : ''}<p class="event-result ${result[1]}">${result[0]}</p>`
+        : `<div class="event-timer" title="Se ninguém decidir, o grupo escolhe sozinho"><div class="et-bar"><div id="et-fill"></div></div><span id="et-txt">⏱️ ${clock(DILEMMA_TIME)}</span></div>
+           <p class="event-text">${val(D.text, data)}</p>
            <div class="event-opts">${D.opts.map((o, i) => {
              const ok = !o.ok || o.ok(data);
              return `<button class="event-opt" data-opt="${i}" data-hotkey="${(i + 1) % 10}" ${ok ? '' : 'disabled'}>
                <span class="eo-label">${hk((i + 1) % 10)} ${val(o.label, data)}</span>
                <span class="eo-hint">${val(o.hint, data) || ''}</span></button>`;
            }).join('')}</div>`,
-      buttons: [{ label: 'Continuar', cls: 'primary', hidden: () => !result }],
-      onOpt: i => {
-        if (result) return;
-        const o = D.opts[+i];
-        if (o.ok && !o.ok(data)) return;
-        const st = S;
-        result = o.run(data) || ['', ''];
-        if (S !== st) { dlg.close(true); return; }
-        addLog(`${D.icon} ${D.title}: ${result[0]}`, result[1]);
-        emit('dilemma', { good: result[1] === 'good', bad: result[1] === 'bad' });
-      },
+      buttons: [{ label: () => (auto ? `Continuar (${Math.max(0, Math.ceil((closeAt - Date.now()) / 1000))})` : 'Continuar'), cls: 'primary', hidden: () => !result }],
+      onOpt: i => choose(+i),
     });
+    function choose(i) {
+      if (result) return;
+      const o = D.opts[i];
+      if (!o || (o.ok && !o.ok(data))) return;
+      const st = S;
+      result = o.run(data) || ['', ''];
+      if (S !== st) { dlg.close(true); return; }
+      addLog(`${D.icon} ${D.title}${auto ? ' (sem resposta, o grupo decidiu)' : ''}: ${result[0]}`, result[1]);
+      emit('dilemma', { good: result[1] === 'good', bad: result[1] === 'bad' });
+    }
+    const tick = setInterval(() => {
+      if (!dlg.open) { clearInterval(tick); return; }
+      if (!result) {
+        const s = left(), fill = document.getElementById('et-fill'), txt = document.getElementById('et-txt');
+        if (fill) { fill.style.width = `${Math.max(0, s / DILEMMA_TIME) * 100}%`; fill.parentNode.parentNode.classList.toggle('urgent', s <= 5); }
+        if (txt) txt.textContent = `⏱️ ${clock(s)}`;
+        if (s > 0) return;
+        // tempo esgotado: o grupo escolhe uma das opções possíveis
+        const can = D.opts.map((o, i) => i).filter(i => !D.opts[i].ok || D.opts[i].ok(data));
+        const i = can[Math.floor(Math.random() * can.length)];
+        auto = val(D.opts[i].label, data);
+        closeAt = Date.now() + DILEMMA_CLOSE * 1000;
+        choose(i);
+        if (dlg.open) { dlg.refresh(true); render(); }
+        return;
+      }
+      if (auto) {
+        if (Date.now() >= closeAt) { dlg.close(); clearInterval(tick); }
+        else dlg.refresh(false);
+      }
+    }, 200);
   }
 
   function triggerDilemma() {

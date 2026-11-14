@@ -89,15 +89,30 @@ js/
   save.js           salvar, carregar, migrar saves antigos, exportar e importar
   ui.js             painéis, abas, notificações e seletor de dificuldade
   weapons.js        armas do líder: mira, tiros, explosões, fogo, munição e melhorias
+  champions.js      heróis de campo: ataque no telhado, XP, árvore de habilidades, ativa (A) e suprema (S)
   endgame.js        pesquisa, a Cura, noites especiais, distritos, heróis e desafios semanais
   events.js         dilemas com escolha e comerciante ambulante
   tutorial.js       dicas do primeiro jogo e atalhos de teclado
   scene.js          renderização em pixel art no Canvas, com três estilos visuais
   audio.js          música generativa em três estilos e efeitos sonoros sintetizados
   main.js           inicialização e laço principal
+tools/
+  bot.js            jogador automatizado para testar o equilíbrio (roda no Node, só quando chamado)
 ```
 
 Os scripts são carregados em ordem pelo `index.html`, sem etapa de build.
+
+## Jogador automatizado (equilíbrio)
+
+`tools/bot.js` carrega o jogo de verdade no Node, sem navegador, e joga sozinho **ao vivo** (zumbi por zumbi): repara o muro, recruta, distribui funções e constrói (defesa primeiro quando ela está apertada). No fim, mostra para cada dificuldade a melhor onda, as quedas do abrigo, as mortes, as construções, a razão defesa ÷ ameaça, o cansaço dos guardas e a evolução a cada 10 minutos. Uma hora de jogo leva menos de um segundo.
+
+```bash
+node tools/bot.js                          # 60 min em cada dificuldade
+node tools/bot.js --min 120 --dif normal   # 2h só no Normal
+node tools/bot.js --cidade 5 --clicar      # cidade 5 (zumbis mais fortes), vasculhando 1x/s
+```
+
+Ele não usa as armas do líder, não faz expedições, pesquisa nem evacua: mede a defesa de um jogador passivo, sem prestígio.
 
 ## Rodando localmente
 

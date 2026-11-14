@@ -7,8 +7,19 @@ const Demos = (() => {
   let el = null, cur = null, raf = 0, t0 = 0;
 
   // título, ícone e texto de cada prévia
+  // ataque básico de cada herói de campo, pelo efeito
+  const BASIC = { bolt: 'Raio que salta para os zumbis próximos.', laser: 'Laser certeiro no zumbi mais próximo.', knife: 'Facas de circo arremessadas sem parar.',
+    rock: 'Pedradas no zumbi mais próximo.', ray: 'Raio de outro mundo no zumbi mais próximo.', pick: 'Palhetas de guitarra disparadas em sequência.' };
+
   function info(key) {
-    const [kind, k] = key.split(':');
+    const [kind, k, slot] = key.split(':');
+    if (kind === 'ch' && CHAMPS[k]) {
+      const T = CHAMPS[k], h = S.meta.champ && S.meta.champ.owned[k];
+      if (slot === 'basic') return { icon: T.icon, title: `${T.nome} · ataque básico`, text: BASIC[T.atk.fx] || T.desc, meta: `a cada ${T.atk.cd}s · dano cresce com o nível` };
+      const sk = T.skills[slot], r = Math.max(1, h ? h.r[slot] : 0);
+      return { icon: sk.icon, title: `${T.nome} · ${sk.nome}`, text: sk.fx(sk.v[r - 1]) + '.',
+        meta: slot === 'act' ? `ativa (A) · grau ${r} · recarga ${sk.cd[r - 1]}s` : `suprema (S) · grau ${r} · enche com os abates · a partir do nível ${CHAMP_SUP_LVL[0]}` };
+    }
     if (kind === 'lw' && LWEAPONS[k]) {
       const st = Weapons.stat(k);
       return { icon: LWEAPONS[k].icon, title: LWEAPONS[k].nome, text: LWEAPONS[k].desc,

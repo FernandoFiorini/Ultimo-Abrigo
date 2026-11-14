@@ -38,7 +38,7 @@ const actions = {
   jobSub(k) { if (S.jobs[k] > 0) { S.jobs[k]--; S.heldIdle = (S.heldIdle || 0) + 1; emit('unassign', { k }); } },
   build(k) {
     const c = buildCost(k);
-    if (buildBlocked(k) || !canAfford(c)) return;
+    if (buildBlocked(k) || buildLocked(k) || !canAfford(c)) return;
     pay(c);
     S.build[k]++;
     if (k === 'muro') { S.wallHp += Math.round(50 * (1 + 0.2 * perk('engenharia'))); S.wallDown = false; S.overflow = 0; }

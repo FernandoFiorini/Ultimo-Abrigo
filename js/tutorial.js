@@ -13,7 +13,7 @@ const Tutorial = (() => {
     { id: 'vasculhar', icon: '🔍', title: 'Mãos à obra', when: () => seen('equipe'),
       text: 'Use o botão <b>Vasculhar</b> para juntar comida e sucata por conta própria. Atalho: <b>(V)</b>.' },
     { id: 'construir', icon: '🏗️', title: 'Construa', tab: 'construir', when: () => S.res.sucata >= 25,
-      text: 'Barracas ⛺ abrigam mais gente, o muro 🧱 aguenta mais pancada e torres 🗼 atiram sem gastar munição.' },
+      text: 'Barracas ⛺ abrigam mais gente, o muro 🧱 aguenta mais pancada e torres 🗼 atiram sozinhas, pedindo só um pouco de manutenção a cada horda.' },
     { id: 'comida', icon: '🥫', title: 'Comida no vermelho', tab: 'equipe', when: () => rates().comida < 0 && S.res.comida < 40,
       text: 'O grupo está comendo mais do que produz. O painel mostra quanto tempo a comida ainda dura: coloque mais forrageiros antes que acabe.' },
     { id: 'muro', icon: '🧱', title: 'Muro danificado', when: () => !S.horde.active && S.wallHp < maxWall() * 0.6,
@@ -71,7 +71,8 @@ const Tutorial = (() => {
 
   // chamado junto com o render (~7x por segundo)
   function update(dt) {
-    if (T().off) { if (cur) dismiss(); return; }
+    // dicas desligadas: no tutorial ("Pular tutorial", só neste save) ou nas Configurações (todos os saves)
+    if (T().off || !Settings.get('tips')) { if (cur) { cur = null; $('tip').classList.add('hidden'); } return; }
     if (cur || awaitingChoice || modalOpen) return;
     wait -= dt;
     if (wait > 0) return;
@@ -89,6 +90,8 @@ const Tutorial = (() => {
 const SHORTCUTS = [
   ['1 – 9 e 0', 'Trocar de aba (nas janelas, escolher a opção com o mesmo número)'],
   ['Q W E', 'Trocar de arma durante a horda (ou a roda do mouse)'],
+  ['A', 'Habilidade ativa do herói de campo (durante a horda)'],
+  ['S', 'Suprema do herói de campo (quando a barra estiver cheia)'],
   ['Clique', 'Atirar durante a horda (segure para as armas automáticas)'],
   ['Espaço', 'Pausar / continuar'],
   ['V', 'Vasculhar'],
@@ -111,10 +114,54 @@ function showShortcuts() {
   });
 }
 
+// ---------- pausa ----------
+// A pausa é só para interromper a partida por um instante: pausado, não dá para mexer nos sobreviventes
+// (funções, recrutar, expedições, ataques a distritos). Nas dificuldades mais altas ela tem limite e espera.
+const PAUSE_RULES = { pesadelo: { max: 30, cd: 120 }, apocalipse: { max: 30, cd: 120 } };   // segundos (tempo real)
+const PAUSE_LOCKED = ['jobAdd', 'jobSub', 'recruit', 'expGo', 'opGo'];
+let pauseEnd = 0, pauseReady = 0;
+const pauseRule = () => (typeof S !== 'undefined' && S ? PAUSE_RULES[S.diff] : null);
+const clockS = s => `${Math.floor(s / 60)}:${String(Math.ceil(s % 60) === 60 ? 0 : Math.ceil(s % 60)).padStart(2, '0')}`;
+
 function togglePause(force) {
-  paused = force ?? !paused;
-  addLog(paused ? '⏸ Jogo pausado.' : '▶ Jogo retomado.');
+  const want = force ?? !paused, rule = pauseRule(), now = Date.now();
+  if (want === paused) return;
+  if (want && rule && now < pauseReady) {
+    addLog(`⏸ A pausa volta em ${clockS((pauseReady - now) / 1000)} (no ${DIFFS[S.diff].nome}, a pausa tem limite).`, 'warn');
+    render();
+    return;
+  }
+  paused = want;
+  if (rule) {
+    if (paused) pauseEnd = now + rule.max * 1000;
+    else { pauseReady = now + rule.cd * 1000; pauseEnd = 0; }
+  }
+  addLog(paused ? `⏸ Jogo pausado.${rule ? ` Volta sozinho em ${rule.max}s.` : ''}` : '▶ Jogo retomado.');
   render();
+}
+
+// chamado no render: fim do tempo de pausa e texto do aviso
+function pauseTick() {
+  const rule = pauseRule(), badge = $('pause-badge');
+  if (paused && rule && pauseEnd && Date.now() >= pauseEnd) { togglePause(false); return; }
+  if (!badge || !paused) return;
+  const txt = `⏸ PAUSADO${rule && pauseEnd ? ` ${clockS(Math.max(0, (pauseEnd - Date.now()) / 1000))}` : ''}`;
+  const head = badge.querySelector('.pb-head');
+  if (head) { if (head.textContent !== txt) head.textContent = txt; }
+  else badge.innerHTML = `<span class="pb-head">${txt}</span><small class="pb-sub">Pausado não dá para mexer nos sobreviventes</small>`;
+}
+
+// pausado: as ações que mexem nos sobreviventes não funcionam (o aviso de pausa treme)
+function lockWhilePaused() {
+  for (const n of PAUSE_LOCKED) {
+    const f = actions[n];
+    if (!f || f.locked) continue;
+    actions[n] = Object.assign((...a) => {
+      if (!paused) return f(...a);
+      const b = $('pause-badge');
+      if (b) { b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); }
+    }, { locked: true });
+  }
 }
 
 let lastNope = 0;   // evita repetir o aviso de botão indisponível
@@ -165,6 +212,8 @@ function setupKeys() {
       case 'g': click('btn-recruit', recruitWhy); break;
       case 'q': case 'w': case 'e': Weapons.select('qwe'.indexOf(k)); render(); break;
       case 'c': click('btn-repair'); break;
+      case 'a': if (!e.repeat && Champions.useActive()) render(); break;
+      case 's': if (!e.repeat && Champions.useSupreme()) render(); break;
       case 'f': Settings.set('speed2x', !Settings.get('speed2x')); render(); break;
       case 'o': if (S.merchant) Events.openMerchant(); break;
       case 'm': {

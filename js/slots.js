@@ -87,7 +87,8 @@ const Slots = (() => {
 // Perfil: vitórias, skins liberadas e a skin do líder. Vale para todos os saves deste navegador.
 const Profile = (() => {
   const KEY = 'ultimoAbrigo.profile';
-  const DEF = () => ({ winners: [], skins: ['padrao'], skin: 'padrao',
+  // body: corpo do líder em todas as skins ('m' masculino · 'f' feminino: cabelo comprido, sem barba)
+  const DEF = () => ({ winners: [], skins: ['padrao'], skin: 'padrao', body: 'm',
     custom: { shirt: '#3c3e48', pants: '#282832', hair: '#1e1914', cape: '#a02828', crown: false }, trophy: -1 });
   let p = Object.assign(DEF(), Store.get(KEY, {}));
   p.custom = Object.assign(DEF().custom, p.custom);
@@ -99,6 +100,9 @@ const Profile = (() => {
     unlocked: k => p.skins.includes(k),
     setSkin(k) { if (LEADER_SKINS[k] && p.skins.includes(k)) { p.skin = k; persist(); } },
     setCustom(k, v) { p.custom[k] = v; persist(); },
+    setBody(b) { p.body = b === 'f' ? 'f' : 'm'; persist(); },
+    // aplica o corpo escolhido a um visual de skin
+    body: look => (p.body === 'f' ? { ...look, longHair: true, bald: false, beard: null, mustache: null } : look),
     // Registra uma vitória e devolve as skins liberadas agora
     win(entry) {
       p.winners.unshift(entry);
@@ -116,9 +120,9 @@ const Profile = (() => {
     look() {
       if (p.skin === 'custom' && p.skins.includes('custom')) {
         const c = p.custom;
-        return { shirt: rgb(c.shirt), pants: rgb(c.pants), hair: rgb(c.hair), cape: rgb(c.cape), crown: !!c.crown };
+        return this.body({ shirt: rgb(c.shirt), pants: rgb(c.pants), hair: rgb(c.hair), cape: rgb(c.cape), crown: !!c.crown });
       }
-      return LEADER_SKINS[p.skins.includes(p.skin) ? p.skin : 'padrao'];
+      return this.body(LEADER_SKINS[p.skins.includes(p.skin) ? p.skin : 'padrao']);
     },
     // Nomes que aparecem como NPCs no abrigo: vencedores deste navegador + Hall da Fama do site
     hall() {

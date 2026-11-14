@@ -8,7 +8,7 @@ const Scene = (() => {
   const LEADER = { x: 52, y: 99 };
 
   let cv, ctx, scale = 1, time = 0, night = 0;
-  let shake = 0, redFlash = 0, wallJolt = 0, leaderMuzzle = 0;
+  let shake = 0, redFlash = 0, wallJolt = 0, leaderMuzzle = 0, champMuzzle = 0;
   const towerMuzzle = [0, 0, 0];
   const parts = [], decals = [], tracers = [], texts = [], corpses = [], people = [], lights = [];
   const travelers = [], flashes = [], planes = [], toasts = [];
@@ -395,12 +395,21 @@ const Scene = (() => {
     p.apron = !!jl.apron; p.helmet = !!jl.helmet; p.cross = !!jl.cross; p.bandage = !!jl.bandage;
     p.st = 'init'; p.hidden = false; p.carry = false;
   }
+  // mulheres no cenário na mesma proporção do grupo (pelos nomes): cabelo comprido ou coque; homens com cabelo curto,
+  // às vezes barba, bigode ou careca
+  const femShare = () => {
+    const ps = (typeof S !== 'undefined' && S.people) || [];
+    return ps.length ? ps.filter(isFemale).length / ps.length : 0.5;
+  };
   function newPerson(job) {
+    const fem = Math.random() < femShare(), hair = pick(HAIRS);
     const p = {
       id: pid++, x: 33, y: 158, tx: 33, ty: 158, timer: 0, phase: Math.random() * 6, face: 1,
-      speed: rand(16, 22), skin: pick(SKINS), hair: pick(HAIRS), muzzle: 0, pose: 'stand',
-      ownShirt: pick([[120, 60, 60], [60, 80, 120], [130, 120, 80], [90, 90, 90]]),
+      speed: rand(16, 22), skin: pick(SKINS), hair, muzzle: 0, pose: 'stand', fem,
+      ownShirt: pick(fem ? [[150, 70, 110], [70, 110, 130], [130, 120, 80], [110, 80, 140], [160, 90, 60]] : [[120, 60, 60], [60, 80, 120], [130, 120, 80], [90, 90, 90]]),
     };
+    if (fem) { const r = Math.random(); if (r < 0.7) p.longHair = true; else p.bun = true; }
+    else { const r = Math.random(); if (r < 0.2) p.beard = hair; else if (r < 0.35) p.mustache = hair; if (Math.random() < 0.12) p.bald = true; }
     dress(p, job);
     return p;
   }
@@ -690,10 +699,12 @@ const Scene = (() => {
           const p = g.length ? g[d.idx % g.length] : null;
           if (p) { ox = p.x + 9; oy = p.y - 11; if (d.src === 'guard') p.muzzle = 0.08; }
         } else if (d.src === 'tower') {
-          const k = d.idx % Math.min(3, Math.max(1, S.build.torre));
+          const k = d.tw ?? 1;
           ox = towerX(k) + 14; oy = TOWER_TOP - 11; towerMuzzle[k] = 0.08;
         } else if (d.src === 'player') {
           ({ x: ox, y: oy } = gunTip()); leaderMuzzle = 0.08;
+        } else if (d.src === 'hero') {
+          ox = CHAMP_POS.x + 8; oy = CHAMP_POS.y - 11; champMuzzle = 0.08;
         }
         if (ox == null) break;
         if (d.src === 'rock') {
@@ -709,13 +720,17 @@ const Scene = (() => {
             tx = d.x + rand(8, 22); ty = Math.min(H - 6, d.y + rand(12, 24));
             for (let i = 0; i < 4; i++) parts.push({ x: tx, y: ty, vx: rand(-14, 14), vy: rand(-26, -8), g: 80, life: 0.45, max: 0.45, c: [150, 135, 110], s: 1 });
           }
-          tracers.push({ x1: ox, y1: oy, x2: tx, y2: ty, life: 0.07, c: hot ? '255,110,50' : d.src === 'player' ? '255,250,200' : '255,220,120' });
+          tracers.push({ x1: ox, y1: oy, x2: tx, y2: ty, life: 0.07, c: hot ? '255,110,50' : d.c || (d.src === 'player' ? '255,250,200' : '255,220,120') });
         }
         break;
       }
       case 'hit':
         hitAt.set(d.id, time);
         blood(d.x, d.y, 5);
+        break;
+      // número de dano no boneco do campo de treino (debug)
+      case 'dmgNum':
+        texts.push({ x: d.x + rand(-7, 7), y: d.y + rand(-3, 3), t: d.t, c: d.c, life: d.big ? 1.1 : 0.8, big: d.big });
         break;
       case 'spit': {
         const tx = WALL_X + 9, ty = d.ty - 14;
@@ -801,6 +816,63 @@ const Scene = (() => {
         break;
       case 'shock':
         for (let i = 0; i < 4; i++) parts.push({ x: d.x - 4, y: d.y + rand(-6, 6), vx: rand(-20, 20), vy: rand(-20, 20), life: 0.2, max: 0.2, c: '#a0e0ff', s: 1, glow: '120,200,255' });
+        break;
+      // ---- heróis de campo
+      case 'hbolt': {
+        // raio: segmentos tortos entre os pontos da cadeia
+        for (let i = 0; i < d.pts.length - 1; i++) {
+          const a = d.pts[i], b = d.pts[i + 1];
+          let px = a.x, py = a.y;
+          for (let s = 1; s <= 4; s++) {
+            const nx = a.x + (b.x - a.x) * s / 4 + (s < 4 ? rand(-5, 5) : 0), ny = a.y + (b.y - a.y) * s / 4 + (s < 4 ? rand(-5, 5) : 0);
+            tracers.push({ x1: px, y1: py, x2: nx, y2: ny, life: d.sky ? 0.3 : 0.16, c: d.c });
+            px = nx; py = ny;
+          }
+          flashes.push({ x: b.x, y: b.y, r: 14, c: d.c, a: 0.6, life: 0.2, max: 0.2 });
+        }
+        break;
+      }
+      case 'laser':
+        for (const dy of [-1, 0, 1]) tracers.push({ x1: d.x1, y1: d.y + dy, x2: d.x2, y2: d.y + dy, life: 0.25, c: d.c });
+        flashes.push({ x: d.x1, y: d.y, r: 18, c: d.c, a: 0.6, life: 0.25, max: 0.25 });
+        break;
+      case 'hypno':
+        flashes.push({ x: d.x, y: d.y, r: d.r, c: d.c, a: 0.45, life: 0.6, max: 0.6 });
+        texts.push({ x: d.x, y: d.y - 14, t: d.t || '💫', c: '#ffe8a0', life: 1.2 });
+        break;
+      case 'abduct':
+        for (let i = 0; i < 3; i++) tracers.push({ x1: d.x + i - 1, y1: 0, x2: d.x + i - 1, y2: d.y, life: 0.4, c: '120,255,140' });
+        flashes.push({ x: d.x, y: d.y, r: 16, c: '120,255,140', a: 0.6, life: 0.4, max: 0.4 });
+        for (let i = 0; i < 8; i++) parts.push({ x: d.x + rand(-4, 4), y: d.y, vx: rand(-6, 6), vy: rand(-90, -50), life: 0.6, max: 0.6, c: '#a0ffb0', s: 1, glow: '120,255,140' });
+        break;
+      case 'riff':
+        flashes.push({ x: d.x, y: 165, r: d.big ? 90 : 60, c: '255,140,60', a: 0.5, life: 0.5, max: 0.5 });
+        for (let i = 0; i < (d.big ? 10 : 5); i++) texts.push({ x: d.x + rand(-30, 40), y: rand(140, 180), t: pick(['♪', '♫', '🤘']), c: '#ffb070', life: 1 });
+        break;
+      case 'bear':
+        texts.push({ x: d.x, y: d.y - 18, t: '🐻', c: '#fff', life: 0.6 });
+        break;
+      case 'champSup':
+        banner = { t: `${d.icon} ${d.nome.toUpperCase()}!`, sub: '', c: `rgb(${d.c})`, life: 2.5, max: 2.5 };
+        flashes.push({ x: W / 2, y: H / 2, r: 400, c: d.c, a: 0.35, life: 0.5, max: 0.5 });
+        shake = Math.max(shake, 4);
+        break;
+      case 'champNew':
+        banner = { t: '🌟 NOVO HERÓI DE CAMPO', sub: `${CHAMPS[d.k].icon} ${CHAMPS[d.k].nome}`, c: '#ffe066', life: 4, max: 4 };
+        break;
+      case 'box':
+        // caixa de herói caindo onde o chefe morreu: brilho dourado, faíscas e o aviso
+        if (d.x != null) {
+          flashes.push({ x: d.x, y: d.y, r: 70, c: '255,216,74', a: 0.55, life: 0.6, max: 0.6 });
+          for (let i = 0; i < 26; i++) parts.push({ x: d.x, y: d.y, vx: rand(-60, 60), vy: rand(-90, -20), g: 140, life: rand(0.6, 1.1), max: 1.1, c: pick(['#ffd84a', '#fff4b0', '#ffffff']), s: pick([1, 2]), glow: '255,216,74' });
+          texts.push({ x: d.x, y: d.y - 24, t: '📦 CAIXA DE HERÓI!', c: '#ffd84a', life: 2.2 });
+        }
+        break;
+      case 'champLevel':
+        texts.push({ x: CHAMP_POS.x, y: CHAMP_POS.y - 28, t: `nível ${d.lvl}!`, c: '#ffe066', life: 1.6 });
+        break;
+      case 'champReady':
+        texts.push({ x: CHAMP_POS.x + 20, y: CHAMP_POS.y - 30, t: 'SUPREMA PRONTA (S)', c: '#ffe066', life: 1.8 });
         break;
       case 'district':
         banner = { t: '🏴 DISTRITO LIBERTADO', sub: Endgame.DISTRICTS[d.k].nome + ': ' + Endgame.DISTRICTS[d.k].bonus, c: '#6fe39a', life: 3.5, max: 3.5 };
@@ -1340,26 +1412,40 @@ const Scene = (() => {
       rect(fire ? '#ff9a30' : '#fff4b0', t.x, t.y - 1, 3, 3);
       light(t.x + 1, t.y, leaderGun() === 'bazuca' ? 22 : 12, fire ? '255,140,40' : '255,220,120', 0.7);
     }
+    // herói de campo no telhado, ao lado do líder, com a barra da suprema em cima
+    const ck = Champions.cur();
+    if (ck) {
+      const P = CHAMP_POS, c = S.meta.champ;
+      drawLook(P.x, P.y, Champions.look(ck), { pose: S.horde.active ? 'aim' : 'stand', face: 1, phase: 0 });
+      if (champMuzzle > 0) { rect('#fff4b0', P.x + 8, P.y - 12, 2, 2); light(P.x + 9, P.y - 11, 10, CHAMPS[ck].color, 0.7); }
+      if (Champions.rank('sup') >= 1) {
+        rect([30, 30, 30], P.x - 5, P.y - 25, 10, 2);
+        rect(c.charge >= 1 ? '#ffe066' : '#7fb0ff', P.x - 5, P.y - 25, Math.round(10 * Math.min(1, c.charge)), 2);
+        if (c.charge >= 1) light(P.x, P.y - 12, 14 + Math.sin(time * 6) * 3, '255,224,102', 0.5);
+      }
+    }
   }
 
+  // uma torre por tipo (curta colada ao muro, longa mais atrás), com farda de cor diferente
+  const TOWER_SHIRT = [[120, 70, 50], [88, 98, 62], [60, 70, 90]];
   function drawTowers() {
-    const n = Math.min(S.build.torre, 3);
-    for (let k = 0; k < n; k++) {
-      const x = towerX(k);
+    for (const key in TOWERS) {
+      if (!S.build[key]) continue;
+      const k = TOWERS[key].slot, x = towerX(k), crew = towerStat(key).crew;
       rect([96, 70, 44], x, TOWER_TOP, 2, 36); rect([96, 70, 44], x + 10, TOWER_TOP, 2, 36);
       for (let y = TOWER_TOP + 8; y < 158; y += 10) rect([80, 58, 36], x, y, 12, 1);
       rect([112, 82, 50], x - 2, TOWER_TOP, 16, 3);
       rect([96, 70, 44], x - 2, TOWER_TOP - 5, 1, 5); rect([96, 70, 44], x + 13, TOWER_TOP - 5, 1, 5);
       drawHuman(x + 5, TOWER_TOP, {
         pose: S.horde.active ? 'aim' : 'stand', face: 1, phase: 0, helmet: true,
-        skin: SKINS[k % 5], hair: [40, 30, 20], shirt: [88, 98, 62], pants: [70, 74, 52],
+        skin: SKINS[k % 5], hair: [40, 30, 20], shirt: TOWER_SHIRT[k], pants: [70, 74, 52],
       });
       rect([112, 82, 50], x - 2, TOWER_TOP - 2, 16, 1);
       if (towerMuzzle[k] > 0) { rect('#fff4b0', x + 14, TOWER_TOP - 12, 3, 3); light(x + 15, TOWER_TOP - 11, 12, '255,220,120', 0.7); }
-    }
-    if (S.build.torre > 3) {
-      ctx.fillStyle = '#e8e0c0'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(`x${S.build.torre}`, towerX(2) + 6, TOWER_TOP - 22);
+      if (crew > 1) {
+        ctx.fillStyle = '#e8e0c0'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(`x${crew}`, x + 6, TOWER_TOP - 22);
+      }
     }
   }
 
@@ -1434,6 +1520,11 @@ const Scene = (() => {
     L.flash = time - (hitAt.get(z.id) ?? -9) < 0.08;
     const lift = z.lift || 0, top = z.y - lift - 19 * s;
     if (BOSSX[z.type]) L.extra = (R, dy, o) => BOSSX[z.type](R, dy, o, z);
+    // boneco do campo de treino: preso num poste de madeira, com um alvo pintado
+    if (z.dummy) {
+      rect('#5a3c22', z.x - 1, z.y - 27 * s, 3, 27 * s);
+      rect('#6b4a2a', z.x - 7 * s, z.y - 21 * s, 14 * s, 2);
+    }
     if (t.boss) {
       // sombra no chão (mais nítida quando ele está no ar)
       ctx.fillStyle = `rgba(0,0,0,${lift > 1 ? 0.35 : 0.2})`;
@@ -1447,6 +1538,11 @@ const Scene = (() => {
       const by = top - 3;
       rect('#141414', z.x - 6, by, 12, 2);
       ctx.fillStyle = '#e05a4f'; ctx.fillRect(z.x - 6, by, 12 * Math.max(0, z.hp) / z.maxHp, 2);
+    }
+    if (z.dummy) {
+      ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#000'; ctx.fillText('🎯 BONECO', z.x + 0.5, top - 6.5);
+      ctx.fillStyle = '#ffe066'; ctx.fillText('🎯 BONECO', z.x, top - 7);
     }
     if (z.name) {
       ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'center';
@@ -1617,14 +1713,16 @@ const Scene = (() => {
   }
 
   // Miniatura de uma skin num canvas qualquer (menu e configurações)
-  function portrait(c, look) {
+  // bust: só cabeça e tronco, maior (retrato dos heróis de campo)
+  function portrait(c, look, bust) {
     const oc = ctx, on = night;
     ctx = c.getContext('2d'); night = 0;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, c.width, c.height);
-    const k = Math.max(1, Math.floor(c.height / 24));
-    ctx.setTransform(k, 0, 0, k, 0, 0);
-    drawLook(c.width / k / 2, 22, look, { pose: 'stand', face: 1, phase: 0 });
+    ctx.imageSmoothingEnabled = false;
+    const k = Math.max(1, Math.floor(c.height / (bust ? 15 : 24)));
+    ctx.setTransform(k, 0, 0, k, Math.round((c.width - Math.floor(c.width / k) * k) / 2), bust ? Math.round(c.height - 18 * k) : 0);
+    drawLook(Math.floor(c.width / k / 2), 22, look, { pose: 'stand', face: 1, phase: 0 });
     ctx = oc; night = on;
   }
 
@@ -1973,6 +2071,7 @@ const Scene = (() => {
     redFlash = Math.max(0, redFlash - dt);
     wallJolt = Math.max(0, wallJolt - dt);
     leaderMuzzle = Math.max(0, leaderMuzzle - dt);
+    champMuzzle = Math.max(0, champMuzzle - dt);
     leaderSwap = Math.max(0, leaderSwap - dt);
     for (let k = 0; k < 3; k++) towerMuzzle[k] = Math.max(0, towerMuzzle[k] - dt);
     if (banner && (banner.life -= dt) <= 0) banner = null;
@@ -2122,26 +2221,87 @@ const Scene = (() => {
     'tech:eletrico': { zs: [{ x0: 110, v: 60, y: 78, hp: 16 }, { x0: 125, v: 60, y: 83, hp: 16 }], fence: true,
       ev: every(1.2, 3.0, 0.3, t => ({ t, k: 'shock', z: [0, 1], d: 3 })), note: 'choque em quem ataca o muro' },
   };
+  Object.assign(DEMOS, champDemos());
   for (const s of Object.values(DEMOS)) s.ev.sort((a, b) => a.t - b.t);
 
-  const demoT = () => 3.4;
+  // Prévias dos heróis de campo (chave ch:herói:basic|act|sup). Eventos próprios:
+  // hbolt (raio em cadeia) · sky (raios do céu) · beam (laser/raio reto; far: atravessa a tela) · proj (faca, pedra, palheta)
+  // orbital (feixe do céu + explosão) · abduct (disco voador) · tractor (ergue e derruba) · banner (nome da habilidade)
+  // stun / hypno / riff / confuse (hold: o zumbi fica parado por dur) · tick (dano da confusão, sem número)
+  function champDemos() {
+    const out = {}, Z = (x0, v, y, hp, type) => ({ x0, v, y, hp, type });
+    const add = (k, slot, spec) => { out[`ch:${k}:${slot}`] = { hero: k, col: CHAMPS[k].color, ...spec }; };
+    const ban = (t, k, slot) => ({ t, k: 'banner', text: `${CHAMPS[k].skills[slot].icon} ${CHAMPS[k].skills[slot].nome.toUpperCase()}` });
+    const six = (x0, v) => [0, 1, 2, 3, 4, 5].map(i => Z(x0 + i * 17, v, 76 + (i * 5) % 10, i === 3 ? 30 : 16, i === 3 ? 'tanque' : 'normal'));
+    const all6 = [0, 1, 2, 3, 4, 5];
+
+    add('profeta', 'basic', { zs: [Z(150, 30, 78, 20), Z(164, 30, 84, 20), Z(180, 30, 80, 20)],
+      ev: [{ t: 1, k: 'hbolt', z: [0, 1], d: [12, 8] }, { t: 2.5, k: 'hbolt', z: [0, 1], d: [12, 8] }], note: 'raio que salta entre zumbis' });
+    add('profeta', 'act', { zs: [Z(140, 25, 80, 60, 'tanque'), Z(156, 25, 76, 16), Z(166, 25, 84, 16), Z(178, 25, 79, 16)],
+      ev: [{ t: 1.3, k: 'hbolt', z: [0, 1, 2, 3], d: [40, 25, 25, 25], cast: true }, ban(1.3, 'profeta', 'act')], note: 'o mais resistente leva ×4' });
+    add('profeta', 'sup', { dur: 3.8, zs: six(110, 22),
+      ev: [{ t: 1.4, k: 'sky', z: all6, d: 999, cast: true }, ban(1.2, 'profeta', 'sup')], note: 'todos os comuns da tela' });
+
+    add('x9', 'basic', { zs: [Z(170, 28, 80, 30)], ev: [0.8, 1.9, 3].map(t => ({ t, k: 'beam', z: [0], d: 10, c: '255,90,90', w: 1 })), note: 'laser' });
+    add('x9', 'act', { zs: [Z(120, 30, 80, 16), Z(138, 30, 80, 16), Z(158, 30, 80, 16), Z(180, 30, 80, 30, 'tanque')],
+      ev: [{ t: 1.3, k: 'beam', z: [0, 1, 2, 3], d: 48, c: '255,90,90', w: 3, far: true, dur: 0.35, cast: true }, ban(1.3, 'x9', 'act')], note: 'atravessa a faixa inteira' });
+    add('x9', 'sup', { dur: 3.8, zs: six(110, 18),
+      ev: [[0, 1], [2], [3, 4], [5]].map((z, i) => ({ t: 1.4 + i * 0.35, k: 'orbital', z, d: 999, cast: i === 0 })).concat([ban(1.1, 'x9', 'sup')]), note: 'explosões varrem o campo' });
+
+    add('bilu', 'basic', { zs: [Z(165, 30, 80, 16)], ev: [0.8, 1.7, 2.6].map(t => ({ t, k: 'proj', z: [0], d: 6, fly: 0.25, c: '#dcdce4' })), note: 'facas de circo' });
+    add('bilu', 'act', { zs: [Z(105, 40, 78, 16), Z(115, 40, 84, 16), Z(125, 40, 80, 16), Z(200, 30, 80, 16)],
+      ev: [{ t: 1.3, k: 'stun', hold: true, z: [0, 1, 2], dur: 1.8, cast: true }, ban(1.3, 'bilu', 'act')], note: 'atordoa quem está no muro' });
+    add('bilu', 'sup', { dur: 3.8, zs: six(115, 28),
+      ev: [{ t: 1.1, k: 'hypno', hold: true, z: all6, dur: 2.4, cast: true }, ban(1.1, 'bilu', 'sup')], note: 'a horda inteira parada' });
+
+    add('imune', 'basic', { zs: [Z(170, 28, 80, 20)], ev: [1, 2.4].map(t => ({ t, k: 'proj', z: [0], d: 8, fly: 0.45, arc: 12, c: '#8a8070' })), note: 'pedradas' });
+    add('imune', 'act', { zs: [Z(130, 30, 78, 16), Z(140, 30, 84, 16), Z(150, 30, 80, 16), Z(195, 30, 80, 16)],
+      ev: [{ t: 1, k: 'confuse', hold: true, z: [0, 1, 2], dur: 2.2, cast: true }, ban(1, 'imune', 'act'),
+        ...every(1.3, 3.0, 0.35, t => ({ t, k: 'tick', z: [0, 1, 2], d: 2.6, quiet: true }))], note: 'o grupo se ataca' });
+    add('imune', 'sup', { dur: 3.8, zs: six(115, 26),
+      ev: [{ t: 1, k: 'confuse', hold: true, z: all6, dur: 2.5, cast: true }, ban(1, 'imune', 'sup'),
+        ...every(1.3, 3.3, 0.35, t => ({ t, k: 'tick', z: all6, d: 2.6, quiet: true }))], note: 'todos os comuns lutam entre si' });
+
+    add('waldir', 'basic', { zs: [Z(170, 28, 80, 24)], ev: [0.9, 2.3].map(t => ({ t, k: 'beam', z: [0], d: 12, c: '120,255,140', w: 1.6 })), note: 'raio de outro mundo' });
+    add('waldir', 'act', { zs: [Z(130, 22, 80, 40, 'tanque'), Z(150, 25, 76, 16), Z(165, 25, 84, 16)],
+      ev: [{ t: 1.9, k: 'tractor', hold: true, pre: 0.8, z: [0], d: 999, cast: true }, ban(1.1, 'waldir', 'act')], note: 'ergue e derruba o mais forte' });
+    // o disco passa da esquerda para a direita (x = 4 + 70t) e abduz cada zumbi (x0 - 12t) quando está sobre ele
+    const wz = [110, 130, 150, 170, 190];
+    add('waldir', 'sup', { dur: 3.6, ufo: { t0: 0.5, t1: 3.1, x0: 4, v: 70 }, zs: wz.map((x, i) => Z(x, 12, 76 + (i * 5) % 10, 16)),
+      ev: wz.map((x, i) => ({ t: +((x - 4) / 82).toFixed(2), k: 'abduct', z: [i], d: 999, cast: i === 0 })).concat([ban(0.8, 'waldir', 'sup')]), note: 'abduz os zumbis comuns' });
+
+    add('ze', 'basic', { zs: [Z(165, 30, 80, 16)], ev: every(0.8, 3.2, 0.8, t => ({ t, k: 'proj', z: [0], d: 4, fly: 0.2, c: '#ff8c3c' })), note: 'palhetas' });
+    add('ze', 'act', { zs: [Z(100, 40, 78, 16), Z(110, 40, 84, 16), Z(122, 40, 80, 16), Z(200, 30, 80, 16)],
+      ev: [{ t: 1.2, k: 'riff', hold: true, z: [0, 1, 2], dur: 1.8, cast: true }, ban(1.2, 'ze', 'act')], note: 'atordoa quem está no muro' });
+    add('ze', 'sup', { zs: [Z(95, 40, 78, 16), Z(105, 40, 84, 16), Z(115, 40, 80, 30, 'tanque'), Z(175, 30, 77, 16), Z(195, 30, 83, 16)],
+      ev: [{ t: 1.3, k: 'riff', big: true, z: [0, 1, 2], d: 999, cast: true }, ban(1.3, 'ze', 'sup')], note: 'derruba quem está no muro' });
+    return out;
+  }
+
+  const demoT = spec => spec.dur || 3.4;
   // vida, morte e posição de cada zumbi no instante t
   function demoState(spec, t) {
     return spec.zs.map((z, i) => {
-      let hp = z.hp, dead = null, hit = -9, burn = false, dmg = [];
+      let hp = z.hp, dead = null, hit = -9, burn = false, dmg = [], by = null;
+      // janelas em que o zumbi fica parado (atordoado, hipnotizado, confuso, erguido pelo raio trator)
+      const holds = spec.ev.filter(e => e.hold && e.z && e.z.includes(i)).map(e => [e.t - (e.pre || 0), e.t + (e.dur || 0), e.k]);
       for (const e of spec.ev) {
         if (e.t > t) break;
         const j = e.z ? e.z.indexOf(i) : -1;
         if (j < 0 || dead !== null) continue;
         const d = Array.isArray(e.d) ? e.d[j] : e.d;
+        if (!d) continue;
         hp -= d; hit = e.t;
         if (e.k === 'flame' || e.k === 'burn') burn = true;
         if (e.k !== 'burn' && e.k !== 'flame' && !e.quiet && d < 900) dmg.push({ t: e.t, d, crit: e.crit });
-        if (hp <= 0) dead = e.t;
+        if (hp <= 0) { dead = e.t; by = e.k; }
       }
       const tt = dead !== null ? dead : t;
-      const x = Math.max(DSTOP + (i % 3) * 5, z.x0 - z.v * tt);
-      return { ...z, i, hp: Math.max(0, hp), dead, hit, burn, dmg, x, atWall: x <= DSTOP + (i % 3) * 5 + 0.01 };
+      const still = holds.reduce((a, [h0, h1]) => a + Math.max(0, Math.min(h1, tt) - Math.max(h0, 0)), 0);
+      const x = Math.max(DSTOP + (i % 3) * 5, z.x0 - z.v * (tt - still));
+      const held = dead === null ? holds.find(([h0, h1]) => t >= h0 && t < h1) : null;
+      return { ...z, i, hp: Math.max(0, hp), dead, by, hit, burn, dmg, x, atWall: x <= DSTOP + (i % 3) * 5 + 0.01,
+        held: held ? held[2] : null, heldAge: held ? t - held[0] : 0 };
     });
   }
   // ponto onde caem a granada, o foguete e as bombas: centro dos atingidos no instante do impacto
@@ -2180,8 +2340,13 @@ const Scene = (() => {
   }
   function demoShooter(spec, t) {
     rect([122, 90, 48], DLX - 8, DLY, 16, 28); rect([90, 64, 32], DLX - 8, DLY, 16, 2);   // caixotes
-    const fired = spec.ev.some(e => e.t - (e.fly || 0) <= t && t - (e.t - (e.fly || 0)) < 0.06 && ['bullet', 'pellets', 'pierce', 'grenade', 'rocket'].includes(e.k));
-    if (spec.shooter === 'guard') {
+    const fired = spec.ev.some(e => e.t - (e.fly || 0) <= t && t - (e.t - (e.fly || 0)) < 0.06 && ['bullet', 'pellets', 'pierce', 'grenade', 'rocket', 'proj', 'beam', 'hbolt'].includes(e.k));
+    if (spec.hero) {
+      // brilho na cor do herói ao usar a habilidade
+      const cast = spec.ev.find(e => e.cast && t >= e.t - (e.pre || 0) - 0.4 && t < e.t + 0.3);
+      if (cast) { ctx.fillStyle = `rgba(${spec.col},0.3)`; ctx.beginPath(); ctx.arc(DLX, DLY - 10, 13, 0, 7); ctx.fill(); }
+      drawLook(DLX, DLY, CHAMPS[spec.hero].look, { pose: 'aim', face: 1, phase: 0 });
+    } else if (spec.shooter === 'guard') {
       drawHuman(DLX, DLY, { pose: 'aim', face: 1, phase: 0, skin: [200, 150, 110], hair: [40, 30, 20], ...JOBLOOK.guarda });
       if (spec.fury) { ctx.fillStyle = 'rgba(255,90,40,0.25)'; ctx.beginPath(); ctx.arc(DLX, DLY - 9, 11, 0, 7); ctx.fill(); }
     } else drawLook(DLX, DLY, Profile.look(), { pose: 'aim', face: 1, phase: 0, gun: spec.gun });
@@ -2194,22 +2359,42 @@ const Scene = (() => {
       ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = '#aaccff'; ctx.fillText('recarregando', DLX + 7, DLY - 22);
     }
   }
+  // raio em zigue-zague entre dois pontos
+  function zig(x1, y1, x2, y2, col) {
+    ctx.strokeStyle = `rgba(${col},0.95)`; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x1, y1);
+    for (let s = 1; s < 5; s++) ctx.lineTo(x1 + (x2 - x1) * s / 5 + (s % 2 ? 2 : -2), y1 + (y2 - y1) * s / 5 + (s % 2 ? -2 : 2));
+    ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 0.4; ctx.stroke();
+  }
+  const ufoAt = (spec, t) => ({ x: spec.ufo.x0 + spec.ufo.v * t, y: 14 + Math.sin(t * 5) * 1.5 });
   const demoTip = spec => {
     const g = spec.gun && GUNS[spec.gun] ? GUNS[spec.gun].tip : [9, -11];
     return { x: DLX + g[0], y: DLY + g[1] };
   };
   function demoZombie(z, t) {
     const L = zlook({ id: 9000 + z.i * 7, type: z.type || 'normal' });
+    if (z.dead !== null && z.by === 'abduct') {   // sobe para o disco voador, encolhendo
+      const age = t - z.dead;
+      if (age > 0.7) return;
+      drawHuman(z.x, z.y - age * 55, { ...L, alpha: 1 - age / 0.7, scale: (L.scale || 1) * (1 - age * 0.6), pose: 'zwalk', phase: z.i });
+      return;
+    }
     if (z.dead !== null) {
       const age = t - z.dead, a = age > 1.2 ? Math.max(0, 1 - (age - 1.2) / 0.6) : 1;
       if (a <= 0) return;
       drawHuman(z.x, z.y, { ...L, rot: Math.PI / 2 * 0.95, alpha: a, pose: 'stand' });
       return;
     }
-    L.pose = z.atWall ? 'zattack' : 'zwalk';
-    L.phase = t * (z.atWall ? 4 : z.v * 0.3) + z.i;
+    const frozen = z.held && z.held !== 'confuse';   // confusos continuam se mexendo (atacando uns aos outros)
+    L.pose = frozen ? 'zwalk' : z.atWall || z.held ? 'zattack' : 'zwalk';
+    L.phase = frozen ? z.i : t * (z.atWall || z.held ? 4 : z.v * 0.3) + z.i;
     L.flash = t - z.hit < 0.08;
-    drawHuman(z.x, z.y, L);
+    const lift = z.held === 'tractor' ? Math.min(14, z.heldAge * 22) : 0;
+    drawHuman(z.x, z.y - lift, L);
+    const top = z.y - lift - 19 * (L.scale || 1);
+    if (z.held === 'stun' || z.held === 'hypno' || z.held === 'riff') stars(z.x, top - 2, 4);
+    if (z.held === 'confuse') demoText(z.x, top - 1, '?!', '#d0a0ff', 0.1, 1);
     if (z.burn) for (let k = 0; k < 3; k++) rect(pick(['#ffd040', '#ff8a20', '#ff5020']), z.x - 3 + Math.random() * 6, z.y - 6 - Math.random() * 12, 1, 2);
     if (z.hp < z.hp0) {
       const by = z.y - 19 * (L.scale || 1) - 3;
@@ -2236,7 +2421,9 @@ const Scene = (() => {
     const at = i => zs[i];
     for (const e of spec.ev) {
       const age = t - e.t;
-      if (age < -(e.fly || 0) - 0.01 || age > 1.2) continue;
+      // efeitos que começam antes do impacto: projétil em voo, raio trator, feixe do disco, feixe orbital e as notas
+      const lead = e.fly || e.pre || { abduct: 0.4, orbital: 0.3, riff: 0.2 }[e.k] || 0;
+      if (age < -lead - 0.01 || age > 1.4) continue;
       const col = e.col || '255,250,200';
       const line = (x, y) => { ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(x, y); ctx.stroke(); };
       switch (e.k) {
@@ -2270,7 +2457,94 @@ const Scene = (() => {
           }
           break;
         case 'text': demoText(e.x, e.y, e.text, e.c, age, 1.2); break;
+        // ---- heróis de campo
+        case 'hbolt':
+          if (age >= 0 && age < 0.2) { let p = tip; for (const i of e.z) { const z = at(i); zig(p.x, p.y, z.x, z.y - 10, spec.col); p = { x: z.x, y: z.y - 10 }; } }
+          break;
+        case 'sky':
+          if (age >= 0 && age < 0.25) for (const i of e.z) { const z = at(i); zig(z.x + ((i * 13) % 20) - 10, 0, z.x, z.y - 10, spec.col); }
+          break;
+        case 'beam': {
+          const dur = e.dur || 0.08;
+          if (age < 0 || age > dur) break;
+          // far: desce até o primeiro zumbi e segue reto pela faixa até o fim da tela
+          const z = at(e.z[0]), a = 1 - age / dur, zy0 = z.y - 10;
+          const path = () => { ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(z.x, zy0); if (e.far) ctx.lineTo(DW, zy0); };
+          ctx.strokeStyle = `rgba(${e.c},${0.35 * a})`; ctx.lineWidth = e.w * 3; path(); ctx.stroke();
+          ctx.strokeStyle = `rgba(255,255,255,${0.9 * a})`; ctx.lineWidth = Math.max(0.6, e.w * 0.6); path(); ctx.stroke();
+          break;
+        }
+        case 'proj': {
+          if (age >= 0 || age < -e.fly) break;
+          const z = at(e.z[0]), f = 1 + age / e.fly;
+          const x = tip.x + (z.x - tip.x) * f, y = tip.y + (z.y - 10 - tip.y) * f - (e.arc ? Math.sin(f * Math.PI) * e.arc : 0);
+          rect(e.c, x - 1, y - 1, 3, 2);
+          break;
+        }
+        case 'orbital': {
+          const z = at(e.z[0]);
+          if (age >= -0.3 && age < 0) { ctx.fillStyle = `rgba(${spec.col},${0.5 + (age + 0.3)})`; ctx.fillRect(z.x - 1, 0, 2, z.y - 4); }
+          demoBoom(z.x, z.y - 6, age, true);
+          break;
+        }
+        case 'abduct': {
+          const z = at(e.z[0]), u = ufoAt(spec, e.t);
+          if (age >= -0.4 && age < 0.5) {
+            ctx.fillStyle = `rgba(${spec.col},0.28)`;
+            ctx.beginPath(); ctx.moveTo(u.x - 3, u.y + 3); ctx.lineTo(u.x + 3, u.y + 3); ctx.lineTo(z.x + 9, z.y + 2); ctx.lineTo(z.x - 9, z.y + 2); ctx.closePath(); ctx.fill();
+          }
+          break;
+        }
+        case 'tractor': {
+          const z = at(e.z[0]);
+          if (age >= -e.pre && age < 0) {
+            ctx.strokeStyle = `rgba(${spec.col},0.6)`; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(z.x, z.y - 12 - Math.min(14, (age + e.pre) * 22)); ctx.stroke();
+          }
+          if (age >= 0 && age < 0.3) demoBoom(z.x, z.y - 2, age, false);
+          break;
+        }
+        case 'stun':   // chicote do domador
+          if (age >= 0 && age < 0.2) {
+            const z = at(e.z[1] ?? e.z[0]);
+            ctx.strokeStyle = 'rgba(120,80,40,0.95)'; ctx.lineWidth = 0.8;
+            ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.quadraticCurveTo((tip.x + z.x) / 2, tip.y - 20, z.x, z.y - 12); ctx.stroke();
+          }
+          if (age >= 0) demoText(at(e.z[0]).x + 6, 46, 'ESTALO!', '#ffe066', age, 0.7);
+          break;
+        case 'hypno': case 'confuse':
+          if (age >= 0 && age < 0.8) {
+            ctx.strokeStyle = `rgba(${spec.col},${0.8 * (1 - age / 0.8)})`; ctx.lineWidth = 1;
+            const cx = e.z.reduce((a, i) => a + at(i).x, 0) / e.z.length;
+            for (let r = 0; r < 3; r++) { ctx.beginPath(); ctx.ellipse(cx, 74, age * 90 + r * 10, age * 30 + r * 4, 0, 0, 7); ctx.stroke(); }
+          }
+          break;
+        case 'riff':
+          if (age >= -0.2 && age < 0.9) for (let n = 0; n < (e.big ? 10 : 6); n++) {
+            const f = ((age + 0.2) * 1.1 + n * 0.13) % 1;
+            demoText(tip.x + f * (e.big ? 90 : 60), tip.y - 4 + Math.sin(n * 2 + f * 9) * 6, n % 2 ? '♪' : '♫', `rgb(${spec.col})`, 0.05, 1);
+          }
+          if (age >= 0 && age < 0.4) {
+            ctx.strokeStyle = `rgba(${spec.col},${0.8 * (1 - age / 0.4)})`; ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.arc(DWALL + 4, 70, 8 + age * (e.big ? 120 : 70), -1.2, 1.2); ctx.stroke();
+          }
+          break;
+        case 'banner':
+          if (age >= 0 && age < 1.4) {
+            ctx.globalAlpha = Math.min(1, (1.4 - age) * 3);
+            ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(DW / 2 - 64, 14, 128, 13);
+            ctx.fillStyle = `rgb(${spec.col})`; ctx.fillText(e.text, DW / 2, 24);
+            ctx.globalAlpha = 1;
+          }
+          break;
       }
+    }
+    if (spec.ufo && t >= spec.ufo.t0 && t < spec.ufo.t1) {   // disco voador do Seu Waldir
+      const u = ufoAt(spec, t);
+      ctx.fillStyle = '#9aa6b0'; ctx.beginPath(); ctx.ellipse(u.x, u.y, 11, 3, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = `rgba(${spec.col},0.85)`; ctx.beginPath(); ctx.ellipse(u.x, u.y - 2, 5, 3, 0, Math.PI, 0); ctx.fill();
+      for (let k = -1; k <= 1; k++) rect((Math.floor(t * 8) + k) % 2 ? '#ffe066' : '#ffffff', u.x + k * 6, u.y + 1, 1, 1);
     }
     // números de dano
     for (const z of zs) for (const h of z.dmg) {
@@ -2291,7 +2565,7 @@ const Scene = (() => {
   function demo(c, key, t) {
     const spec = DEMOS[key];
     if (!spec) return false;
-    t %= demoT();
+    t %= demoT(spec);
     const oc = ctx, on = night;
     ctx = c.getContext('2d'); night = 0;
     const k = c.width / DW;

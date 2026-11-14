@@ -96,6 +96,8 @@ function buildUI() {
 
   Endgame.buildUI();
   Weapons.buildUI();
+  Champions.buildUI();
+  if (typeof lockWhilePaused === 'function') lockWhilePaused();
 
   $('perks').innerHTML = Object.entries(PERKS).map(([k, p]) => `
     <div class="row">
@@ -123,6 +125,25 @@ function buildUI() {
   let firstTab = 'equipe';
   try { firstTab = localStorage.getItem(TAB_KEY) || 'equipe'; } catch (e) { /* sem armazenamento */ }
   showTab(document.querySelector(`.tab[data-tab="${firstTab}"]`) ? firstTab : 'equipe');
+
+  // sub-abas (Exército e Loja): cada grupo troca só os painéis da própria aba e lembra a última escolhida
+  const subGroups = {};
+  document.querySelectorAll('nav.subtabs').forEach(nav => {
+    const pane = nav.closest('.pane'), key = 'ultimoAbrigo.sub.' + nav.id;
+    const show = name => {
+      nav.querySelectorAll('.subtab').forEach(t => t.classList.toggle('active', t.dataset.sub === name));
+      pane.querySelectorAll('.subpane').forEach(p => p.classList.toggle('active', p.dataset.subpane === name));
+      try { localStorage.setItem(key, name); } catch (e) { /* sem armazenamento */ }
+    };
+    nav.querySelectorAll('.subtab').forEach(t => t.addEventListener('click', () => show(t.dataset.sub)));
+    const first = nav.querySelector('.subtab').dataset.sub;
+    let saved = first;
+    try { saved = localStorage.getItem(key) || (nav.id === 'army-tabs' && localStorage.getItem('ultimoAbrigo.armyTab')) || first; } catch (e) { /* sem armazenamento */ }
+    show(nav.querySelector(`.subtab[data-sub="${saved}"]`) ? saved : first);
+    subGroups[nav.id] = show;
+  });
+  window.openArmy = sub => { openTab('herois'); subGroups['army-tabs'](sub); };
+  window.openShop = sub => { openTab('loja'); subGroups['shop-tabs'](sub); };
 
   $('btn-scavenge').title = 'O líder vasculha as ruínas por conta própria. Rende mais conforme sua produção e a onda aumentam. Também dá para clicar direto no cenário.';
   $('btn-scavenge').onclick = () => { if (paused) return; Scene.float(actions.scavenge()); render(); };
@@ -158,6 +179,7 @@ function render() {
   $('diff-chip').textContent = `${D().icon} ${D().nome}` + (S.mods.length ? ' · ' + S.mods.map(k => MODS[k].icon).join('') : '');
   $('diff-chip').title = 'Dificuldade deste save (escolhida ao começar um novo jogo, não muda depois)' + (S.mods.length ? '\nDesafios: ' + S.mods.map(k => MODS[k].nome).join(', ') : '');
   $('pause-badge').classList.toggle('hidden', !paused);
+  if (typeof pauseTick === 'function') pauseTick();
   const fast = Settings.get('speed2x'), sp = $('btn-speed');
   sp.classList.toggle('active', fast);
   setHtml(sp, (fast ? (S.horde.active ? '⏩ 2x · pausado na horda' : '⏩ 2x ligado') : '⏩ 2x') + ' ' + hk('F'));
@@ -186,7 +208,7 @@ function render() {
     else if (block && block !== 'Cash insuficiente') now = block;
     $('sn-' + k).textContent = now;
   }
-  $('rr-hope').textContent = S.meta.hopeTotal ? `+${Math.round(S.meta.hopeTotal * 3)}% prod.` : '';
+  $('rr-hope').textContent = S.meta.hopeTotal ? `+${hopePct()}% prod.` : '';
 
   let info = `<b>${S.survivors}</b> / ${maxSurv()} sobreviventes · ${idle() > 0 ? `<b class="idle-warn">${idle()} ocioso(s): dê uma função</b>` : '<b>0</b> ociosos'}`;
   if (away()) info += ` · <b>${away()}</b> em expedição`;
@@ -225,26 +247,34 @@ function render() {
     const c = buildCost(k);
     $('bl-' + k).textContent = S.build[k] ? ` nv. ${S.build[k]}` : '';
     $('bn-' + k).textContent = S.build[k] ? `Atual: ${BUILD_FX[k](S.build[k])}` : '';
-    const blocked = buildBlocked(k);
-    $('bb-' + k).textContent = blocked ? '🚫 Bloqueado' : S.build[k] ? `Melhorar para nv. ${S.build[k] + 1}` : 'Construir';
-    $('bb-' + k).title = blocked ? 'Desafio "Sem torres" ativo nesta cidade' : '';
-    $('bc-' + k).innerHTML = blocked ? '' : costHtml(c);
-    $('bb-' + k).disabled = blocked || !canAfford(c);
+    const blocked = buildBlocked(k), locked = buildLocked(k);
+    $('bb-' + k).textContent = blocked ? '🚫 Bloqueado' : locked ? `🔒 Onda ${BUILD[k].unlock}` : S.build[k] ? `Melhorar para nv. ${S.build[k] + 1}` : 'Construir';
+    $('bb-' + k).title = blocked ? 'Desafio "Sem torres" ativo nesta cidade' : locked ? `Libera quando a horda ${BUILD[k].unlock} estiver chegando` : '';
+    $('bc-' + k).innerHTML = blocked || locked ? '' : costHtml(c);
+    $('bb-' + k).disabled = blocked || locked || !canAfford(c);
   }
 
   const H = S.horde;
   const wallPct = S.wallHp / maxWall() * 100;
-  const top = H.active
+  const top = H.train
+    ? `<div class="stat alert"><span>🎯 CAMPO DE TREINO (debug)</span><span>ondas pausadas</span></div>`
+    : H.active
     ? `<div class="stat alert"><span>🧟 HORDA ATACANDO (onda ${H.n})</span><span>${H.queue.length + H.zs.length} restantes</span></div>
        <div class="bar wave"><div style="width:${(1 - (H.queue.length + H.zs.length) / Math.max(1, waveSize(H.n))) * 100}%"></div></div>`
     : `<div class="stat"><span>Próxima horda (onda ${S.wave})</span><span>${Math.ceil(S.waveTimer)}s</span></div>
        <div class="bar wave"><div style="width:${(1 - S.waveTimer / waveInterval()) * 100}%"></div></div>
-       <div class="stat"><span>Zumbis esperados</span><span>${num(waveSize(S.wave))}${S.wave % 10 === 0 ? ' + 👹 chefe' : ''}</span></div>`;
+       <div class="stat"><span>Zumbis esperados</span><span>${num(waveSize(S.wave))}${bossCount(S.wave) ? ` + 👹 ${bossCount(S.wave) > 1 ? `${bossCount(S.wave)} chefes` : 'chefe'}` : ''}</span></div>`;
   $('defense').innerHTML = top + `
     <div class="stat"><span>🧱 Muro</span><span title="${exact(Math.ceil(S.wallHp))} / ${exact(maxWall())}">${fmt(Math.ceil(S.wallHp))} / ${fmt(maxWall())}</span></div>
     <div class="bar ${wallPct < 30 ? 'low' : ''}"><div style="width:${wallPct}%"></div></div>
-    <div class="stat"><span>🛡️ ${S.jobs.guarda} guardas · 🗼 ${S.build.torre} torres</span><span>☠ ${fmt(S.kills)} · 🏆 onda ${S.best}</span></div>
-    <div class="stat" title="Chance de acerto. Melhora com Treinamento de tiro, a pesquisa Miras ópticas, o talento Boa mira e o herói Atirador. Tiro errado também gasta munição."><span>🎯 Precisão</span><span>guardas ${Math.round(accuracy('guard') * 100)}% · torres ${Math.round(accuracy('tower') * 100)}%</span></div>`;
+    <div class="stat"><span>🛡️ ${S.jobs.guarda} guardas · ${Object.keys(TOWERS).filter(k => S.build[k]).map(k => `${BUILD[k].icon} ${towerStat(k).crew}`).join(' ') || '🗼 0'} nas torres</span><span>☠ ${fmt(S.kills)} · 🏆 onda ${S.best}</span></div>
+    <div class="stat" title="Chance de acerto. Melhora com Treinamento de tiro, a pesquisa Miras ópticas, o talento Boa mira e o herói Atirador. Tiro errado também gasta munição."><span>🎯 Precisão</span><span>guardas ${Math.round(accuracy('guard') * 100)}% · torres ${Math.round(accuracy('tower') * 100)}%</span></div>
+    ${Champions.defenseRow()}
+    ${S.jobs.guarda ? `<div class="stat" title="Cada tiro cansa os guardas; entre as hordas eles descansam. Cansados, atiram mais devagar e erram mais. Ajudam: mais guardas (o cansaço se divide), o Alojamento e a pesquisa Turnos de vigia."><span>😓 Cansaço dos guardas</span><span class="${S.fatigue > 0.5 ? 'warn-text' : ''}">${Math.round((S.fatigue || 0) * 100)}% · cadência ${Math.round(guardFire() * 100)}%</span></div>` : ''}
+    ${towerLevels() ? (() => {
+      const up = upkeepTotal(), bad = S.horde.active ? (S.horde.unpaid || []).length > 0 : !canAfford(up);
+      return `<div class="stat" title="Cobrada no começo de cada horda. Torre sem manutenção atira na metade da velocidade naquela horda."><span>🔧 Manutenção das torres</span><span class="${bad ? 'warn-text' : ''}">${S.horde.active && bad ? 'não paga: torres mais lentas' : Object.entries(up).map(([r, v]) => `${fmt(v)} ${RES[r].icon}`).join(' + ') + ' por horda'}</span></div>`;
+    })() : ''}`;
 
   setHtml($('btn-repair'), `🔨 Reparar muro · ${RES.sucata.icon} ${fmt(REPAIR_COST)} ${hk('C')}`);
   $('btn-repair').disabled = S.res.sucata < REPAIR_COST || S.wallHp >= maxWall();
@@ -278,7 +308,7 @@ function render() {
   $('prestige').innerHTML = `
     <div class="stat"><span>Cidade atual</span><span>${S.meta.city}</span></div>
     <div class="stat"><span>Esperança disponível</span><span>✨ ${S.meta.hope}</span></div>
-    <div class="stat"><span>Bônus de produção permanente</span><span>+${Math.round(S.meta.hopeTotal * 3)}%</span></div>
+    <div class="stat"><span>Bônus de produção permanente</span><span>+${hopePct()}%</span></div>
     <div class="stat"><span>Desafios desta cidade</span><span>${S.mods.length ? S.mods.map(k => `<span title="${MODS[k].nome}: ${MODS[k].desc}">${MODS[k].icon}</span>`).join(' ') + ` (+${Math.round(modBonus() * 100)}% ✨)` : 'nenhum'}</span></div>`;
   $('btn-evac').textContent = g ? `🚁 Evacuar (+${g} ✨ Esperança)` : `🔒 Sobreviva até a onda ${EVAC_WAVE} para evacuar`;
   $('btn-evac').disabled = !g;
@@ -290,7 +320,7 @@ function render() {
     $('pb-' + k).disabled = max || S.meta.hope < c;
   }
 
-  const affordable = Object.keys(BUILD).filter(k => canAfford(buildCost(k))).length;
+  const affordable = Object.keys(BUILD).filter(k => !buildBlocked(k) && !buildLocked(k) && canAfford(buildCost(k))).length;
   const perkReady = Object.keys(PERKS).some(k => perk(k) < PERKS[k].max && S.meta.hope >= perkCost(k));
   $('tb-equipe').textContent = idle() > 0 ? idle() : '';
   $('tb-equipe').classList.toggle('idle', idle() > 0);
@@ -320,6 +350,7 @@ function render() {
   }
 
   Endgame.render();
+  Champions.render();
   Weapons.render();
   $('tb-armas').textContent = Weapons.tabBadge() || '';
 
@@ -504,6 +535,20 @@ function setHtml(el, html) {
 // o: { title, body (texto ou função), buttons: [{ label, cls, onClick(d), keep, disabled(), hidden() }],
 //      cancel (true ou texto do botão de fechar), onOpt(chave, d) para elementos [data-opt], onClose, onMount(d), staticBody }
 let dlg = null;
+// Aviso de retorno: quanto tempo o jogador ficou fora e o que o abrigo produziu (no máximo OFFLINE_MAX)
+function showReturn(r) {
+  const row = (k, v) => `<div class="stat"><span>${k}</span><span>${v}</span></div>`;
+  const g = r.gain, any = Object.values(g).some(v => v > 0);
+  const body = `<p>Enquanto você esteve fora, o abrigo produziu (offline, ele rende ${Math.round(OFFLINE_YIELD * 100)}% do normal):</p>
+    ${Object.keys(RES).filter(k => g[k] > 0).map(k => row(`${RES[k].icon} ${RES[k].nome}`, `+${fmt(g[k])}`)).join('')}
+    ${g.rp > 0 ? row('🔬 Pesquisa', `+${fmt(g.rp)}`) : ''}
+    ${any ? '' : '<p class="hint">Ninguém estava produzindo.</p>'}
+    <p class="hint">Fora por ${fmtTime(r.away)} · produção registrada: ${fmtTime(r.el)}.` +
+    (r.lost > 60 ? ` <b class="warn-text">${fmtTime(r.lost)} foram perdidas:</b> a produção offline vai só até ${fmtTime(OFFLINE_MAX)}. Volte antes para não perder nada.` : '') +
+    ` Sem você, as hordas não atacam e ninguém consome nada: o abrigo continua de onde parou.</p>`;
+  openDialog({ title: '⏳ Bem-vindo de volta', body, cancel: 'Continuar' });
+}
+
 function openDialog(o) {
   if (dlg) dlg.close(true);
   const el = $('dialog'), val = v => (typeof v === 'function' ? v() : v);
@@ -544,6 +589,7 @@ function openDialog(o) {
     render();
   };
   dlg = d;
+  el.querySelector('.dialog-box').classList.toggle('wide', !!o.wide);   // janela mais larga (ex.: árvore de habilidades)
   d.refresh(true);
   el.classList.remove('hidden');
   modalOpen = true;
