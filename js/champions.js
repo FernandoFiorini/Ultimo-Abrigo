@@ -685,9 +685,11 @@ const Champions = (() => {
     }).join('');
     return `<div class="shard${have >= BOX.frags ? ' full' : ''}" style="--s:${size}px">${face(k, size)}<svg viewBox="0 0 100 100" aria-hidden="true">${tris}</svg></div>`;
   };
+  // visual do herói com o traje alternativo equipado (skins de herói), se houver
+  const heroLook = k => (typeof OSkins !== 'undefined' ? OSkins.heroLook(k, CHAMPS[k].look) : CHAMPS[k].look);
   function paintFaces(root) {
     if (!root || typeof Scene === 'undefined') return;
-    root.querySelectorAll('canvas[data-face]').forEach(c => Scene.portrait(c, CHAMPS[c.dataset.face].look, true));
+    root.querySelectorAll('canvas[data-face]').forEach(c => Scene.portrait(c, heroLook(c.dataset.face), true));
   }
   // prévia animada (js/demos.js) ao passar o mouse
   const demoAttr = (k, slot) => (typeof Demos !== 'undefined' ? Demos.attr(`ch:${k}:${slot}`) : '');
@@ -875,7 +877,6 @@ const Champions = (() => {
   // ---------- loja de skins (🏷️ Tampinhas): por enquanto só o saldo e as categorias, em construção
   const SKIN_CATS = [
     ['⭐', 'Heróis de campo', 'roupas e cores novas para os seus heróis no telhado'],
-    ['🔫', 'Armas do líder', 'acabamentos para as armas (camuflado, dourado, enferrujado...)'],
     ['👥', 'Sobreviventes', 'visuais para o grupo do abrigo'],
     ['🧍', 'Líder', 'roupas do líder, além das que você ganha vencendo dificuldades'],
   ];
@@ -884,14 +885,19 @@ const Champions = (() => {
     const el = $('skins-shop');
     if (!el) return;
     const caps = C().caps, key = String(caps);
-    if (key === ksig) return;
-    ksig = key;
-    el.innerHTML = `<div class="cash-big caps-big">🏷️ <span>${fmt(caps)}</span> <small>Tampinhas</small></div>
-      <p class="hint">As Tampinhas vêm dos <b>fragmentos repetidos</b>: nas caixas de herói ★★, cada fragmento de um herói que você já tem
-        (ou que já está pronto para invocar) vira <b>${BOX.caps} 🏷️</b>. Elas nunca se perdem, nem ao evacuar.</p>
-      <div class="skin-cats">${SKIN_CATS.map(([i, n, d]) => `<div class="skin-cat"><div class="skin-ico">${i}</div>
-        <div class="main"><div class="title">${n}</div><div class="desc">${d}</div></div><span class="skin-soon">🚧 Em breve</span></div>`).join('')}</div>
-      <p class="hint">🚧 A loja de skins está em construção. Vá juntando Tampinhas: elas valem para tudo o que chegar aqui.</p>`;
+    if (key !== ksig || !el.querySelector('.wsk-slot')) {
+      ksig = key;
+      el.innerHTML = `<div class="cash-big caps-big">🏷️ <span>${fmt(caps)}</span> <small>Tampinhas</small></div>
+        <p class="hint">As Tampinhas vêm dos <b>fragmentos repetidos</b>: nas caixas de herói ★★, cada fragmento de um herói que você já tem
+          (ou que já está pronto para invocar) vira <b>${BOX.caps} 🏷️</b>. Elas nunca se perdem, nem ao evacuar.</p>
+        <h3>🔫 Armas do líder</h3>
+        <p class="hint">Só visual: cores, detalhes, efeito do tiro e som. Dano, alcance e recarga não mudam. Uma skin equipada por arma; clique em ✔ Equipada para voltar à padrão.</p>
+        <div class="wsk-slot"></div>
+        <h3>🚧 Em breve</h3>
+        <div class="skin-cats">${SKIN_CATS.map(([i, n, d]) => `<div class="skin-cat"><div class="skin-ico">${i}</div>
+          <div class="main"><div class="title">${n}</div><div class="desc">${d}</div></div><span class="skin-soon">🚧 Em breve</span></div>`).join('')}</div>`;
+    }
+    if (typeof WSkins !== 'undefined') WSkins.renderShop(el);
   }
 
   // ---------- caixa pulsando no cenário (e herói pronto para invocar): abre sem precisar ir à aba
@@ -969,6 +975,14 @@ const Champions = (() => {
       champActive: () => useActive(), champSupreme: () => useSupreme(), champOpen: () => openBox(),
       champSummon: k => summon(k),
       champSel: k => { sel = k; },
+      wskBuy: id => WSkins.buy(id),
+      wskEquip: id => WSkins.equip(id),
+      wskTest: id => WSkins.test(id),
+      wskTab: w => WSkins.setTab(w),
+      wskRar: r => WSkins.setRar(r),
+      wskCat: c => WSkins.setCat(c),
+      oskBuy: id => OSkins.buy(id),
+      oskEquip: id => OSkins.equip(id),
       champTree: arg => { const [k, s] = String(arg).split(':'); openTree(k, s); },
       champFloat: () => floatClick(),
       champSummonFloat: k => { if (!S.horde.active && !modalOpen) summon(k); },
@@ -977,6 +991,6 @@ const Champions = (() => {
 
   return {
     blank, cur, tag: () => tag, val, slow, fury, grant, gainXp, useActive, useSupreme, hordeTick, onTowerHit, onKill, onWaveEnd,
-    render, defenseRow, buildUI, look: k => CHAMPS[k].look, rank, xpNeed, addBox, openBox, rollBox, summon, isReady,
+    render, defenseRow, buildUI, look: k => heroLook(k), rank, xpNeed, addBox, openBox, rollBox, summon, isReady,
   };
 })();

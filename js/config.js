@@ -379,7 +379,21 @@ const NAMES = ['Ana', 'Jorge', 'Marta', 'Paulo', 'Cláudia', 'Diego', 'Fernanda'
 const FEMALE_NAMES = new Set(['Ana', 'Marta', 'Cláudia', 'Fernanda', 'Camila', 'Sueli', 'Patrícia', 'Helena', 'Renata', 'Beatriz', 'Aline',
   'Vera', 'Larissa', 'Priscila', 'Simone', 'Joana', 'Elaine', 'Cristina', 'Natália', 'Raquel', 'Sandra', 'Yara', 'Lívia', 'Irene',
   'Gisele', 'Dona Lurdes', 'Pietra', 'Vânia', 'Kelly', 'Rita']);
-const isFemale = name => FEMALE_NAMES.has(name);
+// ---------- sobreviventes homenageados ----------
+// Pessoas de verdade que aparecem como sobreviventes, com frases só delas. Para adicionar alguém, copie um bloco:
+//   nome:   como aparece no jogo (não pode ser igual a um nome da lista NAMES acima)
+//   sexo:   'f' ou 'm' (visual do boneco)
+//   frases: ditas de vez em quando, num balão em cima da pessoa no cenário e no registro
+//   horda:  (opcional) frases quando a horda chega
+//   adeus:  (opcional) últimas palavras se a pessoa morrer; ficam no memorial
+//   visual: (opcional) para reconhecer no cenário, ex.: { hair: [200, 60, 130], longHair: true }
+//           (hair, skin: cores [r, g, b]; longHair, bun, afro, bald: true; beard, mustache: cor)
+const HONORED = [
+  // { nome: 'Fulana', sexo: 'f', frases: ['Primeira frase.', 'Segunda frase.'], horda: ['Lá vêm eles!'], adeus: ['Cuidem do abrigo por mim.'], visual: { hair: [200, 60, 130], longHair: true } },
+];
+const HONORED_CHANCE = 0.3;     // chance de quem chega ao grupo ser um dos homenageados (se algum ainda não estiver)
+const HONORED_GAP = [45, 110];  // segundos entre uma frase e outra
+const isFemale = name => { const h = HONORED.find(x => x.nome === name); return h ? h.sexo === 'f' : FEMALE_NAMES.has(name); };
 
 // Armas do líder (mira manual durante a horda). Ficam para sempre depois de compradas.
 // Escala: a vida e o dano aparecem multiplicados por PTS (um zumbi comum tem ~10 de vida no começo do jogo).
@@ -457,13 +471,40 @@ const pts = v => Math.max(0, Math.round(v * PTS));
 // Cash ganho na primeira vitória de cada save, por dificuldade
 const VICTORY_CASH = { facil: 10, normal: 20, dificil: 35, pesadelo: 60, apocalipse: 150 };
 
-// Skins do líder. diff: dificuldade que precisa ser vencida para liberar (custom: qualquer vitória).
+// ---------- personagem do líder (escolhido ao começar um jogo; fica no save) ----------
+// sex: 'm' | 'f' · skin: tom de pele · style: cabelo · hair: cor do cabelo · face: barba/bigode (só masculino)
+const LOOK_SKINS = [[244, 208, 178], [234, 192, 160], [224, 176, 140], [200, 150, 110], [150, 100, 70], [110, 72, 50], [80, 52, 36]];
+const LOOK_HAIRS = [[30, 25, 20], [70, 45, 25], [120, 75, 35], [190, 150, 80], [230, 200, 120], [150, 50, 25], [120, 120, 120], [235, 235, 235], [60, 90, 180], [200, 60, 130], [70, 160, 90]];
+const LOOK_STYLES = {
+  curto:    { nome: 'Curto', flags: {} },
+  comprido: { nome: 'Comprido', flags: { longHair: true } },
+  coque:    { nome: 'Coque', flags: { bun: true } },
+  afro:     { nome: 'Afro', flags: { afro: true } },
+  moicano:  { nome: 'Moicano', flags: { mohawk: true } },
+  careca:   { nome: 'Careca', flags: { bald: true } },
+};
+const LOOK_FACES = { nada: 'Sem barba', barba: 'Barba', bigode: 'Bigode' };
+const defaultLook = sex => (sex === 'f'
+  ? { sex: 'f', skin: 2, style: 'comprido', hair: 1, face: 'nada' }
+  : { sex: 'm', skin: 2, style: 'curto', hair: 0, face: 'nada' });
+// aparência → campos de desenho (drawLook)
+function lookBase(a) {
+  a = Object.assign(defaultLook(a && a.sex), a || {});
+  const hair = LOOK_HAIRS[a.hair] || LOOK_HAIRS[0];
+  const L = { skin: LOOK_SKINS[a.skin] || LOOK_SKINS[2], hair, ...(LOOK_STYLES[a.style] || LOOK_STYLES.curto).flags };
+  if (a.sex !== 'f' && a.face === 'barba') L.beard = hair;
+  if (a.sex !== 'f' && a.face === 'bigode') L.mustache = hair;
+  return L;
+}
+
+// Skins do líder: trocam a roupa (camisa, calça, boné, capacete, capa, coroa). dye: também tingem o cabelo.
+// diff: dificuldade que precisa ser vencida para liberar (custom: qualquer vitória).
 const LEADER_SKINS = {
   padrao: { nome: 'Sobrevivente', icon: '🧍', shirt: [60, 62, 72], pants: [40, 40, 50], hair: [30, 25, 20] },
   escoteiro: { nome: 'Escoteiro', icon: '🌱', diff: 'facil', shirt: [70, 120, 60], pants: [60, 54, 40], hair: [90, 60, 30], cap: [60, 100, 50] },
   veterano: { nome: 'Veterano', icon: '🎖️', diff: 'normal', shirt: [86, 96, 60], pants: [60, 66, 44], hair: [30, 25, 20], helmet: true },
   cacador: { nome: 'Caçador', icon: '🏹', diff: 'dificil', shirt: [120, 50, 40], pants: [50, 40, 34], hair: [20, 18, 16], cap: [60, 30, 26], cape: [90, 36, 30] },
-  pesadelo: { nome: 'Pesadelo', icon: '☣️', diff: 'pesadelo', shirt: [90, 44, 120], pants: [36, 30, 50], hair: [200, 200, 210], cape: [140, 60, 180] },
+  pesadelo: { nome: 'Pesadelo', icon: '☣️', diff: 'pesadelo', shirt: [90, 44, 120], pants: [36, 30, 50], hair: [200, 200, 210], dye: true, cape: [140, 60, 180] },
   lenda: { nome: 'Lenda do Apocalipse', icon: '👑', diff: 'apocalipse', shirt: [200, 160, 50], pants: [70, 40, 30], hair: [30, 25, 20], cape: [170, 30, 30], crown: true },
   custom: { nome: 'Personalizada', icon: '🎨', diff: '*' },
 };

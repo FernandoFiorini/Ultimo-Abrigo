@@ -25,6 +25,7 @@
     <div class="audio-ctl">
       <button id="snd-music" title="Música">🎵</button>
       <button id="snd-sfx" title="Efeitos">🔊</button>
+      <button id="btn-locker" title="Visual: skins das armas e do personagem (K)">🎨</button>
       <button id="btn-settings" title="Configurações">⚙️</button>
     </div>
   </header>
@@ -204,6 +205,8 @@
   <div id="toasts" class="toasts"></div>
 
   <div id="main-menu" class="main-menu hidden">
+    <canvas id="mm-scene" class="mm-scene" aria-hidden="true"></canvas>
+    <div class="mm-shade" aria-hidden="true"></div>
     <div id="mm-box" class="mm-box"></div>
   </div>
 
@@ -240,8 +243,11 @@
   <script src="js/ui.js?v=1.07.000"></script>
   <script src="js/endgame.js?v=1.07.000"></script>
   <script src="js/weapons.js?v=1.07.000"></script>
+  <script src="js/wskins.js?v=1.07.000"></script>
+  <script src="js/oskins.js?v=1.07.000"></script>
   <script src="js/champions.js?v=1.07.000"></script>
   <script src="js/events.js?v=1.07.000"></script>
+  <script src="js/honored.js?v=1.07.000"></script>
   <script src="js/invasion.js?v=1.07.000"></script>
   <script src="js/bosses.js?v=1.07.000"></script>
   <script src="js/debug.js?v=1.07.000"></script>

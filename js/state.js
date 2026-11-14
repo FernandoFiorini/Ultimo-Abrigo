@@ -197,6 +197,9 @@ function addLog(text, type = '') {
 
 // ---------- sobreviventes com nome ----------
 const pickName = taken => {
+  // um homenageado que ainda não está no grupo, de vez em quando
+  const hon = (typeof HONORED !== 'undefined' ? HONORED : []).filter(h => !taken.includes(h.nome));
+  if (hon.length && Math.random() < HONORED_CHANCE) return hon[Math.floor(Math.random() * hon.length)].nome;
   const free = NAMES.filter(n => !taken.includes(n));
   const pool = free.length ? free : NAMES;
   return pool[Math.floor(Math.random() * pool.length)];
@@ -271,7 +274,9 @@ function remember(name, cause) {
   const m = S.meta;
   m.fallen = (m.fallen || 0) + 1;
   if (!Array.isArray(m.memorial)) m.memorial = [];
-  m.memorial.unshift({ n: name, c: cause, w: S.horde.active ? S.horde.n : S.wave, city: m.city, world: m.worlds || 1 });
+  const q = typeof Honored !== 'undefined' ? Honored.lastWords(name) : null;   // últimas palavras de um homenageado
+  m.memorial.unshift({ n: name, c: cause, w: S.horde.active ? S.horde.n : S.wave, city: m.city, world: m.worlds || 1, ...(q ? { q } : {}) });
+  if (q) addLog(`🕯️ ${name}: "${q}"`, 'bad');
   if (m.memorial.length > MEMORIAL_MAX) m.memorial.length = MEMORIAL_MAX;
 }
 // Garante que a lista de nomes acompanhe a contagem (saves antigos e mudanças diretas em S.survivors)

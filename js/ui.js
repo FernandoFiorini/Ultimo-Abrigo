@@ -154,6 +154,8 @@ function buildUI() {
   $('btn-import').onclick = showImport;
   $('btn-keys').onclick = showShortcuts;
   $('btn-settings').onclick = openSettings;
+  $('btn-locker').onclick = () => showLocker('armas');
+  actions.lwSkin = k => showLocker('armas', k);
   $('btn-speed').onclick = () => { Settings.set('speed2x', !Settings.get('speed2x')); render(); };
   applyBodyPrefs();
   Settings.on(k => { if (k === 'colorblind') applyBodyPrefs(); });
@@ -500,7 +502,8 @@ function renderPeople() {
       ? S.people.map(n => {
           const t = TRAITS[S.traits[n]], w = S.injured.some(i => i.n === n);
           const tip = [t && `${t.nome}: ${t.desc}`, w && 'Ferido: não trabalha até um médico tratar'].filter(Boolean).join(' · ');
-          return `<span class="person${t ? ' gifted' : ''}${w ? ' hurt' : ''}"${tip ? ` title="${tip}"` : ''}>${w ? '🤕 ' : ''}${n}${t ? ` ${t.icon}` : ''}</span>`;
+          const hon = typeof Honored !== 'undefined' && Honored.is(n);
+          return `<span class="person${t ? ' gifted' : ''}${w ? ' hurt' : ''}${hon ? ' honored' : ''}"${tip || hon ? ` title="${[hon && 'Homenageado: tem frases próprias', tip].filter(Boolean).join(' · ')}"` : ''}>${w ? '🤕 ' : ''}${hon ? '💬 ' : ''}${n}${t ? ` ${t.icon}` : ''}</span>`;
         }).join('') + (away() ? `<p class="hint">${away()} estão fora, em expedições ou operações.</p>` : '')
       : '<p class="hint">Ninguém no abrigo.</p>';
     const c = traitCounts();
@@ -516,7 +519,7 @@ function renderPeople() {
     memSig = ms;
     $('fallen-count').textContent = S.meta.fallen ? `(${S.meta.fallen})` : '';
     $('memorial').innerHTML = mem.length
-      ? mem.slice(0, 30).map(m => `<li><b>${m.n}</b> ${m.c} <span>onda ${m.w} · cidade ${m.city}${m.world > 1 ? ` · mundo ${m.world}` : ''}</span></li>`).join('') +
+      ? mem.slice(0, 30).map(m => `<li><b>${m.n}</b> ${m.c} <span>onda ${m.w} · cidade ${m.city}${m.world > 1 ? ` · mundo ${m.world}` : ''}</span>${m.q ? `<i class="mem-q">"${m.q}"</i>` : ''}</li>`).join('') +
         (S.meta.fallen > 30 ? `<li class="more">e mais ${S.meta.fallen - 30} que não serão esquecidos.</li>` : '')
       : '<li class="more">Ninguém caiu ainda.</li>';
   }

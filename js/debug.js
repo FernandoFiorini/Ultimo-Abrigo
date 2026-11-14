@@ -323,6 +323,7 @@ const Debug = (() => {
           }, 50);
           return true;
         }, 'abre agora e sempre dá um herói completo (se já tiver todos, repete um sem perder o progresso)'],
+        caps500: ['🏷️ +500 Tampinhas', () => { S.meta.champ.caps = (S.meta.champ.caps || 0) + 500; }, 'para testar a loja de skins'],
         frag5: ['🧩 Herói a 1 fragmento', () => {
           const c = S.meta.champ, miss = Object.keys(CHAMPS).filter(k => !c.owned[k]);
           if (!miss.length) { note('todos os heróis já estão liberados.'); return; }

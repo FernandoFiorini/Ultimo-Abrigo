@@ -287,7 +287,7 @@ const Weapons = (() => {
   }
 
   function explode(p) {
-    emit('explode', { x: p.x, y: p.y, big: p.rocket });
+    emit('explode', { x: p.x, y: p.y, big: p.rocket, w: p.k });
     for (const z of S.horde.zs) {
       if (z.dead) continue;
       const d = Math.hypot(z.x - p.x, ((z.y - 8) - p.y) * 1.4);
@@ -344,7 +344,8 @@ const Weapons = (() => {
           <div class="desc">${w.desc}</div>
           <div class="desc now" id="lwn-${k}"></div>
           <div class="cost" id="lwc-${k}"></div>
-          <div class="lw-slots" id="lws-${k}"><span class="lw-slots-label">Levar à noite:</span>${LW_KEYS.map((key, i) => `<button class="small" data-act="lwEquip" data-k="${k}|${i}" id="lwe-${k}-${i}" title="Equipar no espaço ${key}">(${key})</button>`).join('')}</div>
+          <div class="lw-slots" id="lws-${k}"><span class="lw-slots-label">Levar à noite:</span>${LW_KEYS.map((key, i) => `<button class="small" data-act="lwEquip" data-k="${k}|${i}" id="lwe-${k}-${i}" title="Equipar no espaço ${key}">(${key})</button>`).join('')}
+            <button class="small lw-skin" data-act="lwSkin" data-k="${k}" id="lwk-${k}" title="Trocar a skin desta arma">🎨 Skin</button></div>
         </div>
         <button data-act="lwBuy" data-k="${k}" id="lwb-${k}"></button>
       </div>`).join('');

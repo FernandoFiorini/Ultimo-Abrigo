@@ -191,6 +191,12 @@ const Sound = (() => {
     shot(d) {
       const pan = panOf(d.src === 'player' ? 60 : 180);
       if (d.quiet) return;
+      // skin da arma: camadas de som a mais (e, em algumas, sem o som padrão)
+      if (d.src === 'player' && d.w && typeof WSkins !== 'undefined') {
+        const L = WSkins.shotSnd(d.w);
+        if (L && L.length) layers(L, pan);
+        if (WSkins.skipBase(d.w)) return;
+      }
       if (d.src === 'player' && d.w && d.w !== 'pistola') { weaponSound(d.w, pan); return; }
       if (d.src === 'rock') {
         noise({ type: 'highpass', f: 2500, d: 0.08, vol: 0.05, pan });
@@ -321,6 +327,8 @@ const Sound = (() => {
     },
     explode(d) {
       const pan = panOf(d.x);
+      const sk = typeof WSkins !== 'undefined' ? WSkins.boomSnd(d.w) : null;
+      if (sk) layers(sk, pan);
       noise({ type: 'lowpass', f: 2200, f2: 90, d: 1.2, vol: 0.55, pan, send: 0.4 });
       tone({ f: 85, f2: 28, d: 0.9, vol: 0.5, pan });
     },
@@ -876,7 +884,7 @@ const Sound = (() => {
   }
 
   function ambient(dt) {
-    if (!ac || ac.state !== 'running' || !P('sfx') || typeof S === 'undefined') return;
+    if (!ac || ac.state !== 'running' || !P('sfx') || typeof S === 'undefined' || !S || mood === 'menu') return;
     const H = S.horde;
     ambientT -= dt;
     if (ambientT <= 0) {
@@ -1216,7 +1224,7 @@ const Sound = (() => {
   };
   let styleKey = null;
   const style = () => STYLES[P('musicStyle')] || STYLES.synth;
-  const bossOnScreen = () => typeof S !== 'undefined' && S.horde.zs && S.horde.zs.some(z => ZTYPES[z.type].boss);
+  const bossOnScreen = () => typeof S !== 'undefined' && S && S.horde && S.horde.zs && S.horde.zs.some(z => ZTYPES[z.type].boss);
 
   // qual música toca agora: menu principal, dia, tensão (últimos segundos antes da horda), horda, chefe na tela
   function currentMood() {
@@ -1276,7 +1284,11 @@ const Sound = (() => {
     if (sb) { sb.classList.toggle('off', !P('sfx')); sb.textContent = P('sfx') ? '🔊' : '🔇'; sb.title = P('sfx') ? 'Desligar efeitos' : 'Ligar efeitos'; }
   }
 
+  // chamado ao abrir a página (para o menu principal já ter música) e de novo ao entrar no jogo: só arma uma vez
+  let armed = false;
   function setup() {
+    if (armed) { applyPrefs(); return; }
+    armed = true;
     listeners.push(on);
     const start = () => init();
     document.addEventListener('pointerdown', start);
@@ -1288,5 +1300,15 @@ const Sound = (() => {
     applyPrefs();
   }
 
-  return { setup, init };
+  // camadas no formato das skins: ['t', onda, f, f2, dur, vol, atraso] (tom) ou ['n', filtro, f, f2, dur, vol, atraso, q] (ruído)
+  function layers(L, pan = 0) {
+    if (!ac || ac.state !== 'running') return;
+    const t0 = ac.currentTime + 0.01;
+    for (const [k, type, f, f2, dur, vol, dl = 0, q = 1] of L) {
+      if (k === 't') tone({ type, f, f2: f2 || undefined, d: dur, vol: vol * 0.7, t: t0 + dl, pan });
+      else noise({ type, f, f2: f2 || undefined, q, d: dur, vol: vol * 0.7, t: t0 + dl, pan });
+    }
+  }
+
+  return { setup, init, layers };
 })();

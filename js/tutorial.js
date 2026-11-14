@@ -101,6 +101,7 @@ const SHORTCUTS = [
   ['F', 'Velocidade 2x de dia (liga / desliga)'],
   ['M', 'Ligar / desligar todo o som'],
   ['O', 'Abrir o comerciante (quando ele estiver no abrigo)'],
+  ['K', 'Visual: trocar as skins das armas e do personagem'],
   ['H ou ?', 'Mostrar esta lista'],
   ['Esc', 'Fechar janela'],
 ];
@@ -223,6 +224,7 @@ function setupKeys() {
         if (anyOn !== sb.classList.contains('off')) sb.click();
         break;
       }
+      case 'k': showLocker('armas'); break;
       case 'h': case '?': showShortcuts(); break;
       default: return;
     }

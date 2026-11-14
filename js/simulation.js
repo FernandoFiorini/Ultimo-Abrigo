@@ -67,6 +67,7 @@ function tick(dt, live) {
     Invasion.prompt();   // decisão sobre quem foi mordido (depois da horda)
     Events.tick(dt);
     if (S !== st) return;
+    if (typeof Honored !== 'undefined') Honored.tick(dt);
   }
 
   if (S.horde.train) {

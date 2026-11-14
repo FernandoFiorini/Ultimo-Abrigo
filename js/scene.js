@@ -112,58 +112,108 @@ const Scene = (() => {
   // Armas do líder em pixel art (coordenadas locais do boneco virado para a direita, pés em 0,0).
   // tip: ponta do cano, de onde saem clarão, traçante, granada e foguete.
   const G_DARK = [34, 34, 38], G_STEEL = [96, 100, 108], G_WOOD = [112, 72, 36], G_OLIVE = [78, 88, 48];
+  // cores de cada arma vêm da skin equipada (WSkins.pal: o padrão reproduz as cores originais); skin: detalhes por cima
+  const gp = w => (typeof WSkins !== 'undefined' ? WSkins.pal(w) : { body: G_WOOD, bodyHi: G_WOOD, bodyLo: G_DARK, metal: G_DARK, metalHi: G_STEEL, metalLo: G_DARK, accent: [170, 40, 30], glow: [150, 200, 230] });
+  const skinDeco = (w, R, dy) => { if (typeof WSkins !== 'undefined') WSkins.mini(w, (c, x, y, ww, hh) => R(c, x, y + dy, ww, hh), time); };
   const GUNS = {
     pistola: { tip: [8, -11], draw(R, o, dy) {
+      const k = gp('pistola');
       R(o.shirt, 0, -10 + dy, 5, 2);                                  // braço esticado
-      R(G_DARK, 5, -11 + dy, 3, 1); R(G_STEEL, 5, -12 + dy, 2, 1);    // cano e ferrolho
-      R(o.skin, 5, -10 + dy, 1, 2); R(G_DARK, 6, -10 + dy, 1, 1);     // mão no cabo
+      R(k.metal, 5, -11 + dy, 3, 1); R(k.metalHi, 5, -12 + dy, 2, 1); // cano e ferrolho
+      R(o.skin, 5, -10 + dy, 1, 2); R(k.body, 6, -10 + dy, 1, 1);     // mão no cabo
+      skinDeco('pistola', R, dy);
     } },
     espingarda: { tip: [12, -11], draw(R, o, dy) {
-      R(G_WOOD, -1, -10 + dy, 3, 2);                                  // coronha
-      R(G_DARK, 2, -11 + dy, 3, 2);                                   // caixa
-      R(G_STEEL, 5, -11 + dy, 7, 1); R(G_DARK, 5, -10 + dy, 5, 1);    // cano duplo
-      R(G_WOOD, 7, -10 + dy, 2, 1);                                   // telha (pump)
+      const k = gp('espingarda');
+      R(k.body, -1, -10 + dy, 3, 2);                                  // coronha
+      R(k.metal, 2, -11 + dy, 3, 2);                                  // caixa
+      R(k.metalHi, 5, -11 + dy, 7, 1); R(k.metal, 5, -10 + dy, 5, 1); // cano duplo
+      R(k.body, 7, -10 + dy, 2, 1);                                   // telha (pump)
       R(o.shirt, 0, -10 + dy, 3, 2); R(o.skin, 7, -9 + dy, 2, 1);     // braços: gatilho e telha
+      skinDeco('espingarda', R, dy);
     } },
     rifle: { tip: [13, -11], draw(R, o, dy) {
-      R(G_WOOD, -1, -10 + dy, 4, 2); R(G_WOOD, 3, -11 + dy, 4, 1);    // coronha e guarda-mão de madeira
-      R(G_DARK, 7, -11 + dy, 6, 1);                                   // cano longo
-      R(G_DARK, 3, -13 + dy, 4, 1); R(G_STEEL, 4, -12 + dy, 1, 1); R([150, 200, 230], 7, -13 + dy, 1, 1);   // luneta
+      const k = gp('rifle');
+      R(k.body, -1, -10 + dy, 4, 2); R(k.body, 3, -11 + dy, 4, 1);    // coronha e guarda-mão
+      R(k.metal, 7, -11 + dy, 6, 1);                                  // cano longo
+      R(k.metal, 3, -13 + dy, 4, 1); R(k.metalHi, 4, -12 + dy, 1, 1); R(k.glow, 7, -13 + dy, 1, 1);   // luneta
       R(o.shirt, 0, -10 + dy, 3, 2); R(o.skin, 6, -10 + dy, 1, 1);
+      skinDeco('rifle', R, dy);
     } },
     smg: { tip: [10, -11], draw(R, o, dy) {
-      R(G_DARK, -1, -11 + dy, 2, 1);                                  // coronha de arame
-      R(G_DARK, 1, -11 + dy, 6, 2); R(G_STEEL, 7, -11 + dy, 3, 1);    // corpo e cano curto
-      R(G_DARK, 4, -9 + dy, 1, 3);                                    // pente
+      const k = gp('smg');
+      R(k.metal, -1, -11 + dy, 2, 1);                                 // coronha de arame
+      R(k.metal, 1, -11 + dy, 6, 2); R(k.metalHi, 7, -11 + dy, 3, 1); // corpo e cano curto
+      R(k.bodyLo, 4, -9 + dy, 1, 3);                                  // pente
       R(o.shirt, 0, -10 + dy, 3, 2); R(o.skin, 3, -9 + dy, 1, 1); R(o.skin, 6, -10 + dy, 1, 1);
+      skinDeco('smg', R, dy);
     } },
     granadas: { tip: [11, -11], draw(R, o, dy) {
-      R(G_DARK, -1, -10 + dy, 2, 1);                                  // coronha
-      R(G_OLIVE, 1, -12 + dy, 9, 3);                                  // tubo grosso
-      R(shade(G_OLIVE, 0.7), 3, -12 + dy, 3, 3);                      // tambor
-      R(G_DARK, 10, -12 + dy, 1, 3);                                  // boca
+      const k = gp('granadas');
+      R(k.metal, -1, -10 + dy, 2, 1);                                 // coronha
+      R(k.body, 1, -12 + dy, 9, 3);                                   // tubo grosso
+      R(k.bodyLo, 3, -12 + dy, 3, 3);                                 // tambor
+      R(k.metal, 10, -12 + dy, 1, 3);                                 // boca
       R(o.shirt, 0, -10 + dy, 2, 2); R(o.skin, 2, -9 + dy, 1, 2); R(o.skin, 7, -9 + dy, 1, 1);
+      skinDeco('granadas', R, dy);
     } },
     chamas: { tip: [11, -11], draw(R, o, dy) {
-      R([170, 40, 30], -5, -13 + dy, 2, 7); R([120, 26, 20], -5, -13 + dy, 2, 1);   // tanque nas costas
-      R(G_DARK, -3, -8 + dy, 3, 1);                                   // mangueira
-      R(G_STEEL, 1, -11 + dy, 8, 2); R(G_DARK, 9, -11 + dy, 2, 1);    // lança e bico
-      R(G_DARK, 3, -9 + dy, 1, 2);                                    // cabo
+      const k = gp('chamas');
+      R(k.accent, -5, -13 + dy, 2, 7); R(shade(k.accent, 0.7), -5, -13 + dy, 2, 1);   // tanque nas costas
+      R(k.metalLo, -3, -8 + dy, 3, 1);                                // mangueira
+      R(k.metalHi, 1, -11 + dy, 8, 2); R(k.metal, 9, -11 + dy, 2, 1); // lança e bico
+      R(k.body, 3, -9 + dy, 1, 2);                                    // cabo
       R(o.shirt, 0, -10 + dy, 3, 2); R(o.skin, 3, -10 + dy, 1, 1);
       R(Math.random() < 0.5 ? [255, 160, 40] : [255, 220, 90], 11, -11 + dy, 1, 1);   // chama-piloto
+      skinDeco('chamas', R, dy);
     } },
     bazuca: { tip: [15, -13], draw(R, o, dy) {
-      R(shade(G_OLIVE, 0.7), -6, -14 + dy, 3, 3);                     // traseira, saindo atrás da cabeça
-      R(G_OLIVE, 3, -14 + dy, 10, 3);                                 // tubo no ombro, à frente do rosto
-      R(shade(G_OLIVE, 0.7), 13, -15 + dy, 2, 5);                     // boca
-      R(G_DARK, 6, -16 + dy, 2, 2);                                   // mira
-      R(G_DARK, 3, -11 + dy, 1, 2); R(G_DARK, 6, -11 + dy, 1, 2);     // empunhaduras
+      const k = gp('bazuca');
+      R(k.bodyLo, -6, -14 + dy, 3, 3);                                // traseira, saindo atrás da cabeça
+      R(k.body, 3, -14 + dy, 10, 3);                                  // tubo no ombro, à frente do rosto
+      R(k.bodyLo, 13, -15 + dy, 2, 5);                                // boca
+      R(k.metal, 6, -16 + dy, 2, 2);                                  // mira
+      R(k.metal, 3, -11 + dy, 1, 2); R(k.metal, 6, -11 + dy, 1, 2);   // empunhaduras
       R(o.shirt, 0, -10 + dy, 3, 2); R(o.skin, 3, -10 + dy, 1, 1); R(o.skin, 6, -10 + dy, 1, 1);
+      skinDeco('bazuca', R, dy);
     } },
   };
+  // ---------- mira: braço e arma do líder acompanham o ponteiro ----------
+  // O braço e a arma são desenhados num canvas pequeno (coordenadas do boneco) e girados em volta do ombro como imagem,
+  // com o filtro de pixel ligado: a pixel art continua nítida em qualquer ângulo.
+  const AIM_PIV = { x: 1, y: -10 }, AIM_MIN = -0.55, AIM_MAX = 0.8;   // ombro · limites (radianos: para cima / para baixo)
+  const GOFF = typeof document !== 'undefined' ? document.createElement('canvas') : null, GOX = 14, GOY = 26;
+  if (GOFF) { GOFF.width = 48; GOFF.height = 34; }
+  let aimAng = 0.2;
+  function drawGunAimed(o, dy) {
+    const main = ctx, g = GOFF.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, GOFF.width, GOFF.height); g.globalAlpha = 1;
+    g.translate(GOX, GOY);
+    // skins fantasmas (Caçador Espectral, Água-Viva): a arma inteira fica translúcida e cintila
+    if (typeof WSkins !== 'undefined' && WSkins.ghost(o.gun)) g.globalAlpha = 0.6 + 0.2 * Math.sin(time * 3);
+    ctx = g;
+    GUNS[o.gun].draw((c, a, b, w, h) => rect(o.flash ? '#ffffff' : c, a, b, w, h), o, 0);
+    ctx = main;
+    main.save();
+    main.translate(AIM_PIV.x, AIM_PIV.y + dy);
+    main.rotate(o.aim);
+    main.imageSmoothingEnabled = false;
+    main.drawImage(GOFF, -GOX - AIM_PIV.x, -GOY - AIM_PIV.y);
+    main.restore();
+  }
+  // ângulo da mira (suavizado): para o ponteiro durante a horda; parado, arma levemente abaixada
+  function updateAim() {
+    const want = S.horde.active && ptr.in
+      ? Math.max(AIM_MIN, Math.min(AIM_MAX, Math.atan2(ptr.y - (LEADER.y + AIM_PIV.y), Math.max(4, ptr.x - (LEADER.x + AIM_PIV.x)))))
+      : 0.12;
+    aimAng += (want - aimAng) * 0.35;
+  }
+  // ponto girado em volta do ombro do líder
+  const aimRot = (lx, ly) => { const dx = lx - AIM_PIV.x, dy = ly - AIM_PIV.y, c = Math.cos(aimAng), si = Math.sin(aimAng);
+    return { x: LEADER.x + AIM_PIV.x + dx * c - dy * si, y: LEADER.y + AIM_PIV.y + dx * si + dy * c }; };
   let leaderSwap = 0;   // anima a troca de arma (abaixa e levanta)
   const leaderGun = () => (S.horde.active ? Weapons.current() : null);
-  const gunTip = () => { const g = GUNS[leaderGun()]; const t = g ? g.tip : [9, -11]; return { x: LEADER.x + t[0], y: LEADER.y + t[1] }; };
+  const gunTip = () => { const k = leaderGun(), g = GUNS[k]; const t = g ? g.tip : [9, -11]; return aimRot(t[0] + (k && typeof WSkins !== 'undefined' ? WSkins.tipDx(k) : 0), t[1]); };
 
   function drawHuman(x, y, o) {
     const s = o.scale || 1;
@@ -183,7 +233,7 @@ const Scene = (() => {
     const crouch = p === 'work' && o.crouch ? 2 : 0;
     const sit = p === 'sit' ? 3 : 0;
     const dy = bob + crouch + sit;
-    const shoe = [40, 34, 30];
+    const shoe = o.boots || [40, 34, 30];
 
     // pernas
     if (sit) { R(o.pants, -2, -3, 6, 2); R(shoe, 4, -3, 1, 2); }
@@ -198,30 +248,34 @@ const Scene = (() => {
       R(o.shirt, -4, -12 + dy, 8, 7); R(o.skin, -3, -8 + dy, 6, 2);
       R([190, 160, 90], -2, -10 + dy, 1, 1); R([190, 160, 90], 2, -7 + dy, 1, 1); R([190, 160, 90], 0, -11 + dy, 1, 1);
     } else R(o.shirt, -3, -11 + dy, 6, 6);
-    R([40, 32, 26], -3, -6 + dy, 6, 1);
+    R(o.belt || [40, 32, 26], -3, -6 + dy, 6, 1);
     if (o.vest) { R(o.vest, -3, -11 + dy, 6, 4); R([220, 190, 40], -3, -9 + dy, 6, 1); }
     if (o.spores) { R([190, 120, 220], -2, -10 + dy, 1, 1); R([190, 120, 220], 1, -8 + dy, 1, 1); R([150, 90, 190], 2, -11 + dy, 1, 1); }
     if (o.spikes) { R([220, 210, 190], -4, -13 + dy, 1, 2); R([220, 210, 190], -4, -10 + dy, 1, 2); R([220, 210, 190], -3, -15 + dy, 1, 2); R([120, 20, 20], -1, -10 + dy, 3, 2); }
     if (o.apron) R([110, 80, 50], -1, -9 + dy, 4, 4);
     if (o.cross) { R([200, 40, 40], 0, -10 + dy, 1, 3); R([200, 40, 40], -1, -9 + dy, 3, 1); }
     if (o.torn) { R(o.skin, -2, -8 + dy, 2, 1); R(o.skin, 1, -10 + dy, 1, 1); R([120, 20, 20], 0, -7 + dy, 1, 1); }
+    if (o.body) o.body(R, dy, o);   // roupas com detalhes (skins de personagem)
     // cabeça
     const hx = -2 + (o.lean || 0);
-    if (o.afro) R(o.hair, hx - 1, -19 + dy, 7, 4);
-    if (o.bun) R(o.hair, hx - 1, -19 + dy, 3, 2);
+    const hairOn = !o.noHair;   // capacetes e capuzes fechados escondem o cabelo
+    if (hairOn && o.afro) R(o.hair, hx - 1, -19 + dy, 7, 4);
+    if (hairOn && o.bun) R(o.hair, hx - 1, -19 + dy, 3, 2);
     R(o.skin, hx, -16 + dy, 5, 5);
-    if (o.bald || o.mohawk) R(o.hair, hx, -15 + dy, 1, 2);   // só os lados
-    else { R(o.hair, hx, -17 + dy, 5, 2); R(o.hair, hx, -16 + dy, 1, 3); }
-    if (o.mohawk) R(o.hair, hx + 1, -19 + dy, 3, 3);
-    if (o.longHair) R(o.hair, hx - 1, -16 + dy, 2, 7);
-    if (o.afro) R(o.hair, hx - 1, -16 + dy, 2, 4);
+    if (hairOn) {
+      if (o.bald || o.mohawk) R(o.hair, hx, -15 + dy, 1, 2);   // só os lados
+      else { R(o.hair, hx, -17 + dy, 5, 2); R(o.hair, hx, -16 + dy, 1, 3); }
+      if (o.mohawk) R(o.hair, hx + 1, -19 + dy, 3, 3);
+      if (o.longHair) R(o.hair, hx - 1, -16 + dy, 2, 7);
+      if (o.afro) R(o.hair, hx - 1, -16 + dy, 2, 4);
+    }
     if (o.cap) { R(o.cap, hx - 1, -18 + dy, 6, 2); R(o.cap, hx + 4, -17 + dy, 2, 1); }
-    if (o.helmet) R([70, 78, 50], hx - 1, -18 + dy, 7, 3);
+    if (o.helmet) R(o.helmet === true ? [70, 78, 50] : o.helmet, hx - 1, -18 + dy, 7, 3);
     if (o.bandage) { R([236, 232, 220], hx, -16 + dy, 5, 1); R([180, 30, 30], hx + 1, -16 + dy, 1, 1); R([236, 232, 220], -1, -9 + dy, 4, 2); }
     R(o.eye || [20, 20, 20], hx + 3, -14 + dy, 1, 1);
     if (o.beard) { R(o.beard, hx + 1, -12 + dy, 4, 2); R(o.beard, hx, -14 + dy, 1, 3); }
     if (o.mustache) R(o.mustache, hx + 2, -12 + dy, 3, 1);
-    if (o.glasses) { R([30, 30, 30], hx + 2, -14 + dy, 3, 1); R([170, 210, 230], hx + 3, -14 + dy, 1, 1); }
+    if (o.glasses) { R([30, 30, 30], hx + 2, -14 + dy, 3, 1); R(o.glasses === 'sun' ? [20, 20, 20] : [170, 210, 230], hx + 3, -14 + dy, 1, 1); }
     if (o.goggles) { R([50, 50, 55], hx, -15 + dy, 5, 1); R([120, 200, 220], hx + 3, -15 + dy, 2, 1); }
     if (o.patch) { R([20, 20, 20], hx, -15 + dy, 5, 1); R([20, 20, 20], hx + 3, -14 + dy, 2, 1); }
     if (o.hardhat) { R(o.hardhat, hx - 1, -19 + dy, 6, 3); R(o.hardhat, hx + 5, -17 + dy, 1, 1); R(shade(o.hardhat, 0.8), hx - 1, -17 + dy, 7, 1); }
@@ -233,10 +287,12 @@ const Scene = (() => {
     if (o.spores) { R([190, 120, 220], hx + 1, -16 + dy, 1, 1); R([150, 90, 190], hx + 4, -13 + dy, 1, 1); }
     if (o.mouth) R([90, 20, 20], hx + 3, -12 + dy, 2, 1);
     if (o.drool) R('#9be35a', hx + 4, -12 + dy, 1, 2 + Math.round(Math.abs(Math.sin(o.phase))));
+    if (o.head) o.head(R, dy, o, hx);   // chapéus, capacetes e máscaras das skins de personagem
     // braços
     switch (p) {
       case 'aim':
-        if (o.gun && GUNS[o.gun]) { GUNS[o.gun].draw(R, o, dy + (o.gunDy || 0)); break; }
+        if (o.gun && GUNS[o.gun] && o.aim != null) { drawGunAimed(o.sleeve || o.glove ? { ...o, shirt: o.sleeve || o.shirt, skin: o.glove || o.skin } : o, dy + (o.gunDy || 0)); break; }
+        if (o.gun && GUNS[o.gun]) { GUNS[o.gun].draw(R, o.sleeve || o.glove ? { ...o, shirt: o.sleeve || o.shirt, skin: o.glove || o.skin } : o, dy + (o.gunDy || 0)); break; }
         R(o.shirt, 0, -10 + dy, 4, 2); R(o.skin, 4, -10 + dy, 1, 2);
         R([30, 30, 30], 2, -11 + dy, 7, 1); R([90, 60, 30], 0, -10 + dy, 2, 1);
         break;
@@ -261,8 +317,9 @@ const Scene = (() => {
         R(o.shirt, 1, -10 + dy, 2, 3); R(o.skin, 2, -7 + dy, 2, 1);
         break;
       default:
-        R(shade(o.shirt, 0.85), -1 - sw, -10 + dy, 2, 5); R(o.skin, -1 - sw, -5 + dy, 2, 1);
+        R(shade(o.sleeve || o.shirt, 0.85), -1 - sw, -10 + dy, 2, 5); R(o.glove || o.skin, -1 - sw, -5 + dy, 2, 1);
     }
+    if (o.front) o.front(R, dy, o, hx);   // objetos na frente do corpo (cajado...)
     // detalhes próprios de cada chefe, nas mesmas coordenadas do boneco
     if (o.extra) o.extra(R, dy, o);
     ctx.restore();
@@ -387,14 +444,23 @@ const Scene = (() => {
     return { ...L };
   }
 
-  function dress(p, job) {
-    const jl = JOBLOOK[job];
-    p.job = job;
+  // roupa de cada um: a da função e, por cima, o uniforme do grupo (skins de sobrevivente) se houver um equipado
+  const THEME_KEYS = ['scarf', 'vest', 'hardhat', 'beret', 'mask', 'body', 'head', 'boots', 'belt', 'glasses'];
+  function styleOf(p, job) {
+    const jl = JOBLOOK[job] || {};
+    for (const k of THEME_KEYS) p[k] = undefined;
     p.shirt = jl.shirt || p.ownShirt;
     p.pants = jl.pants || [60, 60, 70];
     p.apron = !!jl.apron; p.helmet = !!jl.helmet; p.cross = !!jl.cross; p.bandage = !!jl.bandage;
+    if (typeof OSkins !== 'undefined') OSkins.applySurvivor(p, job);
+  }
+  function dress(p, job) {
+    p.job = job;
+    styleOf(p, job);
     p.st = 'init'; p.hidden = false; p.carry = false;
   }
+  // uniforme trocado: veste de novo quem já está no cenário, sem mexer no que estão fazendo
+  const restyle = () => { for (const p of people) styleOf(p, p.job); };
   // mulheres no cenário na mesma proporção do grupo (pelos nomes): cabelo comprido ou coque; homens com cabelo curto,
   // às vezes barba, bigode ou careca
   const femShare = () => {
@@ -601,6 +667,21 @@ const Scene = (() => {
       c: pick(cols || [[150, 135, 110], [120, 108, 88], [170, 156, 130]]), s: pick([1, 2, 2, 3]), floor: y + 2, a: 0.85 });
   }
   const say = (x, y, t, c, big) => texts.push({ x, y, t, c, life: big ? 1.8 : 1.2, big });
+  // ---------- balões de fala dos homenageados ----------
+  // cada homenageado "mora" num boneco do cenário (do mesmo sexo, se der) e fala por cima dele; o visual opcional vale nesse boneco
+  const bubbles = [];
+  function speaker(name, fem, look) {
+    for (const p of people) if (p.honor && !(S.people || []).includes(p.honor)) { delete p.honor; if (p.honorLook) { Object.assign(p, p.honorLook); delete p.honorLook; } }
+    let p = people.find(q => q.honor === name);
+    if (!p) {
+      const free = people.filter(q => !q.honor && q.job !== 'ferido');
+      p = free.find(q => !!q.fem === !!fem) || free[0];
+      if (!p) return null;
+      p.honor = name;
+      if (look) { p.honorLook = Object.fromEntries(Object.keys(look).map(k => [k, p[k]])); Object.assign(p, look); }
+    }
+    return p;
+  }
 
   // efeitos das ações dos chefes (evento 'boss')
   function bossFx(d) {
@@ -712,6 +793,8 @@ const Scene = (() => {
         } else {
           const hot = S.meta.boosts.furia > 0;
           let tx = d.x, ty = d.y;
+          // skin da arma: efeito próprio na boca do cano e cor do traçante
+          const skinTr = d.src === 'player' && d.w && typeof WSkins !== 'undefined' ? WSkins.onShot(d, ox, oy) : null;
           if (d.launch) break;   // granadas, foguetes e fogo têm efeito próprio
           if (d.exact) {
             if (d.miss) for (let i = 0; i < 3; i++) parts.push({ x: tx, y: ty, vx: rand(-12, 12), vy: rand(-20, -6), g: 80, life: 0.35, max: 0.35, c: [150, 135, 110], s: 1 });
@@ -720,7 +803,7 @@ const Scene = (() => {
             tx = d.x + rand(8, 22); ty = Math.min(H - 6, d.y + rand(12, 24));
             for (let i = 0; i < 4; i++) parts.push({ x: tx, y: ty, vx: rand(-14, 14), vy: rand(-26, -8), g: 80, life: 0.45, max: 0.45, c: [150, 135, 110], s: 1 });
           }
-          tracers.push({ x1: ox, y1: oy, x2: tx, y2: ty, life: 0.07, c: hot ? '255,110,50' : d.c || (d.src === 'player' ? '255,250,200' : '255,220,120') });
+          tracers.push({ x1: ox, y1: oy, x2: tx, y2: ty, life: 0.07, c: hot ? '255,110,50' : skinTr || d.c || (d.src === 'player' ? '255,250,200' : '255,220,120') });
         }
         break;
       }
@@ -773,7 +856,7 @@ const Scene = (() => {
         banner = { t: '⚠️ INVESTIDA!', sub: `${d.n} zumbis chegaram de uma vez!`, c: '#ff3a3a', life: 3, max: 3 };
         shake = Math.max(shake, 6); redFlash = Math.max(redFlash, 0.6);
         break;
-      case 'explode': blastFx(d.x, d.y, d.big); break;
+      case 'explode': blastFx(d.x, d.y, d.big); if (typeof WSkins !== 'undefined') WSkins.onExplode(d); break;
       case 'flame':
         for (let i = 0; i < 7; i++) parts.push({ x: d.x + rand(-d.r, d.r) * 0.7, y: d.y + rand(-4, 8), vx: rand(-8, 8), vy: rand(-30, -12), life: rand(0.25, 0.5), max: 0.5, c: pick(['#ffd040', '#ff8a20', '#ff5020']), s: pick([1, 2, 2]), glow: '255,140,40' });
         { const t = gunTip(); tracers.push({ x1: t.x, y1: t.y, x2: d.x, y2: d.y, life: 0.06, c: '255,150,60' }); }
@@ -868,6 +951,12 @@ const Scene = (() => {
           texts.push({ x: d.x, y: d.y - 24, t: '📦 CAIXA DE HERÓI!', c: '#ffd84a', life: 2.2 });
         }
         break;
+      case 'say': {
+        const p = speaker(d.name, d.fem, d.look);
+        for (const b of bubbles) if (b.name === d.name) b.life = 0;
+        bubbles.push({ p, name: d.name, text: d.text, life: 5.5, max: 5.5 });
+        break;
+      }
       case 'champLevel':
         texts.push({ x: CHAMP_POS.x, y: CHAMP_POS.y - 28, t: `nível ${d.lvl}!`, c: '#ffe066', life: 1.6 });
         break;
@@ -1403,8 +1492,9 @@ const Scene = (() => {
 
     drawTrophy();
     // líder no telhado (você), com a skin escolhida
+    updateAim();
     drawLook(LEADER.x, LEADER.y, Profile.look(), {
-      pose: S.horde.active ? 'aim' : 'stand', face: 1, phase: 0,
+      pose: S.horde.active ? 'aim' : 'stand', face: 1, phase: 0, aim: S.horde.active && GOFF ? aimAng : null,
       gun: leaderGun(), gunDy: Math.round(Math.sin(Math.min(1, leaderSwap / 0.22) * Math.PI) * 3),
     });
     if (leaderMuzzle > 0) {
@@ -1855,6 +1945,7 @@ const Scene = (() => {
     }
     for (const f of flashes) light(f.x, f.y, f.r, f.c, f.a * f.life / f.max);
     ctx.globalAlpha = 1;
+    if (typeof WSkins !== 'undefined') WSkins.drawFx(ctx);   // efeitos das skins de arma
   }
 
   // granada em arco; foguete em linha reta com rastro de fumaça
@@ -1864,11 +1955,15 @@ const Scene = (() => {
       const x = p.x0 + (p.x - p.x0) * f;
       const y = p.y0 + (p.y - p.y0) * f - (p.rocket ? 0 : Math.sin(f * Math.PI) * 28);
       if (p.rocket) {
-        rect([200, 200, 190], x - 3, y - 1, 6, 2); rect([220, 60, 40], x + 3, y - 1, 2, 2);
+        const lk = typeof WSkins !== 'undefined' ? WSkins.projLook(p.k) : null;   // foguete com skin: cores e rastro próprios
+        rect(lk ? lk.look[0] : [200, 200, 190], x - 3, y - 1, 6, 2); rect(lk ? lk.look[1] : [220, 60, 40], x + 3, y - 1, 2, 2);
         light(x - 3, y, 10, '255,160,60', 0.6);
-        if (Math.random() < 0.8) parts.push({ x: x - 4, y, vx: rand(-10, 0), vy: rand(-6, 6), life: 0.6, max: 0.6, c: [170, 170, 170], s: 2, a: 0.5 });
+        if (lk) WSkins.trail(p.k, x - 4, y);
+        else if (Math.random() < 0.8) parts.push({ x: x - 4, y, vx: rand(-10, 0), vy: rand(-6, 6), life: 0.6, max: 0.6, c: [170, 170, 170], s: 2, a: 0.5 });
       } else {
-        rect([60, 70, 50], x - 1.5, y - 1.5, 3, 3);
+        const lk = typeof WSkins !== 'undefined' ? WSkins.projLook(p.k) : null;   // granada com skin
+        rect(lk ? lk.cols[0] : [60, 70, 50], x - 1.5, y - 1.5, 3, 3);
+        if (lk) { rect(lk.cols[1], x - 0.5, y - 1.5, 1, 1); WSkins.trail(p.k, x - 1, y); }
       }
     }
   }
@@ -1920,7 +2015,35 @@ const Scene = (() => {
     lights.length = 0;
   }
 
+  // balão com o nome em cima e a frase quebrada em linhas
+  function drawBubbles() {
+    for (const b of bubbles) {
+      const p = b.p && !b.p.hidden && people.includes(b.p) ? b.p : null;
+      const x = p ? p.x : 46, y = p ? p.y - 22 : 128;
+      ctx.font = '6px sans-serif';
+      const words = b.text.split(' '), lines = [];
+      let cur = '';
+      for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > 92 && cur) { lines.push(cur); cur = w; } else cur = t; }
+      if (cur) lines.push(cur);
+      ctx.font = 'bold 6px sans-serif';
+      const wName = ctx.measureText(b.name).width;
+      ctx.font = '6px sans-serif';
+      const w = Math.min(100, Math.max(wName, ...lines.map(l => ctx.measureText(l).width))) + 8, h = 9 + lines.length * 7;
+      const bx = Math.round(Math.max(2, Math.min(W - w - 2, x - w / 2))), by = Math.round(Math.max(2, y - h));
+      ctx.globalAlpha = Math.min(1, b.life / 0.5, (b.max - b.life) / 0.25);
+      ctx.fillStyle = 'rgba(250,246,232,0.95)'; ctx.fillRect(bx, by, w, h);
+      ctx.fillStyle = 'rgba(40,34,26,0.9)'; ctx.fillRect(bx, by, w, 1); ctx.fillRect(bx, by + h - 1, w, 1); ctx.fillRect(bx, by, 1, h); ctx.fillRect(bx + w - 1, by, 1, h);
+      const tx = Math.round(Math.max(bx + 3, Math.min(bx + w - 5, x)));
+      ctx.fillStyle = 'rgba(250,246,232,0.95)'; ctx.fillRect(tx - 1, by + h, 3, 2); ctx.fillRect(tx, by + h + 2, 1, 1);
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 6px sans-serif'; ctx.fillStyle = '#7a3a1a'; ctx.fillText(b.name, bx + 4, by + 7);
+      ctx.font = '6px sans-serif'; ctx.fillStyle = '#2a241c';
+      lines.forEach((l, i) => ctx.fillText(l, bx + 4, by + 14 + i * 7));
+    }
+    ctx.globalAlpha = 1;
+  }
   function drawTexts() {
+    drawBubbles();
     ctx.textAlign = 'center';
     for (const t of texts) {
       ctx.font = t.big ? 'bold 11px sans-serif' : 'bold 8px sans-serif';
@@ -2108,6 +2231,8 @@ const Scene = (() => {
     for (const t of tracers) t.life -= dt;
     prune(tracers, t => t.life > 0);
     for (const t of texts) { t.life -= dt; t.y -= 14 * dt; }
+    for (const b of bubbles) b.life -= dt;
+    prune(bubbles, b => b.life > 0);
     prune(texts, t => t.life > 0);
     for (const d of decals) d.life -= dt;
     prune(decals, d => d.life > 0);
@@ -2589,5 +2714,5 @@ const Scene = (() => {
 
   // contagem das marcas no chão (usada nos testes e no debug)
   const marks = () => ({ corpses: corpses.length, kept: corpses.filter(c => c.kept).length, blood: decals.filter(d => !d.c).length, keptBlood: decals.filter(d => d.kept).length, pieces: pieces.length });
-  return { init, update, draw, float, gunTip, portrait, demo, hasDemo, marks };
+  return { init, update, draw, float, gunTip, portrait, demo, hasDemo, marks, restyle };
 })();

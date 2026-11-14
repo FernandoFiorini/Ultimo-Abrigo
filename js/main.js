@@ -4,6 +4,7 @@
 function boot() {
   Slots.migrate();
   Menu.init();
+  Sound.setup();   // a música do menu começa no primeiro clique ou tecla
   const auto = Slots.takeAutoload();
   if (auto && Slots.has(auto)) startGame(auto);
   else Menu.show();
@@ -21,6 +22,7 @@ function startGame(slot) {
   Scene.init($('scene'));
   Scene.draw();
   Sound.setup();
+  if (typeof Honored !== 'undefined') Honored.setup();
   Debug.init();
   Demos.init();
   listeners.push((t, d) => { if (t === 'achievement') achToast(d.a); });

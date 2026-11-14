@@ -87,7 +87,7 @@ function openSettings() {
       </div>`)}
 
       ${pane('visual', `
-      <div class="actions"><button data-cmd="skins">🎨 Skin do líder</button></div>
+      <div class="actions"><button data-cmd="skins">🎨 Visual: skins e personagem</button></div>
       <div class="opt-label">Estilo do cenário</div>
       ${seg('sceneStyle', SCENE_STYLES)}
       ${check('blood', 'Sangue e mutilação', 'Sangue no cenário e zumbis se despedaçando ao morrer. Desligado, os zumbis só caem e os impactos levantam poeira.')}
