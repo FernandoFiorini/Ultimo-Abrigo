@@ -161,6 +161,7 @@ function buildUI() {
   $('btn-keys').onclick = showShortcuts;
   $('btn-settings').onclick = openSettings;
   $('btn-locker').onclick = () => showLocker('armas');
+  $('btn-codex').onclick = () => Codex.open();
   actions.lwSkin = k => showLocker('armas', k);
   $('btn-speed').onclick = () => { Settings.set('speed2x', !Settings.get('speed2x')); render(); };
   applyBodyPrefs();
@@ -173,6 +174,11 @@ function buildUI() {
 }
 
 function render() {
+  // bolinhas de novidade nos botões do topo
+  for (const [id, on] of [['btn-codex', Codex.hasNew()], ['btn-locker', typeof lockerNew === 'function' && lockerNew()]]) {
+    const b = $(id);
+    if (b.classList.contains('has-new') !== on) { b.classList.toggle('has-new', on); b.querySelector('.hub-dot').hidden = !on; }
+  }
   const r = rates();
   const left = timeLeft(r);
   for (const k in RES) {
@@ -352,6 +358,13 @@ function render() {
     $('ar-' + a.id).className = 'row ach ' + (state || 'locked');
     $('ap-' + a.id).style.width = (state ? 100 : v / a.goal * 100) + '%';
     $('at-' + a.id).textContent = state ? 'Concluída' : `${fmt(v)} / ${fmt(a.goal)}`;
+    // conquista secreta: só mostra o que é depois de acontecer
+    if (a.secret) {
+      const row = $('ar-' + a.id), open = !!state;
+      row.querySelector('.ach-icon').textContent = open ? a.icon : '❓';
+      row.querySelector('.title').textContent = open ? a.nome : 'Conquista secreta';
+      row.querySelector('.desc').textContent = open ? a.desc : 'Algumas ideias são péssimas. Descubra jogando.';
+    }
     const b = $('ab-' + a.id);
     b.disabled = state !== 'unlocked';
     b.textContent = state === 'claimed' ? '✔' : state === 'unlocked' ? `Resgatar 💵 ${a.cash}` : `💵 ${a.cash}`;

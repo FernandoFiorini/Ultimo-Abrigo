@@ -97,8 +97,12 @@ function bindLookEditor(root, a, onChange) {
 
 // ---------- Visual: trocar skins sem ir à loja (armas do líder, personagem e roupa) ----------
 // tab: 'armas' | 'lider' · focus: arma para destacar (vindo da aba Armas)
+// quantas skins você tem (armas + roupas): passando do que já viu no Visual, o botão ganha a bolinha
+const lockerOwned = () => ((S.meta.wsk && S.meta.wsk.own.length) || 0) + ((S.meta.osk && S.meta.osk.own.length) || 0);
+const lockerNew = () => typeof S !== 'undefined' && S && S.meta && lockerOwned() > (S.meta.lockSeen || 0);
 function showLocker(tab = 'armas', focus = null) {
   const inGame = typeof S !== 'undefined' && S && S.meta;
+  if (inGame) S.meta.lockSeen = lockerOwned();
   if (!inGame) tab = 'lider';
   const weaponsHtml = () => Object.keys(LWEAPONS).map(w => {
     const W = LWEAPONS[w], all = WSkins.DEFS.filter(d => d.w === w), mine = all.filter(d => WSkins.owned(d.id)), cur = WSkins.equipped(w);

@@ -428,6 +428,8 @@ const Scene = (() => {
     if (t === 'uivador') Object.assign(L, { skin: [180, 184, 160], hair: [225, 225, 215], longHair: true, shirt: [90, 70, 100], eye: [255, 240, 120], cap: null });
     if (t === 'hospedeiro') Object.assign(L, { skin: [128, 116, 150], shirt: [70, 60, 90], spores: true, cap: null, oneArm: false });
     if (t === 'arremessador') Object.assign(L, { shirt: [110, 90, 60], pack: [90, 84, 76], oneArm: false, cap: null });
+    if (t === 'gosma') Object.assign(L, { skin: [96, 196, 88], shirt: [62, 150, 70], pants: [44, 112, 52], hair: [70, 170, 64], eye: [240, 255, 140],
+      fat: true, cap: null, longHair: false, oneArm: false, bald: true, goo: true });
     if (t === 'blindado') Object.assign(L, { shirt: [34, 44, 74], pants: [28, 32, 52], vest: [26, 30, 40], riot: true, cap: null, longHair: false, oneArm: false });
     if (ZTYPES[t].human) {
       // gente viva: pele e olhos normais, de pé, rosto coberto por um pano
@@ -900,6 +902,16 @@ const Scene = (() => {
         banner = { t: '⚠️ INVESTIDA!', sub: `${d.n} zumbis chegaram de uma vez!`, c: '#ff3a3a', life: 3, max: 3 };
         shake = Math.max(shake, 6); redFlash = Math.max(redFlash, 0.6);
         break;
+      case 'weak': {
+        const txt = d.text || (d.mult > 1 ? `${d.kind === 'fire' ? '🔥' : '💥'} fraco! ×${fmt(d.mult)}` : 'resiste!');
+        texts.push({ x: d.x, y: d.y - 10, t: txt, c: d.text || d.mult > 1 ? '#ffb347' : '#9fb4c8', life: 1.1 });
+        break;
+      }
+      case 'acidBurst':
+        for (let i = 0; i < 22; i++) parts.push({ x: d.x + rand(-4, 4), y: d.y + rand(-4, 4), vx: rand(-45, 45), vy: rand(-40, 10), g: 70, life: rand(0.4, 0.8), max: 0.8, c: pick(['#b6f04a', '#7ed321', '#e8ff7a']), s: pick([1, 2]), glow: '160,240,60' });
+        texts.push({ x: d.x, y: d.y - 14, t: '🤮 ácido explodiu!', c: '#b6f04a', life: 1.3 });
+        shake = Math.max(shake, 1.5);
+        break;
       case 'explode': blastFx(d.x, d.y, d.big); if (typeof WSkins !== 'undefined') WSkins.onExplode(d); break;
       case 'flame':
         for (let i = 0; i < 7; i++) parts.push({ x: d.x + rand(-d.r, d.r) * 0.7, y: d.y + rand(-4, 8), vx: rand(-8, 8), vy: rand(-30, -12), life: rand(0.25, 0.5), max: 0.5, c: pick(['#ffd040', '#ff8a20', '#ff5020']), s: pick([1, 2, 2]), glow: '255,140,40' });
@@ -1028,6 +1040,32 @@ const Scene = (() => {
         shake = 3;
         break;
       }
+      case 'dropPlane':
+        planes.push({ x: -40, y: 30, t: 0 });
+        banner = { t: '🪂 AIRDROP!', sub: `${AIRDROP.kinds[d.kind].icon} ${AIRDROP.kinds[d.kind].nome} · clique na caixa para mandar alguém buscar`, c: '#ffe066', life: 3.2, max: 3.2 };
+        break;
+      case 'dropLand':
+        shake = Math.max(shake, 1.5);
+        for (let i = 0; i < 12; i++) parts.push({ x: d.x + rand(-6, 6), y: d.y - 1, vx: rand(-18, 18), vy: rand(-12, -3), g: 40, life: rand(0.5, 1), max: 1, c: [140, 125, 100], s: 2, a: 0.5 });
+        break;
+      case 'dropSend':
+        texts.push({ x: WALL_X + 14, y: 160, t: `🏃 ${d.name}, vai!`, c: '#9be35a', life: 1.6 });
+        break;
+      case 'dropGrab':
+        texts.push({ x: d.x, y: d.y - 20, t: 'pegou!', c: '#ffe066', life: 1.2 });
+        break;
+      case 'dropGot':
+        texts.push({ x: WALL_X + 20, y: 150, t: '📦 airdrop no abrigo!', c: '#ffe066', life: 2.4, big: true });
+        for (let i = 0; i < 18; i++) parts.push({ x: d.x + rand(-4, 4), y: d.y - 12, vx: rand(-25, 25), vy: rand(-40, -15), g: 70, life: rand(0.6, 1.1), max: 1.1, c: pick(['#ffe066', '#9be35a', '#ffffff']), s: 1 });
+        break;
+      case 'dropCaught':
+        redFlash = 0.6; shake = Math.max(shake, 2.5);
+        blood(d.x, d.y - 8, 16);
+        texts.push({ x: d.x, y: d.y - 26, t: `🦷 pegaram ${d.name}!`, c: '#c070ff', life: 2.4 });
+        break;
+      case 'dropNone':
+        texts.push({ x: WALL_X + 30, y: 150, t: 'ninguém livre para ir!', c: '#ff8a6a', life: 1.6 });
+        break;
       case 'expStart':
         for (let i = 0; i < Math.min(d.n, 6); i++) {
           const p = newPerson('ocioso');
@@ -1270,6 +1308,70 @@ const Scene = (() => {
       rect([60, 60, 60], x, y, 1, 14);
       rect([70, 170, 80], x + 1, y + wv * 0.5, 7, 4);
       rect([230, 230, 230], x + 3, y + 1 + wv * 0.5, 2, 2);
+    }
+  }
+
+  // ---------- airdrop: caixa caindo de paraquedas, fumaça colorida e quem foi buscar ----------
+  let dropP = null, dropLabelT = 0;
+  function dropRunner(r) {
+    if (!dropP || dropP.who !== r.n) { dropP = newPerson('ocioso'); dropP.who = r.n; dropP.fem = isFemale(r.n); }
+    return dropP;
+  }
+  function dropUpdate(dt) {
+    const d = S.horde.active && S.horde.drop;
+    if (!d || !d.r) dropP = null;
+    if (!d || dt <= 0) return;
+    dropLabelT += dt;
+    if (d.st === 'ground' && Math.random() < dt * 9) {
+      const c = AIRDROP.kinds[d.kind].smoke;
+      parts.push({ x: d.x + 3 + rand(-1, 1), y: d.y - 9, vx: rand(-3, 5), vy: rand(-18, -10), life: rand(1.6, 2.6), max: 2.6, c, s: pick([2, 3, 3]), a: 0.6 });
+    }
+    if (d.r) {
+      const p = dropRunner(d.r), r = d.r;
+      p.face = r.st === 'back' ? -1 : 1;
+      p.pose = r.st === 'grab' ? 'work' : r.has ? 'carry' : 'walk';
+      p.phase += dt * (r.st === 'grab' ? 8 : 12);
+    }
+  }
+  function drawCrate(x, y, kind, label) {
+    const c = AIRDROP.kinds[kind].smoke;
+    rect([92, 74, 44], x - 4, y - 7, 9, 7);
+    rect([120, 98, 58], x - 4, y - 7, 9, 1);
+    rect([60, 48, 30], x, y - 7, 1, 7);
+    rect(c, x - 4, y - 4, 9, 1);
+    if (Math.sin(time * 8) > 0) { rect('#fff4b0', x + 3, y - 9, 1, 2); light(x + 3, y - 8, 10, c.join(','), 0.7); }
+    if (label) {
+      ctx.globalAlpha = 0.65 + 0.35 * Math.sin(time * 5);
+      ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#000'; ctx.fillText('📦 clique: buscar', x + 0.5, y - 14.5);
+      ctx.fillStyle = '#ffe066'; ctx.fillText('📦 clique: buscar', x, y - 15);
+      ctx.globalAlpha = 1;
+    }
+  }
+  function dropEnts(ents) {
+    const d = S.horde.active && S.horde.drop;
+    if (!d || d.st === 'wait') return;
+    if (d.st === 'fall') {
+      const k = Math.min(1, d.t / AIRDROP.fall), yy = d.y - (1 - k) * (d.y - 18), sway = Math.sin(time * 2.4) * 3 * (1 - k);
+      ents.push([d.y, () => {
+        const x = d.x + sway;
+        ctx.strokeStyle = 'rgba(230,230,220,0.7)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(x - 7, yy - 18); ctx.lineTo(x - 3, yy - 7); ctx.moveTo(x + 8, yy - 18); ctx.lineTo(x + 4, yy - 7); ctx.stroke();
+        rect([210, 70, 60], x - 9, yy - 22, 19, 3); rect([235, 235, 225], x - 6, yy - 23, 13, 2); rect([210, 70, 60], x - 3, yy - 24, 7, 1);
+        drawCrate(x, yy, d.kind, false);
+      }]);
+      return;
+    }
+    if (!(d.r && d.r.has)) ents.push([d.y, () => drawCrate(d.x, d.y, d.kind, !d.r)]);
+    if (d.r) {
+      const r = d.r, p = dropRunner(r);
+      ents.push([r.y, () => {
+        drawHuman(r.x, r.y, p);
+        if (r.has) drawCrate(r.x + (p.face > 0 ? 2 : -2), r.y - 13, d.kind, false);
+        ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#000'; ctx.fillText(r.n, r.x + 0.5, r.y - (r.has ? 30 : 23) + 0.5);
+        ctx.fillStyle = '#9be35a'; ctx.fillText(r.n, r.x, r.y - (r.has ? 30 : 23));
+      }]);
     }
   }
 
@@ -1684,6 +1786,7 @@ const Scene = (() => {
       if (drawBossBody(z, t, L, s)) { bossMarks(z, t, s, top); return; }
     }
     drawHuman(z.x, z.y - lift, L);
+    if (L.goo) gooOverlay(z.x, z.y - lift, s, z.id);
     if (t.boss) bossMarks(z, t, s, top);
     else if (z.stun > 0) stars(z.x, top - 1, 3);
     if (z.maxHp > 1.5 && z.hp < z.maxHp) {
@@ -1701,6 +1804,40 @@ const Scene = (() => {
       ctx.fillStyle = '#000'; ctx.fillText(z.name, z.x + 0.5, top - 6.5);
       ctx.fillStyle = '#c9d6a0'; ctx.fillText(z.name, z.x, top - 7);
     }
+  }
+
+  // Gosma: uma camada de gelatina translúcida por cima do corpo, com bolhas e pingos
+  function gooOverlay(x, y, s, id) {
+    ctx.fillStyle = 'rgba(120,235,110,0.33)';
+    ctx.beginPath(); ctx.ellipse(x, y - 9 * s, 6.5 * s, 11 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(200,255,190,0.55)';
+    ctx.fillRect(Math.round(x - 3 * s), Math.round(y - 15 * s), 1, 1);
+    ctx.fillRect(Math.round(x + 2 * s), Math.round(y - 8 * s + Math.sin(time * 3 + id) * 1.5), 1, 1);
+    const d = (time * 0.9 + (id % 7) * 0.13) % 1;
+    ctx.fillStyle = 'rgba(110,220,100,0.7)';
+    ctx.fillRect(Math.round(x - 4 * s), Math.round(y - 6 * s + d * 6 * s), 1, 2);
+  }
+
+  // retrato de um inimigo para o Bestiário (sil: só a silhueta, para quem você ainda não abateu)
+  function zportrait(c, type, sil) {
+    const oc = ctx, on = night, ot = time;
+    ctx = c.getContext('2d'); night = 0; time = 0.4;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.imageSmoothingEnabled = false;
+    const Z = ZTYPES[type], s = Z.scale || 1;
+    const k = Math.min(c.height / (23 * s + 3), c.width / (16 * s + 3));
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    const z = { id: 4242 + type.length * 31, type, x: c.width / k / 2, y: c.height / k - 2, state: 'walk', speed: 0, hp: 1, maxHp: 1, t: 0 };
+    try { drawZombie(z); } catch (e) { /* algum chefe depende do estado da horda */ }
+    lookCache.delete(z.id);
+    if (sil) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = '#0b0d10'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx = oc; night = on; time = ot;
   }
 
   // estrelinhas girando sobre quem está atordoado
@@ -2233,6 +2370,7 @@ const Scene = (() => {
     cv.addEventListener('pointerdown', e => {
       toLocal(e); ptr.in = true;
       if (paused) return;
+      if (S.horde.active && Airdrop.click(ptr.x, ptr.y)) return;   // clique na caixa do airdrop
       if (S.horde.active) { ptr.down = true; Weapons.fire(ptr.x, ptr.y); return; }
       if (!dayHintT) { texts.push({ x: ptr.x, y: ptr.y, t: 'Use o botão 🔍 Vasculhar', c: '#ece6d0', life: 1.2 }); dayHintT = 1.5; }
     });
@@ -2301,6 +2439,7 @@ const Scene = (() => {
       p.face = dx > 0 ? 1 : -1; p.pose = 'carry'; p.phase += dt * 9;
     }
     prune(travelers, p => !p.done);
+    dropUpdate(dt);
     for (const p of planes) {
       p.t += dt; p.x += 330 * dt;
       if (Math.random() < dt * 30) parts.push({ x: p.x - 10, y: p.y + 1, vx: rand(-20, -5), vy: rand(-3, 3), life: 0.8, max: 0.8, c: [160, 160, 160], s: 2, a: 0.4 });
@@ -2382,6 +2521,7 @@ const Scene = (() => {
     for (const c of corpses) ents.push([c.y - 0.5, () => drawCorpse(c)]);
     for (const p of pieces) ents.push([p.rest ? p.floor - 0.4 : p.y, () => drawPiece(p)]);
     for (const z of S.horde.zs || []) ents.push([z.y, () => drawZombie(z)]);
+    dropEnts(ents);
     ents.sort((a, b) => a[0] - b[0]);
     for (const e of ents) e[1]();
 
@@ -2815,5 +2955,5 @@ const Scene = (() => {
 
   // contagem das marcas no chão (usada nos testes e no debug)
   const marks = () => ({ corpses: corpses.length, kept: corpses.filter(c => c.kept).length, blood: decals.filter(d => !d.c).length, keptBlood: decals.filter(d => d.kept).length, pieces: pieces.length });
-  return { init, update, draw, float, gunTip, portrait, demo, hasDemo, marks, restyle };
+  return { init, update, draw, float, gunTip, portrait, zportrait, demo, hasDemo, marks, restyle };
 })();

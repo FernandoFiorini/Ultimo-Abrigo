@@ -256,6 +256,13 @@ const Debug = (() => {
         ondaMais: ['Onda +1', () => { if (!S.horde.active) S.wave++; }, 'só fora da horda'],
         ondaMais5: ['Onda +5', () => { if (!S.horde.active) S.wave += 5; }, 'só fora da horda'],
       }],
+      // airdrop na hora: cai na horda atual ou começa uma horda com ele
+      ['Airdrop (cai agora)', Object.fromEntries([[null, '🎲 Sorteado'], ...Object.entries(AIRDROP.kinds).map(([k, K]) => [k, `${K.icon} ${K.nome}`])].map(([k, label]) => ['drop_' + (k || 'any'), [label, () => {
+        if (S.horde.active) { if (!Airdrop.force(k)) { note('já tem um airdrop nesta horda.'); return; } }
+        else { S.dbgDrop = k || 'any'; hordeNow(); }
+        note('airdrop a caminho.');
+        return true;
+      }, k ? `força um airdrop de ${AIRDROP.kinds[k].nome.toLowerCase()} (sem horda, começa uma)` : 'airdrop de tipo sorteado, como no jogo']]))],
       // chefe na hora: entra na horda atual ou começa uma horda com ele na frente
       ['Chefes (aparecem agora)', Object.fromEntries([...BOSS_POOL, 'chefao'].map(t => ['boss_' + t, [`${ZTYPES[t].icon} ${ZTYPES[t].nome}`, () => {
         if (S.horde.active) Bosses.spawned(spawnZombie(t, S.horde));

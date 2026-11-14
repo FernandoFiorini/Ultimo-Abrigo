@@ -73,7 +73,7 @@ const fireMult = () => (1 + 0.12 * perk('treino')) * (furia() ? 2 : 1) * Endgame
 const maxSurv = () => 4 + S.build.beliche * 2 + perk('veteranos') + Endgame.ab('beds');
 const maxWall = () => Math.round((100 + S.build.muro * 50) * (1 + 0.2 * perk('engenharia')) * Endgame.mult('wall') * (hasMod('murofraco') ? 0.6 : 1) * traitMult('forca') * (1 + Champions.val('wall')));
 const assigned = () => Object.values(S.jobs).reduce((a, b) => a + b, 0);
-const away = () => S.exps.reduce((a, e) => a + e.n, 0) + S.ops.reduce((a, o) => a + o.n, 0);
+const away = () => S.exps.reduce((a, e) => a + e.n, 0) + S.ops.reduce((a, o) => a + o.n, 0) + (S.horde && S.horde.drop && S.horde.drop.r ? 1 : 0);
 const home = () => S.survivors - away();
 // feridos ficam no abrigo (comem), mas não trabalham até um médico tratá-los
 const hurt = () => Math.min((S.injured || []).length, Math.max(0, home()));

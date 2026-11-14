@@ -15,6 +15,7 @@ const Endgame = (() => {
     uivador:   { gas: 0.4 },
     hospedeiro: { tecido: 0.5 },
     blindado:  { tecido: 0.4, acido: 0.3 },
+    gosma:     { acido: 0.4, tecido: 0.2 },
     cuspidor:  { acido: 0.6 },
     explosivo: { gas: 0.6 },
     tanque:    { tecido: 0.4 },
@@ -388,7 +389,7 @@ const Endgame = (() => {
         const m = M();
         const keep = { cash: m.cash, ach: m.ach, stats: m.stats, heroes: m.heroes, weapons: m.weapons, active: m.active, hid: m.hid,
           records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, memorial: m.memorial, fallen: m.fallen, lw: m.lw, champ: m.champ, legado: m.legado + g, worlds: m.worlds + 1,
-          player: m.player, look: m.look, wsk: m.wsk, osk: m.osk, runId: m.runId, minDiff: m.minDiff, wins: m.wins, diffChosen: true };
+          player: m.player, look: m.look, wsk: m.wsk, osk: m.osk, glos: m.glos, cxSeen: m.cxSeen, lockSeen: m.lockSeen, runId: m.runId, minDiff: m.minDiff, wins: m.wins, diffChosen: true };
         S = newState(Object.assign(newMeta(), keep), diff);
         addLog(`🌍 Bem-vindo ao Mundo ${S.meta.worlds}! +${g} de Legado (total ${S.meta.legado}).`, 'good');
         emit('evacuate', { city: 1, g: 0, world: S.meta.worlds });
@@ -574,6 +575,7 @@ const Endgame = (() => {
       if (!head && (src === 'guard' || src === 'tower')) head = Math.random() < ARMOR_HEAD[src] + Champions.val('head');
       if (head) {
         M().stats.headshots = (M().stats.headshots || 0) + 1;
+        Codex.discover('head_blindado');
         emit('headshot', { x: z.x, y: zy(z) - 7 * zsc(z), src });
       } else if (opts.blast) base *= ARMOR_BLAST;
       else { emit('armor', { x: z.x, y: zy(z), src }); return; }

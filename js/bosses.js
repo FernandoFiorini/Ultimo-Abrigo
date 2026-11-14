@@ -50,7 +50,7 @@ const Bosses = (() => {
     const blast = o.blast || src === 'explode' || src === 'air';
     if (z.under) return 0;
     if (z.rolling) {
-      if (o.rocket) return dmg;
+      if (o.rocket) { Codex.discover('rocket_rolador'); return dmg; }
       if (blast || o.fire) return dmg * 0.4;
       ricochet(z, src, 'rolando: espere ele parar!');
       return 0;
@@ -63,6 +63,7 @@ const Bosses = (() => {
         return 0;
       }
       dmg *= Z.weak.mult;
+      Codex.discover('weak_carcaca');
     }
     if (z.state === 'daze' || z.state === 'stun') dmg *= 1.5;
     if (z.state === 'crouch') z.taken = (z.taken || 0) + dmg;
@@ -97,7 +98,8 @@ const Bosses = (() => {
   function onDeath(z, src) {
     const Z = ZTYPES[z.type], H = S.horde;
     z.under = false; z.rolling = false;
-    if (Z.split) split(z, Z.split);
+    if (Z.split && z.burn > 0) { emit('weak', { x: z.x, y: zy(z), text: 'queimou: não se dividiu!' }); Codex.discover('burn_split'); }
+    else if (Z.split) split(z, Z.split);
     if (Z.ai === 'howl') {
       let n = 0;
       for (const o of live()) if (!ZTYPES[o.type].boss) { o.stun = Math.max(o.stun || 0, Z.howl.stun); n++; }

@@ -98,7 +98,7 @@ const ZTYPES = {
   corredor: { nome: 'Corredor', hp: 1, speed: 24, scale: 0.95, dmg: 2.5, hits: 2, loot: 1 },
   tanque: { nome: 'Brutamontes', hp: 4, speed: 8, scale: 1.4, dmg: 5, hits: 2, loot: 4 },
   cuspidor: {
-    nome: 'Cuspidor', hp: 2, speed: 11, scale: 1, dmg: 2.5, hits: 2, loot: 3,
+    nome: 'Cuspidor', hp: 2, speed: 11, scale: 1, dmg: 2.5, hits: 2, loot: 3, acidBurst: true,
     spit: { range: 75, cd: 2.2, dmg: 2, count: 4 }
   },
   explosivo: { nome: 'Inchado', hp: 2, speed: 7, scale: 1.25, dmg: 15, hits: 1, loot: 3, explode: true },
@@ -110,7 +110,9 @@ const ZTYPES = {
   mordido: { nome: 'Transformado', hp: 3, speed: 17, scale: 1.05, dmg: 4, hits: 3, loot: 6 },
   // onDeath: ao morrer, o grito acelera os zumbis em volta (haste) ou os esporos os deixam mais resistentes (harden)
   uivador: { nome: 'Uivador', hp: 2, speed: 12, scale: 1, dmg: 2.5, hits: 2, loot: 3, onDeath: 'haste' },
-  hospedeiro: { nome: 'Hospedeiro', hp: 3, speed: 9, scale: 1.1, dmg: 3, hits: 2, loot: 4, onDeath: 'harden' },
+  // res: multiplicador de dano por tipo (fire: fogo · bullet: balas, pedras e tiros comuns · blast: explosões). Fraquezas
+  // e resistências entram no Glossário (codex.js) quando o jogador as vê acontecer
+  hospedeiro: { nome: 'Hospedeiro', hp: 3, speed: 9, scale: 1.1, dmg: 3, hits: 2, loot: 4, onDeath: 'harden', res: { fire: 2 } },
   // ataca o muro de longe (spit.proj: o que ele arremessa)
   arremessador: {
     nome: 'Arremessador', hp: 2, speed: 12, scale: 1.05, dmg: 2.5, hits: 2, loot: 3,
@@ -118,6 +120,8 @@ const ZTYPES = {
   },
   // armadura de choque: tiros no corpo ricocheteiam. Só tiros na cabeça, explosões (metade) e fogo ferem
   blindado: { nome: 'Policial blindado', hp: 3, speed: 9, scale: 1.05, dmg: 3, hits: 3, loot: 6, armor: true },
+  // gelatina viva: as balas afundam nela (30% do dano), o fogo a derrete (dano triplo). off: mais dura no offline
+  gosma: { nome: 'Gosma', hp: 3, speed: 8, scale: 1.15, dmg: 3, hits: 2, loot: 4, res: { bullet: 0.3, fire: 3 }, off: 2 },
   // humanos (Ataque de Saqueadores): rápidos, atk = segundos entre golpes no muro, deixam comida e munição
   saqueador: { nome: 'Saqueador', hp: 1.5, speed: 30, scale: 1, dmg: 1.8, hits: 5, atk: 0.5, loot: 2, human: true, food: 4, ammo: 2 },
   incendiario: {
@@ -176,7 +180,7 @@ const ZTYPES = {
   },
   gigante: {
     nome: 'Hospedeiro Gigante', art: 'o', icon: '🍄', hp: 26, speed: 4.5, scale: 2.3, dmg: 10, hits: 4, loot: 50, boss: true, ai: 'split', wave: 40,
-    split: { type: 'broto', n: 2 }, leak: 45,
+    split: { type: 'broto', n: 2 }, leak: 45, res: { fire: 1.5 },
     tip: 'Ao morrer ele se divide. E os pedaços se dividem de novo!'
   },
   // Noite dos Saqueadores: o líder deles toma o lugar do chefe
@@ -186,8 +190,8 @@ const ZTYPES = {
     tip: 'Escudo à frente: mire na cabeça ou use explosivos'
   },
   // filhotes e pedaços dos chefes
-  cria: { nome: 'Cria', hp: 0.5, speed: 22, scale: 0.7, dmg: 1.5, hits: 2, loot: 1 },
-  broto: { nome: 'Broto', hp: 6, speed: 8, scale: 1.5, dmg: 4, hits: 3, loot: 8, split: { type: 'normal', n: 3 }, onDeath: 'harden' },
+  cria: { nome: 'Cria', hp: 0.5, speed: 22, scale: 0.7, dmg: 1.5, hits: 2, loot: 1, res: { fire: 3 } },
+  broto: { nome: 'Broto', hp: 6, speed: 8, scale: 1.5, dmg: 4, hits: 3, loot: 8, split: { type: 'normal', n: 3 }, onDeath: 'harden', res: { fire: 2 } },
 };
 // chefes que podem aparecer nas ondas múltiplas de 10 (o Chefe Saqueador só vem com os saqueadores)
 const BOSS_POOL = Object.keys(ZTYPES).filter(k => ZTYPES[k].boss && ZTYPES[k].wave);
@@ -416,6 +420,21 @@ const HONORED = [
     historia: 'Era viciado antes do apocalipse, e nem é em drogas. Seu lema é: jogo acima de tudo, farmar acima de todos.' },
   // { nome: 'Fulana', sexo: 'f', frases: ['Primeira frase.', 'Segunda frase.'], horda: ['Lá vêm eles!'], adeus: ['Cuidem do abrigo por mim.'], visual: { hair: [200, 60, 130], longHair: true } },
 ];
+// ---------- airdrop no meio da horda (airdrop.js) ----------
+// wave: a partir de qual onda · chance: por horda · delay: segundos depois do começo da horda · zone: onde pode cair (x)
+// fall: tempo de queda · speed: corrida de quem vai buscar · grab: tempo para pegar a caixa · chase: raio em que os zumbis
+// largam o muro e vão atrás · catch: distância da mordida · chaseMult: velocidade de quem persegue
+const AIRDROP = {
+  wave: 3, chance: 0.2, delay: [6, 22], zone: [245, 430], fall: 4.5, speed: 34, grab: 2, chase: 46, catch: 5, chaseMult: 1.25,
+  milFire: 1.5, rareCash: 2,
+  kinds: {
+    sup: { p: 0.6, nome: 'Suprimentos', icon: '🟢', smoke: [110, 220, 120] },
+    mil: { p: 0.3, nome: 'Munição militar', icon: '🔵', smoke: [110, 160, 255] },
+    rara: { p: 0.1, nome: 'Carga rara', icon: '🟣', smoke: [200, 110, 255] },
+  },
+};
+// cuspidor que morre queimando: o ácido explode (raio e dano nos zumbis em volta)
+const ACID_BURST = { r: 26, dmg: 1.5 };
 const HONORED_CHANCE = 0.3;     // chance de quem chega ao grupo ser um dos homenageados (se algum ainda não estiver)
 const HONORED_GAP = [45, 110];  // segundos entre uma frase e outra
 const isFemale = name => { const h = HONORED.find(x => x.nome === name); return h ? h.sexo === 'f' : FEMALE_NAMES.has(name); };

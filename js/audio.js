@@ -316,6 +316,36 @@ const Sound = (() => {
       tone({ type: 'sawtooth', f: 520, f2: 760, a: 0.02, d: 0.45, vol: 0.06, filter: { f: 2400, q: 2 }, pan, t: t + 0.05 });
       tone({ f: 70, f2: 40, d: 0.3, vol: 0.12, t: t + 0.05 });
     },
+    // airdrop: ronco do avião, baque da caixa, apito de "vai!", fanfarra da entrega e o grito de quando pegam
+    dropPlane() {
+      const t = ac.currentTime;
+      noise({ type: 'lowpass', f: 300, f2: 900, d: 2.2, vol: 0.09, pan: -0.8 });
+      tone({ type: 'sawtooth', f: 62, f2: 74, d: 2.2, vol: 0.05, filter: { f: 400 } });
+      [76, 81].forEach((m, i) => tone({ type: 'triangle', f: mtof(m), d: 0.25, vol: 0.06, t: t + 0.6 + i * 0.18 }));
+    },
+    dropLand(d) {
+      const pan = panOf(d.x);
+      tone({ f: 90, f2: 40, d: 0.3, vol: 0.18, pan });
+      noise({ type: 'lowpass', f: 900, f2: 200, d: 0.35, vol: 0.12, pan });
+      noise({ type: 'bandpass', f: 2200, q: 3, d: 0.08, vol: 0.05, pan, t: ac.currentTime + 0.05 });
+    },
+    dropSend() {
+      const t = ac.currentTime;
+      tone({ type: 'square', f: 1500, f2: 2100, d: 0.12, vol: 0.04, filter: { f: 3500 } });
+      tone({ type: 'square', f: 1500, f2: 2300, d: 0.18, vol: 0.04, filter: { f: 3500 }, t: t + 0.16 });
+    },
+    dropGrab(d) { noise({ type: 'bandpass', f: 1200, q: 2, d: 0.12, vol: 0.07, pan: panOf(d.x) }); tone({ type: 'triangle', f: 660, f2: 990, d: 0.1, vol: 0.05 }); },
+    dropGot() {
+      const t = ac.currentTime;
+      [67, 72, 76, 79, 84].forEach((m, i) => tone({ type: 'triangle', f: mtof(m), d: 0.35, vol: 0.07, t: t + i * 0.08, send: 0.5 }));
+    },
+    dropCaught(d) {
+      const pan = panOf(d.x), t = ac.currentTime;
+      tone({ type: 'sawtooth', f: 700, f2: 300, a: 0.01, d: 0.6, vol: 0.07, filter: { f: 2000, q: 3 }, pan });
+      noise({ type: 'bandpass', f: 1600, q: 4, d: 0.12, vol: 0.12, pan, t: t + 0.1 });
+      tone({ f: 60, f2: 35, d: 0.6, vol: 0.14, t: t + 0.1 });
+    },
+    dropNone() { tone({ type: 'square', f: 220, f2: 180, d: 0.15, vol: 0.04, filter: { f: 900 } }); },
     biteChoice(d) {
       if (d.kill) { tone({ f: 120, f2: 50, d: 0.35, vol: 0.2 }); noise({ type: 'lowpass', f: 1200, f2: 200, d: 0.3, vol: 0.12 }); }
       else noise({ type: 'lowpass', f: 600, f2: 300, d: 0.8, vol: 0.06, send: 0.4 });
@@ -389,6 +419,17 @@ const Sound = (() => {
       const pan = panOf(d.x), f = rand(2400, 3200);
       tone({ type: 'triangle', f, f2: f * 0.8, d: 0.12, vol: 0.04, pan });
       tone({ type: 'sine', f: f * 1.5, d: 0.08, vol: 0.02, pan });
+    },
+    // descoberta no glossário: um "plim" de página virando
+    discover() {
+      const t = ac.currentTime;
+      noise({ type: 'highpass', f: 3000, d: 0.12, vol: 0.04 });
+      [79, 83, 86, 91].forEach((m, i) => tone({ type: 'triangle', f: mtof(m), d: 0.3, vol: 0.06, t: t + 0.05 + i * 0.07, send: 0.6 }));
+    },
+    acidBurst(d) {
+      const pan = panOf(d.x);
+      noise({ type: 'bandpass', f: 1400, f2: 500, q: 2, d: 0.35, vol: 0.12, pan });
+      tone({ f: 140, f2: 60, d: 0.25, vol: 0.1, pan });
     },
     headshot(d) {
       const pan = panOf(d.x);

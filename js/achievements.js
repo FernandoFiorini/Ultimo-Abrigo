@@ -10,8 +10,11 @@ const stat = k => S.meta.stats[k];
 function countKill(type, k = 1) {
   const st = S.meta.stats;
   st.kills += k;
+  const before = typeof Codex !== 'undefined' ? Codex.kills(type) : 0;
+  (st.zk || (st.zk = {}))[type] = (st.zk[type] || 0) + k;   // abates por tipo: bestiário
   if (ZTYPES[type].boss) { st.bosses += k; if (!st.bk) st.bk = {}; st.bk[type] = (st.bk[type] || 0) + k; }
   if (type === 'explosivo') st.bloaters += k;
+  if (typeof Codex !== 'undefined') Codex.onKills(type, before);
 }
 
 // val: valor atual · goal: meta · cash: recompensa
@@ -43,6 +46,10 @@ const ACH = [
   { id: 'evac1',    icon: '🚁', nome: 'Nova esperança',      desc: 'Evacue para outra cidade',              val: () => stat('evacs'), goal: 1,    cash: 3 },
   { id: 'evac5',    icon: '🌍', nome: 'Nômade',              desc: 'Evacue 5 vezes',                        val: () => stat('evacs'), goal: 5,    cash: 10 },
   { id: 'air1',     icon: '✈️', nome: 'Chuva de fogo',       desc: 'Use um ataque aéreo',                   val: () => stat('airstrikes'), goal: 1, cash: 1 },
+  { id: 'drop1',    icon: '📦', nome: 'Entrega especial',    desc: 'Recupere um airdrop no meio da horda',  val: () => stat('drops') || 0, goal: 1, cash: 2 },
+  { id: 'drop10',   icon: '🪂', nome: 'Logística de guerra', desc: 'Recupere 10 airdrops',                  val: () => stat('drops') || 0, goal: 10, cash: 5 },
+  { id: 'dropcov',  icon: '🛡️', nome: 'Anjo da guarda',      desc: 'Abata 5 zumbis que perseguiam quem foi buscar um airdrop, numa mesma corrida', val: () => stat('dropCover') || 0, goal: 5, cash: 3 },
+  { id: 'droplost', icon: '💀', nome: 'Péssima ideia',       desc: 'Perca alguém buscando um airdrop',      val: () => stat('dropLost') || 0, goal: 1, cash: 1, secret: true },
 ];
 
 function checkAchievements() {

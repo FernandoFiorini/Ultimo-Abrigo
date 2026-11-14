@@ -356,6 +356,7 @@ const Champions = (() => {
     const c = C(), all = missing(), miss = all.filter(k => !isReady(k));   // miss: quem ainda precisa de fragmentos
     let stars = 1;
     if (kind === 'presente' && all.length) stars = 3;
+    else if (kind === 'airdrop') stars = 2;   // a carga rara do airdrop
     else if (Math.random() < BOX.up2) { stars = 2; if (all.length && Math.random() < BOX.up3) stars = 3; }
     // garantia: depois de BOX.pity - 1 caixas seguidas sem fragmento de herói novo, a próxima sai ★★
     else if (miss.length && c.pity + 1 >= BOX.pity) stars = 2;

@@ -8,6 +8,8 @@ const Tutorial = (() => {
       text: 'Cada sobrevivente precisa de uma função. Na aba <b>Equipe</b>, use + e −: forrageiros 🌾 produzem comida, guardas 🛡️ atiram na horda e armeiros ⚙️ fabricam munição.' },
     { id: 'noite', icon: '🌙', title: 'A horda chegou', when: () => S.horde.active,
       text: 'Mire e clique para atirar com o líder: tiros fora do zumbi erram. Os guardas atiram sozinhos enquanto houver munição; sem ela, jogam pedras. Se o muro cair, sobreviventes morrem.' },
+    { id: 'airdrop', icon: '🪂', title: 'Airdrop!', when: () => S.horde.active && S.horde.drop && S.horde.drop.st === 'ground' && !S.horde.drop.r,
+      text: 'Uma caixa caiu no meio da horda. <b>Clique nela</b> para mandar alguém buscar (um ocioso ou, sem ociosos, um guarda). Os zumbis por perto vão atrás: atire neles para dar cobertura. Se pegarem quem foi, ele vira zumbi.' },
     { id: 'armas', icon: '🔫', title: 'Armas do líder', tab: 'armas', when: () => !S.horde.active && Math.max(S.best, S.meta.stats.bestWave) >= 4,
       text: 'Na aba <b>Armas</b> você compra e melhora armas para o líder. Elas ficam para sempre, têm pente, recarga (R) e alcance, gastam a munição do abrigo (menos a pistola) e você leva até 3 por noite, nos espaços <b>(Q) (W) (E)</b>.' },
     { id: 'vasculhar', icon: '🔍', title: 'Mãos à obra', when: () => seen('equipe'),
@@ -104,6 +106,7 @@ const SHORTCUTS = [
   ['M', 'Ligar / desligar todo o som'],
   ['O', 'Abrir o comerciante (quando ele estiver no abrigo)'],
   ['K', 'Visual: trocar as skins das armas e do personagem'],
+  ['B', 'Bestiário e Glossário: fichas dos inimigos e fraquezas descobertas'],
   ['H ou ?', 'Mostrar esta lista'],
   ['Esc', 'Fechar janela'],
 ];
@@ -227,6 +230,7 @@ function setupKeys() {
         break;
       }
       case 'k': showLocker('armas'); break;
+      case 'b': Codex.open(); break;
       case 'h': case '?': showShortcuts(); break;
       default: return;
     }

@@ -44,7 +44,7 @@ h3 { margin: 14px 0 8px; font-size: 13px; text-transform: uppercase; letter-spac
 
 .resources { display: flex; flex-wrap: wrap; gap: 8px; }
 
-.audio-ctl { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.audio-ctl { margin-left: 10px; display: flex; align-items: center; gap: 6px; }
 .audio-ctl button { padding: 4px 8px; font-size: 15px; }
 .audio-ctl button.off { opacity: 0.45; text-decoration: line-through; }
 .audio-ctl input { width: 90px; accent-color: var(--accent); }
@@ -1437,3 +1437,58 @@ table.keys .hk { color: var(--text); }
 .g-bub[data-side="right"] .g-arrow { left: -8px; margin-top: -7px; border-top: none; border-right: none; }
 .g-bub[data-side="left"] .g-arrow { right: -8px; margin-top: -7px; border-bottom: none; border-left: none; }
 .g-bub[data-side="center"] .g-arrow, .g-bub[data-side="inside"] .g-arrow { display: none; }
+
+/* ---------- 📖 Bestiário e Glossário ---------- */
+.good-text { color: var(--good, #8fd14f); }
+.cx-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 14px; align-items: start; }
+@media (max-width: 720px) { .cx-wrap { grid-template-columns: 1fr; } }
+.cx-list { max-height: 60vh; overflow-y: auto; padding-right: 4px; }
+.cx-list h4 { margin: 10px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.cx-list h4:first-child { margin-top: 0; }
+.cx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 6px; }
+.cx-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border-radius: 8px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text); font-size: 11px; line-height: 1.2; }
+.cx-tile:hover { border-color: rgba(255, 255, 255, 0.25); }
+.cx-tile.on { border-color: var(--accent); background: rgba(143, 209, 79, 0.08); }
+.cx-tile.unknown .cx-name { color: var(--muted); letter-spacing: .15em; }
+.cx-tile canvas { width: 56px; height: 56px; image-rendering: pixelated; }
+.cx-name { font-weight: 700; text-align: center; }
+.cx-k { color: var(--muted); font-size: 10px; min-height: 12px; }
+.cx-side { position: sticky; top: 0; padding: 10px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.08); }
+.cx-detail canvas { display: block; width: 120px; height: 120px; margin: 0 auto 4px; image-rendering: pixelated; }
+.cx-detail h3 { margin: 2px 0; text-align: center; color: var(--accent); }
+.cx-detail h4 { margin: 10px 0 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.cx-detail p { margin: 6px 0; font-size: 13px; line-height: 1.45; }
+.cx-kills { text-align: center; font-size: 12px; color: var(--muted); }
+.cx-tip { color: #f3d36a; }
+.cx-fact { color: #c9b88a; font-style: italic; }
+.cx-lock { padding: 6px 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); color: var(--muted); font-size: 12px !important; }
+.cx-stats { display: grid; gap: 4px; margin-top: 8px; font-size: 12px; }
+.cx-stats div { display: flex; justify-content: space-between; gap: 8px; }
+.cx-stats span { color: var(--muted); }
+.cx-stats b { text-align: right; }
+.cx-res { margin: 0; padding-left: 18px; font-size: 13px; }
+.cx-glos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; max-height: 60vh; overflow-y: auto; }
+.cx-g { display: flex; gap: 10px; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); }
+.cx-g.unknown { opacity: .5; }
+.cx-gi { font-size: 22px; line-height: 1; }
+.cx-g b { font-size: 13px; }
+.cx-g p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+
+/* Bestiário e Visual: botões com nome no topo, com bolinha quando há novidade */
+.hub-btns { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.hub-btn { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-size: 14px; font-weight: 700; border-radius: 8px; }
+.hub-btn.codex { color: #f3d36a; border-color: rgba(243, 211, 106, 0.55); background: linear-gradient(180deg, rgba(243, 211, 106, 0.14), rgba(243, 211, 106, 0.04)); }
+.hub-btn.locker { color: #d9a8ff; border-color: rgba(200, 140, 255, 0.55); background: linear-gradient(180deg, rgba(200, 140, 255, 0.14), rgba(200, 140, 255, 0.04)); }
+.hub-btn:hover { filter: brightness(1.2); }
+.hub-dot { position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; border-radius: 50%; background: #ff4d4d; box-shadow: 0 0 0 2px #0d0f0d; animation: hub-pulse 1.4s ease-in-out infinite; }
+.hub-dot[hidden] { display: none; }
+@keyframes hub-pulse { 50% { transform: scale(1.35); } }
+.hub-btn.has-new { animation: hub-glow 1.8s ease-in-out infinite; }
+@keyframes hub-glow { 50% { box-shadow: 0 0 10px currentColor; } }
+@media (max-width: 900px) { .hub-btn span { display: none; } .hub-btn { padding: 5px 9px; } }
+/* fichas do bestiário com novidade */
+.cx-tile { position: relative; }
+.cx-new { position: absolute; top: 3px; right: 3px; padding: 0 4px; border-radius: 4px; background: #ff4d4d; color: #fff; font-size: 9px; font-weight: 800; letter-spacing: .03em; }
+.tab-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #ff4d4d; vertical-align: middle; margin-left: 2px; }
+.cx-g { position: relative; }
