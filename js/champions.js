@@ -108,7 +108,7 @@ const Champions = (() => {
   const rand = (a, b) => a + Math.random() * (b - a);
   // saves antigos podem não ter o campo: cria na hora
   const C = () => S.meta.champ || (S.meta.champ = blank());
-  // boxes: caixas para abrir ('chefe' ou 'presente') · frags: fragmentos de heróis ainda não liberados · caps: 🏷️ Tampinhas
+  // boxes: caixas para abrir ({ k: 'chefe' | 'presente' | 'airdrop', w: onda em que caiu (o nível), s: semente do sorteio }) · frags: fragmentos de heróis ainda não liberados · caps: 🏷️ Tampinhas
   const blank = () => ({ cur: null, owned: {}, charge: 0, actT: 0, gift: false, frags: {}, caps: 0, boxes: [], pity: 0 });
   const cur = () => { const c = C(); return c && c.cur && c.owned[c.cur] ? c.cur : null; };
   const me = () => { const k = cur(); return k ? C().owned[k] : null; };
@@ -348,41 +348,59 @@ const Champions = (() => {
 
   // ---------- caixas e fragmentos
   // at: onde a caixa caiu no cenário (chefe derrotado), para a animação
+  // A caixa guarda a onda em que caiu (o nível dela: os recursos seguem essa onda, não a da hora de abrir)
+  // e uma semente: o sorteio sai sempre igual, então exportar/importar o save não dá outra chance.
+  const dropWave = () => Math.max(1, (S.horde.active && S.horde.n) || S.wave || 1);
+  const newSeed = () => (Math.random() * 2 ** 32) >>> 0;
+  // saves antigos guardavam só o tipo ('chefe'): vira caixa do nível atual
+  const normBox = b => (typeof b === 'string' ? { k: b, w: dropWave(), s: newSeed() } : b);
+  function boxes() { const c = C(); if (c.boxes.some(b => typeof b === 'string')) c.boxes = c.boxes.map(normBox); return c.boxes; }
+  // gerador com semente (mulberry32)
+  const seededRng = seed => () => {
+    seed = (seed + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
   function addBox(kind, why, at) {
-    C().boxes.push(kind);
-    addLog(`📦 ${why}! Clique na caixa em cima do abrigo para abrir.`, 'good');
+    const w = dropWave();
+    boxes().push({ k: kind, w, s: newSeed() });
+    addLog(`📦 ${why} (Nv. ${w})! Clique na caixa em cima do abrigo para abrir.`, 'good');
     emit('box', { kind, ...(at || {}) });
   }
   const missing = () => Object.keys(CHAMPS).filter(k => !C().owned[k]);
   // herói com os fragmentos completos, esperando o jogador invocar (aba Exército)
   const isReady = k => !C().owned[k] && (C().frags[k] || 0) >= BOX.frags;
   const readyList = () => Object.keys(CHAMPS).filter(isReady);
-  const pickOf = a => a[Math.floor(Math.random() * a.length)];
+  const pickOf = (a, rng = Math.random) => a[Math.floor(rng() * a.length)];
 
   // Sorteia o conteúdo de uma caixa: estrelas, fragmentos, herói completo e recursos (sem aplicar nada ainda)
-  function rollBox(kind) {
+  // box: { k, w, s } · o sorteio usa a semente da caixa e os recursos, o nível (w) dela
+  function rollBox(box) {
+    box = normBox(box);
+    const kind = box.k, rng = seededRng(box.s), pickR = a => pickOf(a, rng);
     const c = C(), all = missing(), miss = all.filter(k => !isReady(k));   // miss: quem ainda precisa de fragmentos
     let stars = 1;
     if (kind === 'presente' && all.length) stars = 3;
     else if (kind === 'airdrop') stars = 2;   // a carga rara do airdrop
     // a ★★★ sai mesmo com todos os heróis liberados: aí o herói vem repetido e vira Tampinhas
-    else if (Math.random() < BOX.up2) { stars = 2; if (Math.random() < BOX.up3) stars = 3; }
+    else if (rng() < BOX.up2) { stars = 2; if (rng() < BOX.up3) stars = 3; }
     // garantia: depois de BOX.pity - 1 caixas seguidas sem fragmento de herói novo, a próxima sai ★★
     else if (miss.length && c.pity + 1 >= BOX.pity) stars = 2;
-    const r = { kind, stars, frags: {}, hero: null, res: {}, samples: {}, caps: BOX.capsBy[stars] || 0 };
+    const r = { kind, w: box.w, stars, frags: {}, hero: null, res: {}, samples: {}, caps: BOX.capsBy[stars] || 0 };
     // ★★★: prefere quem ainda precisa de fragmentos, depois quem falta; com todos liberados, qualquer um (repetido)
-    if (stars === 3) { r.hero = pickOf(miss.length ? miss : all.length ? all : Object.keys(CHAMPS)); return r; }
+    if (stars === 3) { r.hero = pickR(miss.length ? miss : all.length ? all : Object.keys(CHAMPS)); return r; }
     // fragmentos só na ★★ (3 ou 4, ao menos um de quem ainda falta); a ★ traz só recursos
     if (stars === 2) {
       const add = k => { r.frags[k] = (r.frags[k] || 0) + 1; };
-      const n = 3 + (Math.random() < 0.5 ? 1 : 0), every = Object.keys(CHAMPS);
-      for (let i = 0; i < n; i++) add(pickOf(every));
-      if (miss.length && !Object.keys(r.frags).some(k => miss.includes(k))) add(pickOf(miss));
+      const n = 3 + (rng() < 0.5 ? 1 : 0), every = Object.keys(CHAMPS);
+      for (let i = 0; i < n; i++) add(pickR(every));
+      if (miss.length && !Object.keys(r.frags).some(k => miss.includes(k))) add(pickR(miss));
     }
-    const w = Math.max(1, S.wave);
+    const w = Math.max(1, box.w || 1);
     r.res.sucata = Math.round((stars === 1 ? 25 : 60) * w);
     r.res.municao = Math.round((stars === 1 ? 5 : 12) * w);
-    if (stars === 2) for (let i = 0; i < 2; i++) { const s = pickOf(['acido', 'gas', 'tecido']); r.samples[s] = (r.samples[s] || 0) + 1; }
+    if (stars === 2) for (let i = 0; i < 2; i++) { const s = pickR(['acido', 'gas', 'tecido']); r.samples[s] = (r.samples[s] || 0) + 1; }
     return r;
   }
 
@@ -422,8 +440,8 @@ const Champions = (() => {
   // Abre a próxima caixa. silent: sem animação (bot e testes)
   function openBox(silent) {
     const c = C();
-    if (!c.boxes.length) return null;
-    const kind = c.boxes.shift(), r = rollBox(kind), out = applyBox(r);
+    if (!boxes().length) return null;
+    const box = c.boxes.shift(), r = rollBox(box), out = applyBox(r);
     const parts = out.items.map(i => `${CHAMPS[i.k].icon} +${i.n}${i.caps ? ` (+${i.caps} 🏷️)` : ` (${i.have}/${BOX.frags})`}`);
     for (const [res, v] of Object.entries(r.res)) if (v) parts.push(`+${fmt(v)} ${RES[res].icon}`);
     if (r.caps) parts.push(`+${r.caps} 🏷️`);
@@ -431,7 +449,7 @@ const Champions = (() => {
       ? `${CHAMPS[r.hero].icon} ${CHAMPS[r.hero].nome} repetido, virou +${out.dupHero} 🏷️, e +${r.caps} 🏷️`
       : `herói completo, ${CHAMPS[r.hero].icon} ${CHAMPS[r.hero].nome}!${r.caps ? ` E +${r.caps} 🏷️` : ''}`);
     // o registro só aparece quando a caixa abre (para não estragar a surpresa)
-    const log = () => addLog(`📦 Caixa ${'★'.repeat(r.stars)}: ${r.hero ? heroTxt : parts.join(', ')}`, r.stars > 1 ? 'good' : '');
+    const log = () => addLog(`📦 Caixa ${'★'.repeat(r.stars)} (Nv. ${r.w}): ${r.hero ? heroTxt : parts.join(', ')}`, r.stars > 1 ? 'good' : '');
     if (silent) { log(); readyList().forEach(k => summon(k, true)); }   // bot e testes: invoca direto
     else showBox(r, out, log);
     return r;
@@ -585,7 +603,7 @@ const Champions = (() => {
     let cur = 1, tries = 0, busy = false, done = false, logged = false;
     const doLog = () => { if (!logged) { logged = true; log(); } };
     const d = openDialog({
-      title: r.kind === 'presente' ? '🎁 Caixa misteriosa' : '📦 Caixa de herói',
+      title: `${r.kind === 'presente' ? '🎁 Caixa misteriosa' : '📦 Caixa de herói'} · Nv. ${r.w}`,
       plain: true, staticBody: true, cancel: 'Continuar', onClose: doLog,
       // completou os fragmentos de alguém: dá para invocar direto daqui
       buttons: out.ready.map(k => ({ label: `✨ Invocar ${CHAMPS[k].nome}`, cls: 'primary', hidden: () => !done,
@@ -600,6 +618,7 @@ const Champions = (() => {
         <div class="box-tries" id="box-tries"></div>
         <div class="box-msg" id="box-msg">${r.kind === 'presente' ? 'Alguém deixou isto na porta... clique para sacudir!' : 'Clique na caixa para sacudir!'}</div>
         <div class="box-items" id="box-items"></div>
+        <p class="hint box-lv">📦 <b>Nv. ${r.w}</b>: a caixa caiu na onda ${r.w}, e a sucata e a munição seguem esse nível${r.w < S.wave ? ' (guardar caixas não aumenta o prêmio)' : ''}.</p>
         <p class="hint" id="box-skip">Cada clique é uma chance de subir uma estrela · <a href="#" id="box-skip-btn">abrir direto</a></p>
       </div>`,
     });
@@ -1007,14 +1026,16 @@ const Champions = (() => {
     const el = typeof document !== 'undefined' && $('box-float');
     if (!el) return;
     placeFloat(el);
-    const c = C(), n = c.boxes.length, ready = readyList(), horde = S.horde.active;
-    const key = JSON.stringify([n, ready, horde]);
+    const bx = boxes(), n = bx.length, ready = readyList(), horde = S.horde.active;
+    const lvs = bx.map(b => b.w), lv = n ? lvs[0] : 0;
+    const key = JSON.stringify([n, ready, horde, lv]);
     if (key === fsig) return;
     const grew = n > (+el.dataset.n || 0);
     fsig = key; el.dataset.n = n;
     el.classList.toggle('hidden', !n && !ready.length);
-    el.innerHTML = (n ? `<button class="bf-box${horde ? ' wait' : ''}" data-act="champFloat" title="${horde ? 'A caixa abre no fim da horda' : 'Clique para abrir'}">
-        <span class="bf-ico">📦</span>${n > 1 ? `<span class="bf-n">×${n}</span>` : ''}
+    const lvTip = `Nível = onda em que a caixa caiu (os prêmios seguem esse nível). ${n > 1 ? `Próximas: Nv. ${lvs.slice(1, 8).join(', ')}${n > 8 ? '...' : ''}` : ''}`;
+    el.innerHTML = (n ? `<button class="bf-box${horde ? ' wait' : ''}" data-act="champFloat" title="${horde ? 'A caixa abre no fim da horda' : 'Clique para abrir'} · ${lvTip}">
+        <span class="bf-ico">📦</span>${n > 1 ? `<span class="bf-n">×${n}</span>` : ''}<span class="bf-lv">Nv. ${lv}</span>
         <span class="bf-lbl">${horde ? 'depois da horda' : 'Abrir!'}</span></button>` : '') +
       ready.map(k => `<button class="bf-ready" data-act="champSummonFloat" data-k="${k}" title="Fragmentos completos!">
         <span class="bf-ico">${CHAMPS[k].icon}</span><span class="bf-lbl">${horde ? 'depois da horda' : '✨ Invocar'}</span></button>`).join('');
@@ -1083,7 +1104,7 @@ const Champions = (() => {
   // fim da horda com caixas guardadas: um balão chamando para abrir
   function nudge() {
     const el = typeof document !== 'undefined' && $('box-float');
-    const n = C().boxes.length;
+    const n = boxes().length;
     if (!el || !n) return;
     fsig = ''; renderFloat();
     const b = el.querySelector('.bf-box');

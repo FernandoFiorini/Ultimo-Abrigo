@@ -248,6 +248,20 @@ Apocalipse, saves e vitória.
 
 - **Nova sobrevivente homenageada: Natalia**, enfermeira antes do apocalipse ("Né miguelzinho!" · "Vou jogar the sims agora."), sempre com **cabelo vermelho** comprido para reconhecer no cenário. Não quer mais lutar: na horda, manda os outros irem no lugar dela.
 
+- **📺 Filtros visuais** (Configurações › 🎨 Visual): mudam o jeito da imagem do cenário e do menu, por cima do estilo escolhido. Valem para todos os saves deste navegador e são **liberados ao encontrar a Cura**: vencer numa dificuldade libera o filtro dela e os das menores.
+  - 📺 **TV de tubo** (vença no 🌱 Fácil): linhas de TV antiga, cores mais vivas, cantos escurecidos.
+  - 📜 **Fotografia antiga** (Normal): tons de sépia e grão.
+  - 🟢 **Visão noturna** (Difícil): tudo em verde, com chuvisco.
+  - 🩸 **Preto, branco e sangue** (Pesadelo): preto e branco de alto contraste, só o vermelho continua colorido.
+  - 📼 **Câmera de segurança** (Apocalipse): gravação de câmera de vigilância, em cinza azulado com chiado, ● REC piscando e a data e hora na tela.
+  - A tela de vitória mostra os filtros liberados. No menu de debug, a aba **📺 Filtros** aplica qualquer um na hora e libera todos até recarregar.
+
+- **Caixas de herói com nível:** cada caixa agora guarda a **onda em que caiu** (o nível, **Nv.**), e a sucata e a munição seguem esse nível. Guardar caixas da onda 10 para abrir na 40 não rende mais 4x. O nível aparece na caixa do cenário, na janela de abrir e no registro.
+  - **O sorteio é decidido quando a caixa cai:** exportar e importar o save não dá outra chance de tirar ★★★. As estrelas e os prêmios saem sempre iguais para a mesma caixa.
+  - Caixas guardadas de versões anteriores recebem o nível da onda em que o save for aberto.
+
+- **🐞 Reportar bug** (rodapé e Configurações › 💾 Dados): uma janela para descrever o problema, com o tipo, e que anexa sozinha a versão, a dificuldade, a onda, a cidade, o navegador, as últimas linhas do registro e um **snapshot do save**. O envio ainda não está pronto (chega numa próxima versão).
+
 ## 1.06.000
 
 Quando o muro cai.

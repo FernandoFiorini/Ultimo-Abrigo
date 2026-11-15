@@ -186,6 +186,7 @@ function buildUI() {
   Tutorial.setup();
   listeners.push((t, d) => { if (t === 'waveEnd' && d.n === EVAC_WAVE) heliPrompt(); });
   $('btn-menu').onclick = () => Slots.toMenu();
+  $('btn-bug').onclick = () => BugReport.open();
 }
 
 // Abas: só as liberadas aparecem, numeradas na ordem (atalhos 1, 2, 3...); aba nova brilha até ser aberta

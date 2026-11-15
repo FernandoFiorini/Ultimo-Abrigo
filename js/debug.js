@@ -375,6 +375,18 @@ const Debug = (() => {
         Champions.grant(k, 'debug'); S.meta.champ.cur = k;
       }, 'libera se precisar e coloca no telhado']]))],
     ]],
+    // filtros visuais (js/vfilter.js): aplicam na hora, mesmo bloqueados
+    ['visual', '📺 Filtros', [
+      ['Filtro visual (aplica agora)', Object.fromEntries(VFilter.list().map(k => ['vf_' + k, [`${VFILTERS[k].icon} ${VFILTERS[k].nome}`, () => {
+        VFilter.debugAll = true; Settings.set('vfilter', k); VFilter.apply();
+        note(`filtro ${VFILTERS[k].nome}${k !== 'none' && VFILTERS[k].diff ? ` (no jogo: ${VFilter.how(k).toLowerCase()})` : ''}.`);
+        return true;
+      }, k === 'none' ? 'volta à imagem original' : VFILTERS[k].desc]]))],
+      ['Desbloqueio', {
+        vfAll: ['🔓 Liberar todos (nesta sessão)', () => { VFilter.debugAll = true; note('todos os filtros liberados até recarregar a página.'); }, 'para escolher nas Configurações › Visual sem vencer'],
+        vfLock: ['🔒 Voltar ao desbloqueio normal', () => { VFilter.debugAll = false; note('filtros só pelas vitórias de novo (um filtro bloqueado escolhido volta a Nenhum).'); }, 'segue as vitórias do perfil'],
+      }],
+    ]],
     ['equilibrio', '📊 Equilíbrio', [
       ['Cansaço e ameaça', {
         cansar: ['😓 Guardas exaustos', () => { S.fatigue = 1; }, 'cansaço em 100%'],

@@ -247,7 +247,9 @@ const Victory = (() => {
     const entry = { n: m.player || 'Sobrevivente', d, t: new Date().toISOString().slice(0, 10), w: m.worlds || 1, c: m.city, k: m.stats.kills, id: m.runId };
     if (!first) { addLog(`👑 Mais uma vitória no ${D0.icon} ${D0.nome}. As recompensas dessa dificuldade já foram recebidas neste save.`, 'good'); return; }
     m.wins[d] = Date.now();
+    const vfBefore = VFilter.list().filter(VFilter.unlocked);
     const fresh = Profile.win({ n: entry.n, d, t: entry.t });
+    const vfNew = VFilter.list().filter(k => VFilter.unlocked(k) && !vfBefore.includes(k));
     const cash = VICTORY_CASH[d] || 0;
     m.cash += cash;
     addLog(`👑 VITÓRIA no ${D0.icon} ${D0.nome}! +💵 ${cash}. ${escHtml(entry.n)} agora aparece no abrigo como sobrevivente lendário.`, 'good');
@@ -261,6 +263,7 @@ const Victory = (() => {
         <ul class="win-list">
           <li>💵 <b>+${cash} de cash</b> neste save</li>
           <li>🧍 Seu nome aparece num <b>sobrevivente lendário</b> na frente do abrigo, em todos os seus saves</li>
+          ${vfNew.length ? `<li>📺 Filtros visuais liberados: <b>${vfNew.map(k => `${VFILTERS[k].icon} ${VFILTERS[k].nome}`).join(', ')}</b> (Configurações › Visual)</li>` : ''}
           ${fresh.length ? `<li>🎨 Skins liberadas: <b>${fresh.map(k => `${LEADER_SKINS[k].icon} ${LEADER_SKINS[k].nome}`).join(', ')}</b></li>` : ''}
           <li>🚩 Bandeira de troféu no telhado do abrigo</li>
           <li>🏆 Seu nome no <b>Hall da Fama</b> do menu principal</li>
@@ -383,6 +386,7 @@ const MenuScene = (() => {
     }
     // cinzas caindo
     for (const a of ash) { if (!reduce()) { a.y += a.v * dt; a.x += (a.d + Math.sin(t + a.y * 0.1) * 2) * dt; } if (a.y > H) { a.y = -2; a.x = rnd(0, W); } R('rgba(200,190,180,0.35)', a.x, a.y); }
+    if (typeof VFilter !== 'undefined') VFilter.overlay(ctx, 1);
   }
 
   function frame(now) {

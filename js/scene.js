@@ -2554,6 +2554,7 @@ const Scene = (() => {
     drawBanner();
     drawAlert();
     if (redFlash > 0) { ctx.fillStyle = `rgba(200,20,20,${redFlash * 0.35})`; ctx.fillRect(0, 0, W, H); }
+    if (typeof VFilter !== 'undefined') VFilter.overlay(ctx, scale);   // filtro visual: linhas, vinheta, chuvisco
   }
 
   // Texto flutuante saindo do líder no telhado (usado pelo botão Vasculhar)

@@ -13,6 +13,7 @@ const Settings = (() => {
     guide: true,           // tutorial guiado das ondas 1 e 2 (só aparece uma vez)
     reduceFx: false, noShake: false, colorblind: false,
     blood: true,           // sangue e mutilação (corpos se despedaçando)
+    vfilter: 'none',       // filtro visual (js/vfilter.js): crt | sepia | noturna | sangue | camera
   };
   const v = { ...DEF };
   // preferências de áudio da 1.01 e anteriores
@@ -94,6 +95,10 @@ function openSettings() {
       ${inGame ? '<div class="actions"><button data-cmd="skins">🎨 Visual: skins e personagem</button></div>' : ''}
       <div class="opt-label">Estilo do cenário</div>
       ${seg('sceneStyle', SCENE_STYLES)}
+      <div class="opt-label">Filtro visual</div>
+      <div class="segs vf-segs">${Object.entries(VFILTERS).map(([k, f]) => { const ok = VFilter.unlocked(k); return `
+        <label class="seg${ok ? '' : ' locked'}" title="${ok ? f.desc : '🔒 ' + VFilter.how(k)}"><input type="radio" name="vfilter" value="${k}" data-set="vfilter" ${VFilter.current() === k ? 'checked' : ''} ${ok ? '' : 'disabled'}><span>${ok ? f.icon : '🔒'} ${f.nome}</span></label>`; }).join('')}</div>
+      <p class="hint"><span id="vf-desc">${VFILTERS[VFilter.current()].desc}.</span> Novos filtros são liberados ao encontrar a Cura: cada dificuldade vencida libera um.</p>
       ${check('blood', 'Sangue e mutilação', 'Sangue no cenário e zumbis se despedaçando ao morrer. Desligado, os zumbis só caem e os impactos levantam poeira.')}
       <h3>♿ Acessibilidade</h3>
       ${check('reduceFx', 'Reduzir efeitos visuais', 'Menos partículas, fumaça e clarões')}
@@ -110,12 +115,14 @@ function openSettings() {
       ${seg('musicStyle', MUSIC_STYLES)}
       <p class="hint" id="style-desc">${MUSIC_STYLES[Settings.get('musicStyle')].desc}</p>`)}
 
-      ${pane('data', !inGame ? `<p class="hint">O progresso é salvo automaticamente neste navegador. Abra um jogo para exportar ou importar um código de progresso.</p>` : `
+      ${pane('data', !inGame ? `<p class="hint">O progresso é salvo automaticamente neste navegador. Abra um jogo para exportar ou importar um código de progresso.</p>
+      <div class="actions"><button data-cmd="bug">🐞 Reportar bug</button></div>` : `
       <p class="hint">O progresso é salvo automaticamente neste navegador, no <b>espaço ${Slots.cur}</b> (${escHtml(S.meta.player)}). Exporte um código para guardar uma cópia ou levar o jogo para outro aparelho.</p>
       <div class="actions">
         <button data-cmd="export">Exportar progresso</button>
         <button data-cmd="import">Importar progresso</button>
         <button data-cmd="menu">☰ Menu principal</button>
+        <button data-cmd="bug">🐞 Reportar bug</button>
       </div>`)}`,
     cancel: 'Fechar',
     onMount: () => {
@@ -142,6 +149,7 @@ function openSettings() {
         if (el.type === 'checkbox') Settings.set(k, el.checked);
         else if (el.type === 'radio') Settings.set(k, el.value);
         if (k === 'musicStyle') $('style-desc').textContent = MUSIC_STYLES[el.value].desc;
+        if (k === 'vfilter') $('vf-desc').textContent = VFILTERS[el.value].desc + '.';
         if (inGame) render();
       });
       body.addEventListener('click', e => {
@@ -153,6 +161,7 @@ function openSettings() {
         else if (cmd === 'keys') showShortcuts();
         else if (cmd === 'skins') showSkins();
         else if (cmd === 'menu') Slots.toMenu();
+        else if (cmd === 'bug') BugReport.open();
         else if (cmd === 'guide') {
           Guide.reset();
           b.textContent = '✓ O guia volta no próximo jogo novo';
