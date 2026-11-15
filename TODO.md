@@ -22,6 +22,4 @@ Sem servidor, a data vem do relógio do aparelho (dá para adiantar): as recompe
 - [ ] **Limite de caixas guardadas:** (o nível e o sorteio fixo já foram feitos na 1.07.000) se um dia as caixas forem vendidas, limitar o acúmulo (ex.: 20) e converter o excesso em 🏷️ Tampinhas.
 
 ## Desenvolvimento
-- [ ] **Testar o envio do Reportar bug:** a chave do Web3Forms já está no config.js; mandar um relatório de teste com um save grande e conferir se chega no e-mail.
-- [ ] **Contador de visitas:** criar o site em goatcounter.com e pôr o código em `GOATCOUNTER` (config.js).
-- [ ] **Antes do lançamento:** testar no Firefox/Edge/Safari (filtros visuais e áudio), uma partida completa até a Cura jogando, e `DEV_MODE = false`.
+- [ ] **Atenção (não bloqueia):** testar no Firefox e no Safari (filtros visuais e áudio); Chrome e Edge já testados. Jogar uma partida completa até a Cura.

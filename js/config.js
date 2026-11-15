@@ -12,7 +12,7 @@ const DEV_MODE = false;
 const BUG_REPORT = { web3formsKey: 'ab5dc17c-c94b-4499-b148-6cc9f63da1e9' };
 // Contador de visitas (GoatCounter, sem cookies e sem dados pessoais): o código do seu site em goatcounter.com,
 // ex.: 'voidfall' para voidfall.goatcounter.com. Vazio: sem contador. Nunca conta rodando localmente.
-const GOATCOUNTER = '';
+const GOATCOUNTER = 'voidzao157';
 const OFFLINE_MAX = 8 * 3600;      // produção offline: no máximo isso (segundos) de produção; o tempo além disso se perde, para o jogador voltar
 const OFFLINE_YIELD = 0.5;          // fração da produção normal que o abrigo rende offline
 const RETURN_NOTICE = 300;          // ausência mínima (segundos) para mostrar o aviso de retorno com o que foi progredido
