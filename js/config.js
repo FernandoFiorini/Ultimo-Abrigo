@@ -434,6 +434,12 @@ const HONORED = [
     horda: ['Jogo acima de tudo, farmar acima de todos! Bora farmar zumbi!'],
     historia: 'Era viciado antes do apocalipse, e nem é em drogas. Seu lema é: jogo acima de tudo, farmar acima de todos.'
   },
+  {
+    nome: 'Natalia', sexo: 'f', visual: { hair: [200, 40, 35], longHair: true },
+    frases: ['Né miguelzinho!', 'Vou jogar the sims agora.'],
+    horda: ['Eu nao quero batalhar contra eles, podem ir vocês!'],
+    historia: 'Era enfermeira antes do apocalipse. Tinha um relacionamento com Fernando (outro sobrevivente), mas ele morreu. Ela não quer mais lutar, só quer jogar The Sims.'
+  },
   // { nome: 'Fulana', sexo: 'f', frases: ['Primeira frase.', 'Segunda frase.'], horda: ['Lá vêm eles!'], adeus: ['Cuidem do abrigo por mim.'], visual: { hair: [200, 60, 130], longHair: true } },
 ];
 // ---------- airdrop no meio da horda (airdrop.js) ----------

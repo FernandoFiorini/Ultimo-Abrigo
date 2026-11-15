@@ -246,6 +246,8 @@ Apocalipse, saves e vitória.
   - **🏷️ Tampinhas:** fragmentos de heróis que você já tem viram Tampinhas (5 cada), a nova moeda. Elas vão comprar skins de heróis, armas, sobreviventes e do líder (loja em breve).
   - Os 12 heróis antigos continuam como **equipe de apoio**, com os mesmos bônus.
 
+- **Nova sobrevivente homenageada: Natalia**, enfermeira antes do apocalipse ("Né miguelzinho!" · "Vou jogar the sims agora."), sempre com **cabelo vermelho** comprido para reconhecer no cenário. Não quer mais lutar: na horda, manda os outros irem no lugar dela.
+
 ## 1.06.000
 
 Quando o muro cai.
