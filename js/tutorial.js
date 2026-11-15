@@ -5,31 +5,46 @@ const Tutorial = (() => {
   // when: quando a dica pode aparecer · tab: aba sugerida
   const TIPS = [
     { id: 'equipe', icon: '👥', title: 'Seu grupo', tab: 'equipe', when: () => true,
-      text: 'Cada sobrevivente precisa de uma função. Na aba <b>Equipe</b>, use + e −: forrageiros 🌾 produzem comida, guardas 🛡️ atiram na horda e armeiros ⚙️ fabricam munição.' },
+      text: 'Cada sobrevivente precisa de uma função. Na aba <b>Equipe</b>, use + e −: forrageiros 🌾 produzem comida e coletores 🔧 juntam sucata. Novas funções (guardas, armeiros, médicos...) aparecem conforme você sobrevive às hordas.' },
     { id: 'noite', icon: '🌙', title: 'A horda chegou', when: () => S.horde.active,
-      text: 'Mire e clique para atirar com o líder: tiros fora do zumbi erram. Os guardas atiram sozinhos enquanto houver munição; sem ela, jogam pedras. Se o muro cair, sobreviventes morrem.' },
+      text: () => 'Mire e clique para atirar com o líder: tiros fora do zumbi erram. ' + (Unlocks.job('guarda')
+        ? 'Os guardas atiram sozinhos enquanto houver munição; sem ela, jogam pedras.'
+        : 'Nas primeiras noites, <b>a defesa é você</b>: os guardas só chegam na onda 3.') + ' Se o muro cair, sobreviventes morrem.' },
+    { id: 'dia', icon: '🌙', title: 'Só de dia', when: () => dayOnly() && S.horde.active,
+      text: () => `No ${D().nome}, <b>recrutar e vasculhar só funcionam de dia</b>, entre as hordas, e dá para recrutar até <b>${D().recruitDay} pessoa(s) por dia</b>. Planeje o dia antes de a horda chegar.` },
+    // desbloqueios (um aviso por função ou aba nova)
+    { id: 'u-guarda', icon: '🛡️', title: 'Guardas liberados', tab: 'equipe', when: () => !S.horde.active && Unlocks.job('guarda'),
+      text: 'Agora dá para colocar <b>guardas</b> 🛡️: eles atiram sozinhos na horda, 1 munição por tiro, e jogam pedras quando ela acaba. Ainda não há armeiros: a munição vem do que você acha vasculhando e dos zumbis que o líder abate.' },
+    { id: 'u-armeiro', icon: '⚙️', title: 'Armeiros e médicos', tab: 'equipe', when: () => !S.horde.active && Unlocks.job('armeiro'),
+      text: '<b>Armeiros</b> ⚙️ transformam sucata em munição. <b>Médicos</b> ⚕️ tratam os feridos e produzem remédios 💊, que salvam vidas quando o muro cai.' },
+    { id: 'u-pesquisa', icon: '🧪', title: 'Pesquisa', tab: 'pesquisa', when: () => !S.horde.active && Unlocks.tab('pesquisa'),
+      text: 'Construa um 🧪 <b>Laboratório</b> e contrate <b>cientistas</b> para pesquisar melhorias permanentes. O 🛏️ Alojamento também liberou: guardas descansam melhor entre as hordas.' },
+    { id: 'u-torres', icon: '🗼', title: 'Torres de vigia', tab: 'construir', when: () => !S.horde.active && !buildLocked('torre'),
+      text: 'As <b>torres</b> atiram sozinhas e não gastam munição, só um pouco de manutenção a cada horda. A torre curta 💥 chega na onda 12 e a longa 🎯 na 15.' },
+    { id: 'u-distritos', icon: '🏴', title: 'Distritos', tab: 'cidade', when: () => !S.horde.active && Unlocks.tab('distritos') && !hasMod('semexp'),
+      text: 'Na aba <b>Cidade</b>, a sub-aba <b>Distritos</b> manda esquadrões libertar partes da cidade. Cada distrito libertado dá um bônus até você evacuar.' },
     { id: 'airdrop', icon: '🪂', title: 'Airdrop!', when: () => S.horde.active && S.horde.drop && S.horde.drop.st === 'ground' && !S.horde.drop.r,
       text: 'Uma caixa caiu no meio da horda. <b>Clique nela</b> para mandar alguém buscar (um ocioso ou, sem ociosos, um guarda). Os zumbis por perto vão atrás: atire neles para dar cobertura. Se pegarem quem foi, ele vira zumbi.' },
-    { id: 'armas', icon: '🔫', title: 'Armas do líder', tab: 'armas', when: () => !S.horde.active && Math.max(S.best, S.meta.stats.bestWave) >= 4,
+    { id: 'armas', icon: '🔫', title: 'Armas do líder', tab: 'armas', when: () => !S.horde.active && Unlocks.tab('armas'),
       text: 'Na aba <b>Armas</b> você compra e melhora armas para o líder. Elas ficam para sempre, têm pente, recarga (R) e alcance, gastam a munição do abrigo (menos a pistola) e você leva até 3 por noite, nos espaços <b>(Q) (W) (E)</b>.' },
     { id: 'vasculhar', icon: '🔍', title: 'Mãos à obra', when: () => seen('equipe'),
       text: 'Use o botão <b>Vasculhar</b> para juntar comida e sucata por conta própria. Atalho: <b>(V)</b>.' },
     { id: 'construir', icon: '🏗️', title: 'Construa', tab: 'construir', when: () => S.res.sucata >= 25,
-      text: 'Barracas ⛺ abrigam mais gente, o muro 🧱 aguenta mais pancada e torres 🗼 atiram sozinhas, pedindo só um pouco de manutenção a cada horda.' },
+      text: 'Barracas ⛺ abrigam mais gente, o muro 🧱 aguenta mais pancada, a horta 🥬 e a oficina 🛠️ aumentam a produção. Mais construções aparecem conforme as ondas.' },
     { id: 'comida', icon: '🥫', title: 'Comida no vermelho', tab: 'equipe', when: () => rates().comida < 0 && S.res.comida < 40,
       text: 'O grupo está comendo mais do que produz. O painel mostra quanto tempo a comida ainda dura: coloque mais forrageiros antes que acabe.' },
     { id: 'muro', icon: '🧱', title: 'Muro danificado', when: () => !S.horde.active && S.wallHp < maxWall() * 0.6,
       text: 'Use <b>Reparar muro</b> (custa sucata, atalho <b>(C)</b>). Remédios 💊 salvam quem for atacado quando o muro cai.' },
-    { id: 'expedicoes', icon: '🎒', title: 'Expedições', tab: 'expedicoes', when: () => S.best >= 2 && !hasMod('semexp'),
-      text: 'Mande sobreviventes ociosos atrás de suprimentos. Mais gente traz mais coisa, mas cada um corre o risco de não voltar.' },
+    { id: 'expedicoes', icon: '🎒', title: 'Expedições', tab: 'cidade', when: () => !S.horde.active && Unlocks.tab('cidade') && !hasMod('semexp'),
+      text: 'Na aba <b>Cidade</b>, mande sobreviventes ociosos atrás de suprimentos. Mais gente traz mais coisa, mas cada um corre o risco de não voltar.' },
     { id: 'atalhos', icon: '⌨️', title: 'Atalhos de teclado', when: () => S.best >= 3,
-      text: '<b>(1)</b>–<b>(0)</b> trocam de aba, <b>(Q) (W) (E)</b> trocam de arma, <b>(Espaço)</b> pausa, <b>(V)</b> vasculha, <b>(R)</b> recruta, <b>(C)</b> conserta o muro, <b>(F)</b> acelera o dia e <b>(M)</b> tira o som. <b>(H)</b> mostra todos.' },
+      text: '<b>(1)</b>, <b>(2)</b>, <b>(3)</b>... trocam de aba, <b>(Q) (W) (E)</b> trocam de arma, <b>(Espaço)</b> pausa, <b>(V)</b> vasculha, <b>(R)</b> recruta, <b>(C)</b> conserta o muro, <b>(F)</b> acelera o dia e <b>(M)</b> tira o som. <b>(H)</b> mostra todos.' },
     { id: 'backup', icon: '💾', title: 'Guarde seu progresso', when: () => S.best >= 5,
       text: 'O jogo salva sozinho neste navegador. Use <b>Exportar</b>, no rodapé, para guardar um código do save e continuar em outro aparelho.' },
     { id: 'evacuar', icon: '🚁', title: 'Evacuação liberada', tab: 'evacuacao', when: () => S.best >= EVAC_WAVE,
       text: 'Agora você pode evacuar: recomeça numa nova cidade, mas ganha ✨ Esperança, que dá bônus para sempre. Desafios opcionais aumentam a Esperança da próxima cidade.' },
   ];
-  const TAB_NAMES = { equipe: 'Equipe', construir: 'Construir', expedicoes: 'Expedições', evacuacao: 'Evacuar' };
+  const TAB_NAMES = { equipe: 'Equipe', construir: 'Construir', cidade: 'Cidade', armas: 'Armas', pesquisa: 'Pesquisa', evacuacao: 'Evacuar' };
 
   const T = () => S.meta.tutorial || (S.meta.tutorial = {});
   const seen = id => !!T()[id];
@@ -43,7 +58,7 @@ const Tutorial = (() => {
       <div class="tip-body">
         <div class="tip-label">Dica</div>
         <div class="tip-title">${tip.title}</div>
-        <div class="tip-text">${tip.text}</div>
+        <div class="tip-text">${typeof tip.text === 'function' ? tip.text() : tip.text}</div>
         <div class="tip-actions">
           ${tip.tab ? `<button data-tip="tab">Abrir ${TAB_NAMES[tip.tab]}</button>` : ''}
           <button class="primary" data-tip="ok">Entendi</button>
@@ -92,7 +107,9 @@ const Tutorial = (() => {
 
 // ---------- atalhos de teclado ----------
 const SHORTCUTS = [
-  ['1 – 9 e 0', 'Trocar de aba (nas janelas, escolher a opção com o mesmo número)'],
+  ['1 – 8', 'Trocar de aba, na ordem em que aparecem (nas janelas, escolher a opção com o mesmo número)'],
+  ['9', 'Conquistas'],
+  ['0', 'Loja'],
   ['Q W E', 'Trocar de arma durante a horda (ou a roda do mouse)'],
   ['A', 'Habilidade ativa do herói de campo (durante a horda)'],
   ['S', 'Suprema do herói de campo (quando a barra estiver cheia)'],
@@ -187,9 +204,11 @@ function setupKeys() {
     }
     if (modalOpen || awaitingChoice) return;
 
+    // números: as abas visíveis, na ordem; (9) Conquistas e (0) Loja, que ficam no topo
     if (/^[0-9]$/.test(k)) {
-      const tabs = [...document.querySelectorAll('.side > .tabs .tab')];
-      const t = tabs[k === '0' ? 9 : +k - 1];
+      if (k === '9' || k === '0') { $(k === '9' ? 'btn-ach' : 'btn-shop').click(); e.preventDefault(); return; }
+      const tabs = [...document.querySelectorAll('.side > .tabs .tab:not(.hub-tab)')].filter(t => !t.hidden);
+      const t = tabs[+k - 1];
       if (t) { t.click(); e.preventDefault(); }
       return;
     }
@@ -204,22 +223,26 @@ function setupKeys() {
       const msg = why && why();
       if (msg && !e.repeat && Date.now() - lastNope > 1500) { lastNope = Date.now(); addLog(msg, 'warn'); }
     };
-    const recruitWhy = () => hasMod('isolados') ? '📵 Desafio "Isolados": ninguém pode ser recrutado nesta cidade.'
-      : S.survivors >= maxSurv() ? `🧍 Abrigo lotado (${S.survivors}/${maxSurv()}): construa barracas para recrutar mais gente.`
-      : `🧍 Comida insuficiente para recrutar: precisa de ${RES.comida.icon} ${fmt(recruitCost())} (${exact(recruitCost())}).`;
+    const recruitWhy = () => ({
+      iso: '📵 Desafio "Isolados": ninguém pode ser recrutado nesta cidade.',
+      full: `🧍 Abrigo lotado (${S.survivors}/${maxSurv()}): construa barracas para recrutar mais gente.`,
+      night: `🌙 No ${D().nome}, só dá para recrutar de dia, entre as hordas.`,
+      cap: `🧍 Recrutas de hoje esgotados (${D().recruitDay} por dia no ${D().nome}). Volta depois da próxima horda.`,
+    }[recruitBlock()] || `🧍 Comida insuficiente para recrutar: precisa de ${RES.comida.icon} ${fmt(recruitCost())} (${exact(recruitCost())}).`);
+    const scavWhy = () => nightLocked() ? `🌙 No ${D().nome}, só dá para vasculhar de dia, entre as hordas.` : '';
     switch (k) {
       case ' ':
         e.preventDefault();
         if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
         if (!e.repeat) togglePause();
         break;
-      case 'v': if (!e.repeat) click('btn-scavenge'); break;
+      case 'v': if (!e.repeat) click('btn-scavenge', scavWhy); break;
       case 'r': if (S.horde.active) { Weapons.startReload(); render(); } else click('btn-recruit', recruitWhy); break;
       case 'g': click('btn-recruit', recruitWhy); break;
       case 'q': case 'w': case 'e': Weapons.select('qwe'.indexOf(k)); render(); break;
       case 'c': click('btn-repair'); break;
-      case 'a': if (!e.repeat && Champions.useActive()) render(); break;
-      case 's': if (!e.repeat && Champions.useSupreme()) render(); break;
+      case 'a': if (!e.repeat) { if (Champions.useActive()) render(); else if (Champions.cur()) Champions.hudNope('act'); } break;
+      case 's': if (!e.repeat) { if (Champions.useSupreme()) render(); else if (Champions.cur()) Champions.hudNope('sup'); } break;
       case 'f': Settings.set('speed2x', !Settings.get('speed2x')); render(); break;
       case 'o': if (S.merchant) Events.openMerchant(); break;
       case 'm': {

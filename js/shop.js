@@ -15,12 +15,15 @@ function shopBlock(k) {
     case 'muro': return S.wallHp >= maxWall() ? 'Muro já está inteiro' : '';
     case 'veterano': return S.survivors >= maxSurv() ? 'Sem vaga' : '';
     case 'retorno': return S.exps.length ? '' : 'Nenhuma expedição fora';
+    case 'fragmento': return Champions.fragBlock();
   }
   return '';
 }
 
 function buyShop(k) {
   if (shopBlock(k)) return;
+  // fragmento: abre a escolha do herói (o cash só sai quando você escolhe)
+  if (k === 'fragmento') { Champions.fragPicker(); return; }
   const it = SHOP[k];
   S.meta.cash -= it.cost;
   let msg = '';
@@ -37,6 +40,7 @@ function buyShop(k) {
     case 'muro': S.wallHp = maxWall(); S.wallDown = false; S.overflow = 0; msg = 'muro restaurado!'; break;
     case 'veterano': msg = `${addSurvivor()} chegou ao abrigo, com anos de experiência nas ruas!`; break;
     case 'medkit': S.res.remedio += 5; msg = '+5 remédios'; break;
+    case 'tampinhas': S.meta.champ.caps = (S.meta.champ.caps || 0) + CAPS_PACK; msg = `+${CAPS_PACK} 🏷️ Tampinhas`; break;
     case 'retorno': {
       const list = S.exps;
       S.exps = [];

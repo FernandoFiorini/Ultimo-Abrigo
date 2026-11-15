@@ -245,6 +245,20 @@ const Debug = (() => {
         transformado: ['🧟 Transformado na horda', () => { ensurePeople(4); const n = takeSomeone(); if (n) S.turned.push(n); hordeNow(); note(`${n} volta transformado nesta horda.`); return true; }, 'alguém do grupo volta como zumbi na horda que começa agora'],
         cura: ['🌅 Liberado volta curado', () => { ensurePeople(3); const n = takeSomeone(); if (n) S.returning.push({ n, t: 5 }); note(`${n} saiu e volta curado em 5s (só fora da horda).`); return true; }, 'alguém sai e volta curado em 5s (só fora da horda)'],
       }],
+      // cutscenes da história (js/story.js): tocam na hora, sem mexer no progresso
+      ['Cutscenes da história', {
+        ...Object.fromEntries([
+          ['intro', '🏙️ Abertura', 'ao começar um jogo novo'],
+          ['evac', '🚁 Primeira evacuação', 'ao evacuar pela primeira vez'],
+          ['cure0', '🧪 Cura 1: Isolar o vírus', 'etapa 1 da Cura'],
+          ['cure1', '👑 Cura 2: Mapear as mutações', 'etapa 2 da Cura'],
+          ['cure2', '🩸 Cura 3: Anticorpo experimental', 'etapa 3 da Cura'],
+          ['cure3', '💉 Cura 4: Testes em campo', 'etapa 4 da Cura'],
+          ['cure4', '🌅 Cura 5: A Cura', 'etapa final da Cura'],
+        ].map(([id, label, desc]) => ['story_' + id, [label, () => { setTimeout(() => Story.play(id)); return true; }, `toca a cena (${desc})`]])),
+        storyAll: ['▶ Todas em sequência', () => { setTimeout(() => ['intro', 'evac', 'cure0', 'cure1', 'cure2', 'cure3', 'cure4'].forEach(id => Story.play(id))); return true; }, 'toca as 7 cenas, uma atrás da outra'],
+        storyReset: ['Esquecer cenas vistas', () => { S.meta.story = {}; note('as cenas voltam a aparecer na primeira vez de cada momento.'); }, 'zera S.meta.story (as Memórias do Códice também voltam a travar)'],
+      }],
     ]],
     ['horda', '🧱 Horda', [
       ['Muro e ondas', {

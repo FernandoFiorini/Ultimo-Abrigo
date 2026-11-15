@@ -499,15 +499,23 @@ const Menu = (() => {
     },
     new() {
       const slots = Slots.list();
+      // espaços (em lista) e nome à esquerda, personagem à direita: a tela cabe sem rolagem
       return `<h2>✨ Novo jogo</h2>
-        <div class="opt-label">Espaço de salvamento</div>
-        <div class="slot-pick">${slots.map((x, i) => `
-          <button class="${pick.slot === i + 1 ? 'on' : ''}" data-slot="${i + 1}">Espaço ${i + 1}
-            <small>${x ? `${escHtml(x.name)} · ${DIFFS[x.diff] ? DIFFS[x.diff].icon : ''} <span class="bad-text">será substituído</span>` : 'vazio'}</small></button>`).join('')}</div>
-        <label class="opt-label" for="mm-name">Seu nome <small>(aparece no Hall da Fama se você vencer)</small></label>
-        <input id="mm-name" class="mm-name" maxlength="${NAME_MAX}" placeholder="Sobrevivente" value="${escHtml(pick.name)}" autocomplete="off">
-        <div class="opt-label">Seu personagem <small>(a roupa vem da skin escolhida)</small></div>
-        <div id="mm-look">${lookEditorHtml(pick.look || (pick.look = Profile.lastLook()))}</div>
+        <div class="new-grid">
+          <div class="new-left">
+            <div class="opt-label">Espaço de salvamento</div>
+            <div class="slot-pick list">${slots.map((x, i) => `
+              <button class="${pick.slot === i + 1 ? 'on' : ''}" data-slot="${i + 1}"><b>Espaço ${i + 1}</b>
+                <small>${x ? `${escHtml(x.name)} · ${DIFFS[x.diff] ? DIFFS[x.diff].icon : ''} <span class="bad-text">será substituído</span>` : 'vazio'}</small></button>`).join('')}</div>
+            <label class="opt-label" for="mm-name">Seu nome <b class="req" title="Obrigatório">*</b> <small>(aparece no Hall da Fama se você vencer)</small></label>
+            <input id="mm-name" class="mm-name" maxlength="${NAME_MAX}" placeholder="Digite seu nome" value="${escHtml(pick.name)}" autocomplete="off" required aria-required="true" aria-describedby="mm-name-err">
+            <div id="mm-name-err" class="mm-err" hidden>Digite um nome para começar.</div>
+          </div>
+          <div class="new-right">
+            <div class="opt-label">Seu personagem <small>(a roupa vem da skin escolhida)</small></div>
+            <div id="mm-look">${lookEditorHtml(pick.look || (pick.look = Profile.lastLook()))}</div>
+          </div>
+        </div>
         <div class="opt-label">Dificuldade <small>(não dá para mudar depois)</small></div>
         <div class="diff-list">${diffCardsHtml(pick.diff)}</div>
         <div class="mm-back">
@@ -584,13 +592,23 @@ const Menu = (() => {
     if (screen === 'skins') bindSkinPicker($('skin-root'));
     if (screen === 'new') {
       const n = $('mm-name');
-      n.oninput = () => { pick.name = n.value; };
+      n.oninput = () => {
+        pick.name = n.value;
+        if (n.value.trim()) { n.classList.remove('err'); $('mm-name-err').hidden = true; }
+      };
       if (!pick.look) pick.look = Profile.lastLook();
       bindLookEditor($('mm-look'), pick.look, a => { Profile.setLastLook(a); MenuScene.refresh(); });
     }
   }
 
   function startNew() {
+    // nome obrigatório: sem ele, avisa e devolve o foco ao campo
+    if (!String(pick.name || '').replace(/[\u0000-\u001f<>]/g, '').trim()) {
+      const n = $('mm-name'), err = $('mm-name-err');
+      if (err) err.hidden = false;
+      if (n) { n.classList.add('err'); n.focus(); }
+      return;
+    }
     const name = cleanName(pick.name), diff = pick.diff, slot = pick.slot;
     if (Slots.has(slot) && !confirm(`Substituir o save do espaço ${slot}? O progresso dele será perdido.`)) return;
     if (DIFFS[diff].permadeath && !confirm('No Apocalipse a morte é permanente: se todos morrerem, o save é APAGADO, sem volta. Começar mesmo assim?')) return;

@@ -73,7 +73,7 @@ const Codex = (() => {
   function markSeen(which) {
     const sn = SEEN();
     if (which === 'beast') for (const t of ALL()) sn.z[t] = level(t);
-    else for (const id of Object.keys(GLOS)) if (G()[id]) sn.g[id] = 1;
+    else if (which === 'glos') for (const id of Object.keys(GLOS)) if (G()[id]) sn.g[id] = 1;
   }
   // abates: avisa no registro quando uma ficha sobe de nível
   const TIER_TXT = ['entrou no bestiário', 'descrição liberada', 'números liberados', 'ficha completa'];
@@ -143,6 +143,15 @@ const Codex = (() => {
         : `<div class="cx-g unknown"><span class="cx-gi">❔</span><div><b>???</b><p>Ainda não descoberto.</p></div></div>`).join('')}</div>`;
   }
 
+  // cenas da história (js/story.js): as liberadas dá para assistir de novo
+  function memHtml() {
+    const L = Story.list(), got = L.filter(m => m.unlocked).length;
+    return `<p class="hint">A história do Projeto Aurora, contada aos poucos: a abertura, a primeira evacuação e cada etapa da Cura. Clique numa memória para assistir de novo. <b>${got}/${L.length}</b> liberadas.</p>
+      <div class="cx-glos">${L.map(m => m.unlocked
+        ? `<button class="cx-g cx-mem" data-mem="${m.id}"><span class="cx-gi">${m.icon}</span><div><b>${m.title}</b><p>▶ Assistir</p></div></button>`
+        : `<div class="cx-g unknown"><span class="cx-gi">🔒</span><div><b>???</b><p>${m.hint}</p></div></div>`).join('')}</div>`;
+  }
+
   function beastHtml() {
     const all = GROUPS.flatMap(g => g[1]), seen = all.filter(t => level(t)).length;
     return `<p class="hint">Abata inimigos para revelar a ficha de cada um. <b>${seen}/${all.length}</b> descobertos.</p>
@@ -157,8 +166,9 @@ const Codex = (() => {
   function body() {
     return `<div class="tabs set-tabs cx-tabs" role="tablist">
         <button class="tab${tab === 'beast' ? ' active' : ''}" data-cxtab="beast">🧟 Bestiário${ALL().some(newZ) ? ' <i class="tab-dot"></i>' : ''}</button>
-        <button class="tab${tab === 'glos' ? ' active' : ''}" data-cxtab="glos">📖 Glossário${Object.keys(GLOS).some(newG) ? ' <i class="tab-dot"></i>' : ''}</button></div>
-      <div id="cx-body">${tab === 'beast' ? beastHtml() : glosHtml()}</div>`;
+        <button class="tab${tab === 'glos' ? ' active' : ''}" data-cxtab="glos">📖 Glossário${Object.keys(GLOS).some(newG) ? ' <i class="tab-dot"></i>' : ''}</button>
+        <button class="tab${tab === 'mem' ? ' active' : ''}" data-cxtab="mem">🎞️ Memórias</button></div>
+      <div id="cx-body">${tab === 'beast' ? beastHtml() : tab === 'glos' ? glosHtml() : memHtml()}</div>`;
   }
 
   function open(which) {
@@ -168,7 +178,7 @@ const Codex = (() => {
     if (!sel || !level(sel)) sel = ALL().find(t => level(t)) || null;
     if (tab === 'beast' && ALL().some(newZ)) sel = ALL().find(newZ);
     openDialog({
-      title: '📖 Bestiário e Glossário',
+      title: '📖 Bestiário, Glossário e Memórias',
       staticBody: true, plain: true, wide: true,
       body: body(),
       cancel: 'Fechar',
@@ -179,6 +189,8 @@ const Codex = (() => {
         root.addEventListener('click', e => {
           const tb = e.target.closest('[data-cxtab]');
           if (tb) { tab = tb.dataset.cxtab; root.innerHTML = body(); paint(root); markSeen(tab); return; }
+          const mem = e.target.closest('[data-mem]');
+          if (mem) { Story.play(mem.dataset.mem); return; }
           const b = e.target.closest('[data-cx]');
           if (!b) return;
           sel = b.dataset.cx;

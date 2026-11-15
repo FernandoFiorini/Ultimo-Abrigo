@@ -12,6 +12,12 @@ Apocalipse, saves e vitória.
 
 - **O jogo agora se chama Voidfall** (antes: Último Abrigo). Os saves continuam valendo.
 
+- **História e cutscenes:** o jogo ganhou uma história, a do **Projeto Aurora**: um laboratório que criou um vírus capaz de regenerar tecido morto, o surto, e a equipe da Dra. Helena Vasconcelos fugindo com partes da pesquisa para cidades diferentes. Ela é contada em cenas curtas de pixel art, com texto e som, que pausam o jogo:
+  - **abertura** ao começar um jogo novo;
+  - **primeira evacuação** (o rastro da equipe de cidade em cidade);
+  - **cada etapa da Cura** tem a sua cena (o vírus isolado, as mutações e o Rei Uivador, o sangue de quem resiste à mordida, o teste no zumbi capturado e o amanhecer com a vacina).
+  - Cada cena aparece uma vez por save. Clique ou Espaço/Enter avança, Esc pula. Dá para rever as já liberadas no **📖 Códice › 🎞️ Memórias** (atalho B).
+
 - **Nova dificuldade 🔥 Apocalipse**, acima do Pesadelo: hordas maiores e mais rápidas, zumbis bem mais fortes, especiais chegando 2 ondas antes, 60s entre hordas e produção −30%. Em troca: **Esperança ×4**, **Abominação vale 💵 20** e **saque das expedições ×1,5**.
 - **Morte permanente no Apocalipse:** se o abrigo cair e todos morrerem, o save é **apagado**. Vale também para quedas durante o progresso offline. Saves do Apocalipse não podem ser exportados, e um código exportado antes da morte não pode ser importado de novo.
 - **Dificuldade travada para cima:** cada save guarda a maior dificuldade em que já jogou e nunca pode voltar para uma menor (nem ao mudar a dificuldade, nem ao evacuar, nem num Novo Mundo). Assim não dá para juntar Esperança e cash numa dificuldade alta e voltar para uma fácil. Saves antigos ficam travados na dificuldade atual.
@@ -167,6 +173,50 @@ Apocalipse, saves e vitória.
   - **Efeitos:** cor própria por estrela (branco, azul, dourado), raios de luz girando atrás da caixa, clarão, partículas, tremor da janela (mais forte a cada estrela) e **chuva de confete no ★★★**.
   - **Prêmios em cartas:** ao abrir, a caixa encolhe e solta as cartas viradas, todas do mesmo tamanho, que giram uma a uma. Cada carta tem a cor da raridade (dourado: herói; roxo: fragmento de herói novo; laranja: repetido que virou 🏷️ Tampinhas; verde: amostra; cinza: recurso). O herói completo da ★★★ vem numa carta maior, em destaque, com uma faixa de brilho passando de tempos em tempos e o som característico dele. Cada carta virando tem um som, mais rico quanto mais rara.
   - **Fragmentos com cara de fragmento:** a carta mostra o retrato do herói num hexágono partido em 6 fatias, uma por fragmento. As que você já tem ficam acesas, as que faltam ficam escuras e as novas brilham ao encaixar. A carta também diz **quantos faltam** para liberar o herói ("4/6 · faltam 2"). A aba Heróis mostra o mesmo hexágono nos heróis bloqueados.
+- **Começo de jogo reformulado: tudo vai liberando conforme a onda.** Antes, as 10 abas e todas as funções apareciam na onda 1, e o guarda inicial vencia as primeiras ondas sozinho.
+  - **Ondas 1 e 2: a defesa é o líder.** O grupo começa sem guarda (2 forrageiros e 1 coletor). Enquanto não houver guardas, cada zumbi que chega ao muro bate 2 vezes a mais: quem atira quase não sente, quem não atira perde boa parte do muro.
+  - **Funções:** 🛡️ guarda na onda 3 · ⚙️ armeiro e ⚕️ médico na 5 · 🔬 cientista na 7.
+  - **Construções:** 🛏️ Alojamento e 🧪 Laboratório na onda 7 · 🗼 Torre média e 📻 Rádio na 10 · 💥 Torre curta na 12 · 🎯 Torre longa na 15.
+  - **Expedições:** Supermercado e Ferro-velho na onda 4 · Delegacia e Hospital na 5 · Base militar na 10.
+  - **Distritos** a partir da onda 10 (Centro comercial 10, Fazendas 11, Fábrica 12, Hospital central 14, Universidade 16, Base aérea 18).
+  - **Abas:** Equipe e Construir desde o começo · Cidade e Armas na onda 4 · Pesquisa na 7 · Evacuar ao sobreviver à onda 10 · Exército quando aparece o primeiro herói, caixa ou fragmento. Aba nova brilha com "NOVO" até ser aberta, e o registro avisa o que liberou.
+  - **Abas e funções ficam liberadas para sempre:** depois de evacuar, a nova cidade já começa com elas (e com um guarda). Construções, expedições e distritos continuam liberando por onda em cada cidade.
+  - O que ainda não liberou não ocupa mais a lista: no fim de cada lista, uma linha resume o que vem ("🔒 Novas construções: 🛏️ 🧪 onda 7 · 🗼 📻 onda 10...").
+  - **Tutorial refeito para o novo ritmo:** o guia das primeiras ondas ensina a defender sozinho, apresenta os guardas na onda 3 e as abas Cidade e Armas na 4. Cada função, aba ou construção nova tem uma dica própria.
+- **A evacuação virou o caminho para zerar.** Antes dava para chegar à Cura sem nunca evacuar: a pesquisa não se perde quando o abrigo cai, e a cidade recomeçava do zero sem custo.
+  - **Cada etapa da Cura exige uma cidade nova:** etapa 1 na cidade 1, etapa 2 na cidade 2, e assim até a etapa 5, na cidade 5 (do mundo atual). A aba Pesquisa mostra "🚁 Exige a cidade N (você está na M): evacue para continuar".
+  - **Cidade sendo tomada:** depois da onda 10, cada onda na mesma cidade deixa os zumbis 4% mais resistentes (somando: onda 15 = +20%, onda 20 = +40%). O painel de defesa mostra o quanto, e o registro avisa a cada 3 ondas. Evacuar recomeça numa cidade nova.
+  - **"🚁 O helicóptero chegou!"** No fim da onda 10, uma janela mostra a Esperança que você levaria, o bônus de produção antes e depois, a próxima etapa da Cura e o que fica e o que recomeça, com o botão **Evacuar agora** (ou "Ficar mais um pouco"). Aparece uma vez por cidade.
+  - A aba **Evacuar** pulsa em dourado enquanto houver Esperança para levar.
+  - Bot (`tools/bot.js --campanha N`): joga N cidades seguidas, evacua quando a defesa não segura a próxima onda (`--evacuar`, padrão 0,6) e gasta a Esperança nas melhorias.
+- **Loja: itens de herói e skins por cash, sempre com conteúdo garantido (sem sorte):**
+  - **🧩 Fragmento de herói (💵 10, 1 por dia, que volta a cada horda vencida):** você escolhe o herói de campo que ainda não tem e ganha 1 fragmento dele. Dá para comprar pela Loja (abre a escolha do herói) ou direto no herói bloqueado, na aba Exército. Um herói inteiro sai por 💵 60.
+  - **🏷️ Pacote de Tampinhas (💵 5):** +15 Tampinhas, para as skins.
+  - As caixas de herói continuam só como prêmio dos chefes (não são vendidas).
+  - Bot: `--campanha N --gastar fragmento|tampinhas|nada` simula onde o cash é gasto.
+- **Toda caixa de herói dá 🏷️ Tampinhas:** ★ dá 3, ★★ e ★★★ dão 10 (além do conteúdo de sempre). Os fragmentos repetidos continuam virando 5 cada.
+  - **A ★★★ sempre libera um herói que você ainda não tem.** Com todos os heróis de campo liberados, ela sai mesmo assim (antes, a caixa nunca passava de ★★): o herói aparece na carta como "JÁ LIBERADO" e, logo em seguida, se desfaz em **30 🏷️** (o valor dos 6 fragmentos), com brilho e som de moedinhas, sem a chuva de confete.
+  - Se a ★★★ libera um herói que já tinha fragmentos guardados, esses fragmentos viram Tampinhas.
+- **Tela de Novo jogo sem rolagem:** os espaços de salvamento ficam numa lista, um abaixo do outro, com o nome logo embaixo; o personagem fica à direita; os cartões de dificuldade ficaram mais compactos.
+- **Nome obrigatório no Novo jogo:** sem nome, o campo fica vermelho com o aviso "Digite um nome para começar" (antes, o jogo usava "Sobrevivente").
+- **Interface mais enxuta:**
+  - **Expedições e Mapa viraram uma aba só, 🗺️ Cidade**, com as sub-abas 🎒 Expedições e 🏴 Distritos (esta só a partir da onda 10).
+  - **🏆 Conquistas e 🛒 Loja saíram das abas** e viraram botões no topo, ao lado do Bestiário e do Visual, com a mesma borda colorida (Bestiário em branco, Visual em roxo, Conquistas em dourado, Loja em verde) (atalhos 9 e 0; clicar de novo volta para a aba anterior). O selo da Loja mostra o seu 💵 cash, que saiu da barra de recursos.
+  - Os atalhos 1, 2, 3... seguem as abas visíveis, na ordem.
+  - Construções, pesquisas e melhorias de Esperança já compradas mostram só o efeito atual: a descrição fica ao passar o mouse no nome.
+  - No painel de defesa, antes dos guardas aparece "Por enquanto, a defesa é você", no lugar de "0 guardas · 0 torres", e a precisão só aparece quando há guardas ou torres.
+- **Recrutar e vasculhar só de dia, do Normal para cima,** com um **limite de recrutamentos por dia**: 4 no Normal, 3 no Difícil, 2 no Pesadelo e 1 no Apocalipse (volta a cada horda vencida). O botão mostra quantos restam ("4/4 hoje"). Quem chega pelo rádio, por eventos ou por expedições não conta. No Fácil, nada muda. Os cartões de dificuldade mostram a regra.
+- **Bot de balanceamento** (`tools/bot.js`): o líder agora também atira (`--mirar`, chance de acerto de 0 a 1; padrão 0,6), e o relatório mostra o muro no fim das primeiras ondas.
+- **HUD das habilidades no cenário:** a ativa (A) e a suprema (S) do herói de campo agora ficam em botões redondos no canto inferior esquerdo do cenário, e não só numa linha do painel de defesa. Cada botão tem um anel na cor do herói que enche com a recarga (com os segundos no meio) ou com a carga da suprema (em %). Clique ou use as teclas A e S.
+  - **Ativa de volta:** o botão pula e acende, aparece "ATIVA PRONTA (A)" no telhado e toca um som curto.
+  - **Suprema pronta:** o botão fica dourado e pulsando, com um som próprio.
+  - Tentar usar fora de hora (em recarga ou de dia) faz o botão balançar.
+  - Habilidades ainda não aprendidas aparecem com 🔒; clicar abre a árvore de habilidades.
+  - **Lembrete de pontos:** quando o herói do telhado tem pontos de habilidade para gastar, um selo "⭐ +N pontos" aparece em cima do HUD e abre a árvore.
+  - A antiga linha da ativa e da suprema saiu do painel de defesa.
+- **Contagem da horda num lugar só:** saiu a faixa do canto superior esquerdo do cenário ("Próxima horda em..." / "ONDA N: X restantes"), que repetia o painel de defesa. No painel, a contagem ganhou destaque: número grande (segundos até a horda ou inimigos restantes), barra mais grossa e tudo em vermelho nos últimos 10s e durante o ataque. Os boosts ativos (2x, Fúria, luto, feridos) subiram para o lugar dela.
+- **Correção:** a prévia das habilidades aparecia atrás da janela da árvore de habilidades.
+- **Jingle de cada herói de campo** ao levá-lo ao telhado: hino de órgão com trovão do Profeta, bipes de chiptune do X-9, "oom-pah" de picadeiro do Seu Bilú, caixinha de música desafinada e coração d'A Imune, teremim deslizando do Seu Waldir e riff de power chords do Zé.
 - **Retrato dos heróis de campo:** cada herói aparece com o próprio boneco (cabeça e tronco, desenhados com o visual do jogo) no lugar do ícone, nas cartas da caixa (fragmentos, repetidos e o herói completo da ★★★) e na aba Heróis, inclusive nos ainda bloqueados (em fragmentos).
 - **Prévias das habilidades dos heróis**, no mesmo estilo das armas: passe o mouse no retrato, nos botões "▶ Prévias" ou nas habilidades ativa e suprema para ver uma cena curta em loop com o herói em ação: o **ataque básico**, a **ativa** e a **suprema** de cada um (raio em cadeia e tempestade do Profeta, laser, feixe e bombardeio orbital do X-9, facas, chicotada e hipnose do Seu Bilú, pedradas e confusão d'A Imune, raio trator e disco voador do Seu Waldir, palhetas, acorde e solo do Zé). Funciona também com heróis bloqueados, e o texto mostra o efeito no grau atual (ou no 1º, se ainda não aprendida).
   - **Sons:** a caixa chacoalhando a cada clique, um arpejo de subida (mais forte a cada estrela), um "uóó-uó" quando não sobe e uma fanfarra ao abrir, bem maior no ★★★.

@@ -21,35 +21,41 @@ const Guide = (() => {
   const CH = [
     { id: 'intro', tips: ['equipe', 'vasculhar'], when: () => !S.horde.active && S.wave === 1 && !S.best, steps: [
       { title: '🏚️ Bem-vindo ao abrigo', text: 'Você e mais dois sobreviventes acharam um armazém abandonado. De dia, o grupo junta recursos e se prepara; à noite, a horda ataca.<br><br>Este guia mostra o fluxo do jogo nas duas primeiras noites. <b>O jogo fica pausado</b> enquanto você lê.' },
-      { at: '#resources', title: 'Recursos', text: '🥫 <b>Comida</b> alimenta o grupo e paga os recrutas. 🔩 <b>Sucata</b> constrói e conserta o muro. 🔫 <b>Munição</b> é o que os guardas atiram. 💊 <b>Remédios</b> salvam os feridos.' },
+      { at: '#resources', title: 'Recursos', text: '🥫 <b>Comida</b> alimenta o grupo e paga os recrutas. 🔩 <b>Sucata</b> constrói e conserta o muro. 🔫 <b>Munição</b> abastece os guardas e as armas do líder. 💊 <b>Remédios</b> salvam os feridos.' },
       { at: '#btn-scavenge', title: 'Vasculhe', text: 'Clique em <b>Vasculhar</b>: o líder junta comida e sucata na hora. No começo é a sua principal fonte. Atalho: <b>(V)</b>.', ev: 'scavenge' },
       { at: '#btn-recruit', title: 'Recrute', text: 'Mais gente rende mais produção e mais defesa. Clique em <b>Recrutar</b> (custa comida). Atalho: <b>(R)</b>.', ev: 'recruit', skip: () => !canRecruit() },
       { at: '.tab[data-tab="equipe"]', title: 'Aba Equipe', text: 'Cada sobrevivente precisa de uma função. Abra a aba <b>Equipe</b>.', done: () => tabOn('equipe'), skip: () => tabOn('equipe') },
-      { at: '#ja-guarda', title: 'Dê uma função', text: 'Quem chegou está <b>ocioso</b>. Clique em <b>+</b> para torná-lo guarda 🛡️: guardas atiram na horda.<br><small>🌾 Forrageiros produzem comida, ⚙️ armeiros fabricam munição. O − deixa alguém ocioso de novo.</small>', ev: 'assign', skip: () => idle() <= 0 },
-      { at: '#defense', title: 'A defesa', text: 'Aqui ficam o <b>cronômetro da próxima horda</b>, a vida do muro 🧱 e quantos guardas defendem. Quando o tempo zerar, os zumbis atacam.' },
+      { at: '#ja-coletor', title: 'Dê uma função', text: 'Quem chegou está <b>ocioso</b>. Clique em <b>+</b> para torná-lo coletor 🔧: sucata constrói e conserta o muro.<br><small>🌾 Forrageiros produzem comida. O − deixa alguém ocioso de novo. Guardas, armeiros e outras funções aparecem nas próximas ondas.</small>', ev: 'assign', skip: () => idle() <= 0 },
+      { at: '#defense', title: 'A defesa', text: 'Aqui ficam o <b>cronômetro da próxima horda</b> e a vida do muro 🧱. Quando o tempo zerar, os zumbis atacam. <b>Nas primeiras noites, quem defende é você.</b>' },
       { title: 'Prepare-se', text: 'Continue vasculhando, recrutando e ajustando as funções até a horda chegar. O guia volta quando ela chegar.' },
     ] },
     { id: 'wave1', tips: ['noite'], when: () => S.horde.active && S.horde.n === 1, while: () => S.horde.active, steps: [
       { at: '#scene', title: '🧟 A horda chegou!', text: 'Mire num zumbi e <b>clique</b> para atirar com o líder. Tiro fora do zumbi erra. O jogo volta a correr para você atirar.', ev: 'shot', evOk: d => d && d.src === 'player', run: true, timeout: 25 },
       { at: '#weapon-bar', title: 'Suas armas', text: 'As armas do líder ficam aqui. Troque com <b>(Q) (W) (E)</b> e recarregue com <b>(R)</b>. A pistola não gasta a munição do abrigo.', skip: () => $('weapon-bar').classList.contains('hidden') },
-      { at: '#defense', title: 'Os guardas', text: 'Os guardas 🛡️ atiram sozinhos enquanto houver munição; sem ela, jogam pedras. Fique de olho no muro: <b>se ele cair, os zumbis pegam sobreviventes</b>. Agora é com você!' },
+      { at: '#defense', title: 'O muro', text: 'Ainda não há guardas: <b>só você e o muro</b>. Fique de olho nele: <b>se ele cair, os zumbis pegam sobreviventes</b>. Agora é com você!' },
     ] },
     { id: 'after1', tips: ['muro', 'construir'], when: () => !S.horde.active && S.wave === 2 && S.best >= 1, steps: [
       { title: '🌅 Primeira noite vencida!', text: 'Entre uma horda e outra é hora de se fortalecer: consertar, construir e aumentar o grupo. <b>Cada horda vem maior que a anterior.</b>' },
       { at: '#btn-repair', title: 'Conserte o muro', text: 'O muro levou pancada. Clique em <b>Reparar muro</b> (custa sucata). Atalho: <b>(C)</b>.', ev: 'repair', skip: () => S.wallHp >= maxWall() || S.res.sucata < REPAIR_COST },
       { at: '.tab[data-tab="construir"]', title: 'Construir', text: 'Abra a aba <b>Construir</b>.', done: () => tabOn('construir'), skip: () => tabOn('construir') },
       { at: () => '#bb-' + affordable(), title: 'Construa', text: () => `Você já pode pagar <b>${BUILD[affordable()].icon} ${BUILD[affordable()].nome}</b>. Clique em <b>Construir</b>.`, ev: 'built', skip: () => !affordable() },
-      { at: '#buildings', title: 'Construções', text: 'Barracas ⛺ abrigam mais gente, o muro 🧱 aguenta mais pancada e torres 🗼 atiram sozinhas (pedem um pouco de manutenção a cada horda). Junte sucata e volte aqui sempre.' },
+      { at: '#buildings', title: 'Construções', text: 'Barracas ⛺ abrigam mais gente, o muro 🧱 aguenta mais pancada, a horta 🥬 e a oficina 🛠️ aumentam a produção. Mais construções aparecem conforme as ondas (as torres 🗼, na onda 10). Junte sucata e volte aqui sempre.' },
       { title: 'Rumo à segunda noite', text: 'Quando estiver pronto, é só esperar o cronômetro. O guia volta na próxima horda.' },
     ] },
     { id: 'wave2', when: () => S.horde.active && S.horde.n === 2, while: () => S.horde.active, steps: [
       { at: '#defense', title: '🧟 Segunda horda', text: 'Mais zumbis desta vez. <b>(Espaço)</b> pausa o jogo, e dá para mudar as funções do grupo no meio da horda. Boa caçada!' },
     ] },
-    { id: 'after2', tips: ['expedicoes'], when: () => !S.horde.active && S.wave === 3 && S.best >= 2, steps: [
-      { at: '.tab[data-tab="expedicoes"]', title: '🎒 Expedições', text: 'Mande sobreviventes <b>ociosos</b> atrás de suprimentos. Mais gente traz mais coisa, mas cada um corre o risco de não voltar.', skip: () => hasMod('semexp') },
-      { at: '.tab[data-tab="pesquisa"]', title: '🧪 Pesquisa', text: 'Cientistas pesquisam melhorias permanentes para o abrigo: produção, defesa e, um dia, a Cura.' },
-      { at: '.tab[data-tab="armas"]', title: '🔫 Armas', text: 'Compre e melhore armas para o líder. Elas ficam para sempre, mesmo depois de evacuar.' },
-      { title: '✅ Tudo pronto!', text: 'Esse é o ciclo: <b>produzir de dia, defender à noite e crescer a cada horda</b>. Boa sorte, líder!<br><small>Dá para rever este guia em ⚙️ Configurações.</small>' },
+    { id: 'after2', tips: ['u-guarda'], when: () => !S.horde.active && S.wave === 3 && S.best >= 2, steps: [
+      { title: '🛡️ Reforços!', text: 'Você segurou duas noites sozinho. Agora dá para ter <b>guardas</b>: eles atiram na horda por conta própria, gastando 1 munição por tiro (sem munição, jogam pedras).' },
+      { at: '.tab[data-tab="equipe"]', title: 'Aba Equipe', text: 'Abra a aba <b>Equipe</b>.', done: () => tabOn('equipe'), skip: () => tabOn('equipe') },
+      { at: '#ja-guarda', title: 'Contrate um guarda', text: 'Clique em <b>+</b> para tornar um ocioso guarda 🛡️.', ev: 'assign', evOk: d => d && d.k === 'guarda', skip: () => idle() <= 0 },
+      { at: '#jr-guarda', title: 'Contrate um guarda', text: 'Ninguém está ocioso agora: use <b>−</b> em outra função (ou recrute alguém) e depois <b>+</b> no guarda 🛡️.', skip: () => S.jobs.guarda > 0 },
+      { title: 'Munição conta', text: 'Ainda não há armeiros (chegam na onda 5): a munição vem do que você acha vasculhando e dos zumbis que o líder abate. Continue atirando!' },
+    ] },
+    { id: 'after3', tips: ['expedicoes', 'armas'], when: () => !S.horde.active && S.wave === 4 && S.best >= 3, steps: [
+      { at: '.tab[data-tab="cidade"]', title: '🗺️ Cidade', text: 'Nova aba! Mande sobreviventes <b>ociosos</b> em expedições atrás de suprimentos. Mais gente traz mais coisa, mas cada um corre o risco de não voltar.', skip: () => hasMod('semexp') },
+      { at: '.tab[data-tab="armas"]', title: '🔫 Armas', text: 'Nova aba! Compre e melhore armas para o líder. Elas ficam para sempre, mesmo depois de evacuar.' },
+      { title: '✅ Tudo pronto!', text: 'Esse é o ciclo: <b>produzir de dia, defender à noite e crescer a cada horda</b>. Novas funções, construções e abas vão aparecendo conforme você sobrevive. Boa sorte, líder!<br><small>Dá para rever este guia em ⚙️ Configurações.</small>' },
     ] },
   ];
 
@@ -199,6 +205,7 @@ const Guide = (() => {
   function update(dt) {
     if (typeof S === 'undefined' || !S || !Slots.ready || Slots.dead) return;
     if (!root) build();
+    if (typeof Story !== 'undefined' && Story.on()) { root.classList.add('hidden'); return; }   // cutscene na frente: o guia espera
     if (!ch) {
       guidePaused = false;
       if (!enabled() || modalOpen || awaitingChoice || veteran()) { wait = 0; return; }

@@ -26,7 +26,11 @@ function newState(meta = newMeta(), diff = 'normal') {
     people,
     traits,
     mods: [],
-    jobs: { forrageiro: 1, coletor: 1, armeiro: 0, guarda: 1, medico: 0, cientista: 0 },
+    // sem guardas antes da onda 3 (na primeira cidade): no começo, quem defende é o líder.
+    // Depois que os guardas já foram liberados uma vez, as próximas cidades começam com um.
+    jobs: meta.unl && meta.unl['job:guarda']
+      ? { forrageiro: 1, coletor: 1, armeiro: 0, guarda: 1, medico: 0, cientista: 0 }
+      : { forrageiro: 2, coletor: 1, armeiro: 0, guarda: 0, medico: 0, cientista: 0 },
     build: { muro: 0, horta: 0, oficina: 0, beliche: 0, torreC: 0, torre: 0, torreL: 0, alojamento: 0, radio: 0, lab: 0 },
     fatigue: 0,      // cansaço médio dos guardas (0 a 1)
     wallHp: Math.round(100 * (1 + 0.2 * P.engenharia)),
@@ -106,6 +110,22 @@ const EXP_RISK_CAP = 0.6;
 const expRisk = k => Math.min(EXP_RISK_CAP, EXPED[k].risk * (D().risk || 1) * Endgame.riskMult());
 const expLootScale = () => (1 + 0.08 * (S.wave - 1)) * hopeMult() * Endgame.scoutLoot() * (D().loot || 1);
 const recruitCost = () => Math.round(12 * Math.pow(1.3, Math.max(0, Math.min(S.recruits ?? Infinity, S.survivors - 3))));
+// Do Normal para cima: recrutar e vasculhar só de dia, e um limite de recrutamentos por dia
+// (o "dia" é o intervalo antes de cada horda: a contagem zera quando a onda muda)
+const dayOnly = () => !!D().dayOnly;
+const nightLocked = () => dayOnly() && S.horde.active;
+const recruitsToday = () => (S.recDay === S.wave ? S.recN || 0 : 0);
+const recruitLeft = () => (D().recruitDay ? Math.max(0, D().recruitDay - recruitsToday()) : Infinity);
+// por que não dá para recrutar agora ('' = pode): isolados, lotado, noite, limite do dia, comida
+function recruitBlock() {
+  if (hasMod('isolados')) return 'iso';
+  if (S.survivors >= maxSurv()) return 'full';
+  if (nightLocked()) return 'night';
+  if (recruitLeft() <= 0) return 'cap';
+  if (S.res.comida < recruitCost()) return 'food';
+  return '';
+}
+const countDay = () => { if (S.recDay !== S.wave) { S.recDay = S.wave; S.recN = 0; } S.recN++; };
 const bumpRecruit = w => { S.recruits = Math.min((S.recruits ?? Math.max(0, S.survivors - 4)) + w, S.survivors); };
 // Chamado depois de addSurvivor quando a pessoa foi paga com comida: completa o passo inteiro
 const countRecruit = () => bumpRecruit(1 - FREE_JOIN_WEIGHT);
@@ -115,7 +135,8 @@ const waveSize = n => Math.round((6 * D().count * Math.pow(D().grow, n - 1) + n)
 const hopeGain = () => S.best >= EVAC_WAVE ? Math.floor((Math.pow(S.best - 5, 1.25) + S.kills / 200) * D().hope * (1 + modBonus())) : 0;
 // Zumbis ficam mais resistentes e mais fortes a cada onda.
 // Nas 6 primeiras ondas eles são um pouco mais fracos, para compensar os tiros errados do começo.
-const hpMult = n => D().hp * (1 + D().hpGrow * (n - 1)) * Math.min(1, 0.7 + 0.05 * (n - 1)) * (1 + CITY_HP * cityThreat());
+const siegeMult = n => 1 + SIEGE_HP * Math.max(0, n - SIEGE_WAVE);
+const hpMult = n => D().hp * (1 + D().hpGrow * (n - 1)) * Math.min(1, 0.7 + 0.05 * (n - 1)) * (1 + CITY_HP * cityThreat()) * siegeMult(n);
 // Chance de acerto de guardas e torres: melhora com treinamento, pesquisa, talentos e o herói Atirador
 // base: precisão própria do tipo de torre (sem ela, a da torre média)
 function accuracy(src, base = src === 'tower' ? TOWER_ACC : GUARD_ACC) {

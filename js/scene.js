@@ -1021,6 +1021,9 @@ const Scene = (() => {
       case 'champLevel':
         texts.push({ x: CHAMP_POS.x, y: CHAMP_POS.y - 28, t: `nível ${d.lvl}!`, c: '#ffe066', life: 1.6 });
         break;
+      case 'champActReady':
+        texts.push({ x: CHAMP_POS.x + 20, y: CHAMP_POS.y - 30, t: 'ATIVA PRONTA (A)', c: '#9fd0ff', life: 1.4 });
+        break;
       case 'champReady':
         texts.push({ x: CHAMP_POS.x + 20, y: CHAMP_POS.y - 30, t: 'SUPREMA PRONTA (S)', c: '#ffe066', life: 1.8 });
         break;
@@ -2255,15 +2258,8 @@ const Scene = (() => {
 
   function drawHUD() {
     const Hd = S.horde;
-    ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'left';
-    const line = Hd.active
-      ? `${Hd.zs.some(z => ZTYPES[z.type].human) || (Hd.queue[0] && ZTYPES[Hd.queue[0]].human) ? '🏴‍☠️' : '🧟'} ONDA ${Hd.n}: ${Hd.queue.length + Hd.zs.length + (Hd.rush ? Hd.rush.length : 0)} ${foeWord(Hd.queue[0] || (Hd.zs[0] && Hd.zs[0].type))} restantes`
-      : `☀️ Próxima horda em ${Math.ceil(S.waveTimer)}s (onda ${S.wave})`;
-    const w = ctx.measureText(line).width + 10;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(4, 4, w, 14);
-    ctx.fillStyle = Hd.active ? '#ff8070' : '#ece6d0'; ctx.fillText(line, 9, 14);
-
-    // boosts ativos
+    ctx.textAlign = 'left';
+    // a contagem da horda fica no painel de defesa, embaixo do cenário; aqui só os boosts ativos
     const B = S.meta.boosts;
     let bx = 4;
     for (const [on, label, bg, fg] of [
@@ -2275,8 +2271,8 @@ const Scene = (() => {
       if (!on) continue;
       ctx.font = 'bold 8px sans-serif';
       const bw = ctx.measureText(label).width + 8;
-      ctx.fillStyle = bg; ctx.fillRect(bx, 21, bw, 12);
-      ctx.fillStyle = fg; ctx.fillText(label, bx + 4, 30);
+      ctx.fillStyle = bg; ctx.fillRect(bx, 4, bw, 12);
+      ctx.fillStyle = fg; ctx.fillText(label, bx + 4, 13);
       bx += bw + 4;
     }
 

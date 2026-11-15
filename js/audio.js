@@ -853,6 +853,83 @@ const Sound = (() => {
           break;
       }
     },
+    // herói repetido virando Tampinhas: um "fuuu" descendo e moedinhas tilintando
+    capsConvert() {
+      const t = ac.currentTime;
+      noise({ type: 'bandpass', f: 3000, f2: 600, q: 2, d: 0.35, vol: 0.06, t });
+      for (let i = 0; i < 7; i++) tone({ type: 'triangle', f: pick([1760, 2093, 2349, 2637]), d: 0.12, vol: 0.035, t: t + 0.3 + i * 0.06, pan: rand(-0.5, 0.5), send: 0.4 });
+      tone({ type: 'sine', f: mtof(84), d: 0.5, vol: 0.03, t: t + 0.75, send: 0.6 });
+    },
+    // a ativa do herói voltou: dois "tins" curtos subindo
+    champActReady() {
+      const t = ac.currentTime;
+      tone({ type: 'triangle', f: mtof(79), d: 0.18, vol: 0.045, t, send: 0.4 });
+      tone({ type: 'triangle', f: mtof(86), d: 0.3, vol: 0.045, t: t + 0.07, send: 0.5 });
+    },
+    // suprema carregada: acorde brilhante crescendo e um brilho por cima
+    champReady() {
+      const t = ac.currentTime;
+      [72, 76, 79, 84].forEach((m, i) => tone({ type: 'square', f: mtof(m), d: 0.14, vol: 0.03, t: t + i * 0.05, filter: { f: 3500 } }));
+      [72, 79, 84, 88].forEach(m => tone({ type: 'triangle', f: mtof(m), a: 0.04, d: 1.0, vol: 0.035, t: t + 0.2, send: 0.7 }));
+      tone({ type: 'sawtooth', f: 110, f2: 440, a: 0.2, d: 0.1, vol: 0.03, t, filter: { f: 1500 } });
+      noise({ type: 'highpass', f: 6000, d: 0.8, vol: 0.03, t: t + 0.2 });
+    },
+    // jingle curto de cada herói ao assumir o posto no telhado
+    champPick(d) {
+      const t = ac.currentTime;
+      switch (d.k) {
+        case 'profeta': {  // hino de órgão em ré menor fechando num trovão
+          const organ = (ms, at, dur) => ms.forEach(m => {
+            tone({ type: 'sawtooth', f: mtof(m), a: 0.04, hold: dur * 0.6, d: dur * 0.6, vol: 0.018, t: at, filter: { f: 1400 }, send: 0.7 });
+            tone({ type: 'sine', f: mtof(m - 12), a: 0.04, hold: dur * 0.6, d: dur * 0.6, vol: 0.03, t: at, send: 0.7 });
+          });
+          organ([62, 65, 69], t, 0.3);
+          organ([58, 62, 65], t + 0.32, 0.3);
+          organ([57, 61, 64, 69], t + 0.64, 0.9);
+          noise({ type: 'highpass', f: 3000, d: 0.06, vol: 0.18, t: t + 0.62 });
+          noise({ type: 'lowpass', f: 1200, f2: 80, d: 1.4, vol: 0.22, t: t + 0.64, send: 0.8 });
+          break;
+        }
+        case 'x9':         // chiptune: arpejo de bipes, "beep-boop" de confirmação e o servo travando
+          [72, 76, 79, 84, 79, 88].forEach((m, i) => tone({ type: 'square', f: mtof(m), d: 0.06, vol: 0.035, t: t + i * 0.065, filter: { f: 4500 } }));
+          tone({ type: 'square', f: mtof(91), d: 0.08, vol: 0.03, t: t + 0.48, filter: { f: 5000 } });
+          tone({ type: 'square', f: mtof(84), d: 0.16, vol: 0.03, t: t + 0.58, filter: { f: 5000 } });
+          tone({ type: 'sawtooth', f: 300, f2: 120, d: 0.18, vol: 0.05, t: t + 0.78, filter: { f: 1200, q: 4 } });
+          noise({ type: 'bandpass', f: 1400, q: 3, d: 0.05, vol: 0.1, t: t + 0.95 });
+          break;
+        case 'bilu':       // "oom-pah" de picadeiro, melodia saltitante e prato
+          [[48, 0], [55, 0.15], [48, 0.3], [55, 0.45]].forEach(([m, dt]) => tone({ type: 'triangle', f: mtof(m), d: 0.12, vol: 0.08, t: t + dt }));
+          [[79, 0, 0.08], [78, 0.08, 0.08], [79, 0.16, 0.14], [84, 0.3, 0.14], [83, 0.45, 0.08], [84, 0.53, 0.08], [88, 0.62, 0.5]].forEach(([m, dt, dd]) =>
+            tone({ type: 'square', f: mtof(m), d: dd, vol: 0.03, t: t + dt, filter: { f: 3200 }, send: 0.3 }));
+          tone({ type: 'triangle', f: mtof(48), d: 0.5, vol: 0.09, t: t + 0.62 });
+          noise({ type: 'highpass', f: 5500, d: 0.6, vol: 0.06, t: t + 0.62, send: 0.4 });
+          break;
+        case 'imune':      // caixinha de música desafinada descendo em lá menor e o coração batendo
+          [[81, 0], [77, 0.2], [76, 0.4], [72, 0.6], [69, 0.85]].forEach(([m, dt], i) => {
+            tone({ type: 'sine', f: mtof(m), detune: i % 2 ? 18 : -12, d: 0.7, vol: 0.04, t: t + dt, send: 0.8 });
+            tone({ type: 'sine', f: mtof(m + 24), d: 0.25, vol: 0.012, t: t + dt, send: 0.8 });
+          });
+          [0.9, 1.08].forEach(dt => tone({ f: 65, f2: 40, d: 0.16, vol: 0.28, t: t + dt }));
+          break;
+        case 'waldir':     // teremim deslizando por uma escala de tons inteiros, zumbido do disco e "piuuu"
+          [[72, 78], [78, 74], [74, 80], [80, 70]].forEach(([a, b], i) =>
+            tone({ type: 'sine', f: mtof(a), f2: mtof(b), a: 0.03, d: 0.24, vol: 0.05, t: t + i * 0.24, send: 0.7 }));
+          tone({ type: 'sawtooth', f: 55, a: 0.2, hold: 0.6, d: 0.4, vol: 0.04, t, filter: { f: 260 } });
+          tone({ type: 'sine', f: 2200, f2: 400, d: 0.4, vol: 0.035, t: t + 1.0, send: 0.6 });
+          break;
+        case 'ze': {       // riff de power chords (Mi, Mi, Sol, Lá) com bumbo e caixa
+          const chord = (root, at, dur) => [root, root + 7, root + 12].forEach(m => {
+            tone({ type: 'sawtooth', f: mtof(m), a: 0.005, hold: dur * 0.5, d: dur * 0.6, vol: 0.04, t: at, filter: { f: 1500, q: 2 }, send: 0.3 });
+            tone({ type: 'square', f: mtof(m) * 1.006, a: 0.005, hold: dur * 0.5, d: dur * 0.6, vol: 0.015, t: at, filter: { f: 1100 } });
+          });
+          [[40, 0, 0.12], [40, 0.16, 0.12], [43, 0.32, 0.16], [45, 0.52, 0.8]].forEach(([m, dt, dd]) => chord(m, t + dt, dd));
+          [0, 0.32, 0.52].forEach(dt => tone({ f: 90, f2: 45, d: 0.2, vol: 0.3, t: t + dt }));
+          noise({ type: 'bandpass', f: 1800, q: 1, d: 0.12, vol: 0.12, t: t + 0.16 });
+          noise({ type: 'highpass', f: 5000, d: 1.0, vol: 0.05, t: t + 0.52, send: 0.5 });
+          break;
+        }
+      }
+    },
     district() {
       const t = ac.currentTime;
       tone({ type: 'sawtooth', f: mtof(55), a: 0.2, hold: 0.4, d: 0.8, vol: 0.08, filter: { f: 1200 }, send: 0.5 });
@@ -928,7 +1005,7 @@ const Sound = (() => {
       [60, 64, 67, 72, 76].forEach((m, i) => tone({ type: 'triangle', f: mtof(m), d: 1.2, vol: 0.06, t: t + 0.5 + i * 0.15, send: 0.6 }));
     },
   };
-  const GAPS = { outOfRange: 0.15, armor: 0.07, headshot: 0.05, zbuff: 0.15, sample: 0.1, crit: 0.08, trap: 0.06, shock: 0.1, research: 0.2, weapon: 0.3, assign: 0.06, unassign: 0.06, shot: 0.035, hit: 0.04, zdeath: 0.07, wallHit: 0.09, spit: 0.15, melee: 0.06, injured: 0.15, bitten: 0.3, harvest: 1.2, scavenge: 0.03 };
+  const GAPS = { champPick: 0.4, outOfRange: 0.15, armor: 0.07, headshot: 0.05, zbuff: 0.15, sample: 0.1, crit: 0.08, trap: 0.06, shock: 0.1, research: 0.2, weapon: 0.3, assign: 0.06, unassign: 0.06, shot: 0.035, hit: 0.04, zdeath: 0.07, wallHit: 0.09, spit: 0.15, melee: 0.06, injured: 0.15, bitten: 0.3, harvest: 1.2, scavenge: 0.03 };
 
   function on(type, d) {
     // morte de chefe e cada ação de chefe têm o próprio limite (não somem no meio de outros sons)

@@ -5,6 +5,7 @@ for (const k in EXPED) expSel[k] = EXPED[k].min;
 
 const actions = {
   scavenge() {
+    if (nightLocked()) return '';
     const g = scavGain();
     S.res.comida += g.comida;
     S.res.sucata += g.sucata;
@@ -20,10 +21,11 @@ const actions = {
   },
   recruit() {
     const c = recruitCost();
-    if (hasMod('isolados') || S.survivors >= maxSurv() || S.res.comida < c) return;
+    if (recruitBlock()) return;
     S.res.comida -= c;
     addLog(`🧍 ${addSurvivor()} se juntou ao grupo.`, 'good');
     countRecruit();
+    countDay();
     emit('recruit');
   },
   repair() {
@@ -35,7 +37,7 @@ const actions = {
     S.wallDown = false;
     S.overflow = 0;
   },
-  jobAdd(k) { if (k === 'cientista' && S.jobs.cientista >= Endgame.sciCap()) return; if (idle() > 0) { S.jobs[k]++; S.heldIdle = Math.max(0, (S.heldIdle || 0) - 1); emit('assign', { k }); } },
+  jobAdd(k) { if (!Unlocks.job(k)) return; if (k === 'cientista' && S.jobs.cientista >= Endgame.sciCap()) return; if (idle() > 0) { S.jobs[k]++; S.heldIdle = Math.max(0, (S.heldIdle || 0) - 1); emit('assign', { k }); } },
   // Quem o jogador tira de uma função fica ocioso de propósito: a distribuição automática não mexe nele
   jobSub(k) { if (S.jobs[k] > 0) { S.jobs[k]--; S.heldIdle = (S.heldIdle || 0) + 1; emit('unassign', { k }); } },
   build(k) {

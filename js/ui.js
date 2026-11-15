@@ -2,6 +2,7 @@
 
 const $ = id => document.getElementById(id);
 let logDirty = true;
+let curTab = 'equipe';   // aba aberta no painel da direita
 
 function fmt(n) {
   const a = Math.abs(n);
@@ -38,7 +39,6 @@ function buildUI() {
   $('resources').innerHTML = Object.entries(RES).map(([k, r]) =>
     `<div class="res" title="${r.nome}">${r.icon} <span class="val" id="r-${k}"></span><span class="rate" id="rr-${k}"></span></div>`).join('') +
     `<div class="res hope" title="Esperança (prestígio)">✨ <span class="val" id="r-hope"></span><span class="rate" id="rr-hope"></span></div>` +
-    `<div class="res cash" title="Cash: moeda rara para a loja">💵 <span class="val" id="r-cash"></span></div>` +
     `<div id="boosts" class="boosts"></div>`;
 
   $('achievements').innerHTML = ACH.map(a => `
@@ -64,18 +64,19 @@ function buildUI() {
     </div>`).join('');
 
   $('jobs').innerHTML = Object.entries(JOBS).map(([k, j]) => `
-    <div class="row">
+    <div class="row" id="jr-${k}">
       <div class="main"><div class="title">${j.icon} ${j.nome}</div><div class="desc">${j.desc}</div></div>
       <button class="small" data-act="jobSub" data-k="${k}" id="js-${k}">−</button>
       <span class="count" id="jc-${k}"></span>
       <button class="small" data-act="jobAdd" data-k="${k}" id="ja-${k}">+</button>
     </div>`).join('');
 
+  // a descrição fixa (.base) some depois de construir: aí fica só o "Atual" (a descrição vai para o title)
   $('buildings').innerHTML = Object.entries(BUILD).map(([k, b]) => `
-    <div class="row">
+    <div class="row" id="br-${k}">
       <div class="main">
-        <div class="title">${b.icon} ${b.nome}<span class="lvl" id="bl-${k}"></span></div>
-        <div class="desc">${b.desc}</div>
+        <div class="title" title="${b.desc}">${b.icon} ${b.nome}<span class="lvl" id="bl-${k}"></span></div>
+        <div class="desc base">${b.desc}</div>
         <div class="desc now" id="bn-${k}"></div>
         <div class="cost" id="bc-${k}"></div>
       </div>
@@ -100,10 +101,10 @@ function buildUI() {
   if (typeof lockWhilePaused === 'function') lockWhilePaused();
 
   $('perks').innerHTML = Object.entries(PERKS).map(([k, p]) => `
-    <div class="row">
+    <div class="row" id="pr-${k}">
       <div class="main">
-        <div class="title">${p.icon} ${p.nome}<span class="lvl" id="pl-${k}"></span></div>
-        <div class="desc">${p.desc}</div>
+        <div class="title" title="${p.desc}">${p.icon} ${p.nome}<span class="lvl" id="pl-${k}"></span></div>
+        <div class="desc base">${p.desc}</div>
         <div class="desc now" id="pn-${k}"></div>
       </div>
       <button data-act="perk" data-k="${k}" id="pb-${k}"></button>
@@ -117,11 +118,22 @@ function buildUI() {
   });
   const TAB_KEY = 'ultimoAbrigo.tab';
   const showTab = name => {
+    if (!Unlocks.tab(name)) name = 'equipe';
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.querySelectorAll('[data-hub]').forEach(b => b.classList.toggle('active', b.dataset.hub === name));
     document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+    Unlocks.seenTab(name);
+    curTab = name;
     try { localStorage.setItem(TAB_KEY, name); } catch (e) { /* sem armazenamento */ }
   };
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+  // Conquistas e Loja: botões do topo que abrem o painel ao lado (clicar de novo volta para a aba anterior)
+  let backTab = 'equipe';
+  document.querySelectorAll('[data-hub]').forEach(b => b.addEventListener('click', () => {
+    if (curTab === b.dataset.hub) { showTab(backTab); return; }
+    if (curTab !== 'conquistas' && curTab !== 'loja') backTab = curTab;
+    showTab(b.dataset.hub);
+  }));
   let firstTab = 'equipe';
   try { firstTab = localStorage.getItem(TAB_KEY) || 'equipe'; } catch (e) { /* sem armazenamento */ }
   showTab(document.querySelector(`.tab[data-tab="${firstTab}"]`) ? firstTab : 'equipe');
@@ -144,9 +156,11 @@ function buildUI() {
   });
   window.openArmy = sub => { openTab('herois'); subGroups['army-tabs'](sub); };
   window.openShop = sub => { openTab('loja'); subGroups['shop-tabs'](sub); };
+  window.openCity = sub => { openTab('cidade'); subGroups['city-tabs'](sub); };
+  window.citySub = sub => subGroups['city-tabs'](sub);
 
   $('btn-scavenge').title = 'O líder vasculha as ruínas por conta própria. Rende mais conforme sua produção e a onda aumentam. Também dá para clicar direto no cenário.';
-  $('btn-scavenge').onclick = () => { if (paused) return; Scene.float(actions.scavenge()); render(); };
+  $('btn-scavenge').onclick = () => { if (paused) return; const g = actions.scavenge(); if (g) Scene.float(g); render(); };
   $('btn-recruit').onclick = () => { actions.recruit(); render(); };
   $('btn-repair').onclick = () => { actions.repair(); render(); };
   // salvar na mão: confirma com um toast curto
@@ -170,10 +184,74 @@ function buildUI() {
   $('pause-badge').onclick = () => togglePause(false);
   setupKeys();
   Tutorial.setup();
+  listeners.push((t, d) => { if (t === 'waveEnd' && d.n === EVAC_WAVE) heliPrompt(); });
   $('btn-menu').onclick = () => Slots.toMenu();
 }
 
+// Abas: só as liberadas aparecem, numeradas na ordem (atalhos 1, 2, 3...); aba nova brilha até ser aberta
+let tabSig = '';
+function renderTabs() {
+  Unlocks.check();
+  const tabs = [...document.querySelectorAll('.side > .tabs .tab:not(.hub-tab)')];
+  const open = tabs.map(t => Unlocks.tab(t.dataset.tab));
+  const sig = open.join() + '|' + tabs.map(t => Unlocks.isNew(t.dataset.tab)).join() + '|' + Unlocks.tab('distritos');
+  if (sig === tabSig) return;
+  tabSig = sig;
+  let n = 0;
+  tabs.forEach((t, i) => {
+    t.hidden = !open[i];
+    t.classList.toggle('is-new', open[i] && Unlocks.isNew(t.dataset.tab));
+    t.querySelector('.hk').textContent = open[i] ? `(${++n})` : '';
+  });
+  // sub-aba de distritos (aba Cidade) só a partir da onda dela
+  const dist = document.querySelector('#city-tabs .subtab[data-sub="mapa"]');
+  if (dist) {
+    dist.hidden = !Unlocks.tab('distritos');
+    // com uma sub-aba só, a barra some (parecia um botão de ação)
+    dist.parentElement.hidden = dist.hidden;
+    if (dist.hidden && dist.classList.contains('active') && window.citySub) citySub('exp');
+  }
+  // a aba aberta foi escondida (não deveria acontecer, mas por garantia)
+  const act = document.querySelector('.side > .tabs .tab.active');
+  if (act && act.hidden && !act.classList.contains('hub-tab')) openTab('equipe');
+}
+
+// Fim da onda 10: o helicóptero chegou. Explica o que a evacuação dá e por que ela é o caminho (uma vez por cidade).
+function heliPrompt() {
+  if (S.heliShown || !hopeGain()) return;
+  S.heliShown = true;
+  const g = hopeGain(), now = hopePct(), after = hopePct(S.meta.hopeTotal + g);
+  const cureNext = Endgame.CURE[Math.min(S.meta.cureStage || 0, Endgame.CURE.length - 1)];
+  openDialog({
+    title: '🚁 O helicóptero chegou!',
+    body: `<p class="event-text">Um helicóptero respondeu ao rádio e pode levar o grupo para a <b>cidade ${S.meta.city + 1}</b>.</p>
+      <div class="stat"><span>✨ Esperança ao evacuar agora</span><span><b>+${g}</b></span></div>
+      <div class="stat"><span>Bônus de produção permanente</span><span>+${now}% → <b>+${after}%</b></span></div>
+      <p class="hint">A Esperança também compra melhorias permanentes na aba Evacuar. Quanto mais longe você for nesta cidade, mais Esperança leva.</p>
+      <p class="hint warn-text">☣️ A partir de agora a cidade vai sendo tomada: cada onda deixa os zumbis ${Math.round(SIEGE_HP * 100)}% mais resistentes.</p>
+      ${!S.meta.cured ? `<p class="hint">🧬 A Cura só avança em cidades novas: a próxima etapa (${cureNext.nome}) exige a cidade ${cureNext.city}.</p>` : ''}
+      <p class="hint">Evacuar recomeça do zero (grupo, recursos e construções). Ficam: Esperança, pesquisa, amostras, armas do líder, heróis e cash.</p>`,
+    buttons: [{ label: '🚁 Evacuar agora', cls: 'primary', onClick: () => evacuate() }],
+    cancel: 'Ficar mais um pouco',
+  });
+}
+
+// "🔒 Em breve: ..." no fim de uma lista, no lugar das linhas travadas
+function lockedSum(el, items, what) {
+  if (!el) return;
+  el.classList.toggle('hidden', !items.length);
+  if (!items.length) return;
+  const byWave = {};
+  for (const it of items) (byWave[it.n] = byWave[it.n] || []).push(it);
+  setHtml(el, `🔒 ${what}: ` + Object.keys(byWave).sort((a, b) => a - b)
+    .map(n => `<span title="${byWave[n].map(i => i.nome).join(', ')}">${byWave[n].map(i => i.icon).join(' ')} onda ${n}</span>`).join(' · '));
+}
+
 function render() {
+  renderTabs();
+  // aba Evacuar pulsa em dourado enquanto houver Esperança para levar
+  const evTab = document.querySelector('.tab[data-tab="evacuacao"]');
+  if (evTab) evTab.classList.toggle('evac-ready', hopeGain() > 0 && !evTab.classList.contains('is-new'));
   // bolinhas de novidade nos botões do topo
   for (const [id, on] of [['btn-codex', Codex.hasNew()], ['btn-locker', typeof lockerNew === 'function' && lockerNew()]]) {
     const b = $(id);
@@ -202,7 +280,8 @@ function render() {
   mc.classList.toggle('hidden', !S.merchant);
   if (S.merchant) setHtml(mc, `🛒 Comerciante · ${Math.ceil(S.merchant.t)}s ${hk('O')}`);
   $('diff-chip').style.setProperty('--c', D().color);
-  $('r-cash').textContent = S.meta.cash;
+  // o cash fica no selo do botão 🛒 Loja, no topo
+  $('btn-shop').title = `Loja: cash e skins (0) · você tem 💵 ${S.meta.cash} de cash`;
   const B = S.meta.boosts;
   $('boosts').innerHTML =
     (B.prod > 0 ? `<span class="boost prod">⚡ 2x ${fmtClock(B.prod)}</span>` : '') +
@@ -235,20 +314,31 @@ function render() {
   $('surv-info').innerHTML = info;
   renderPeople();
 
-  const sg = scavGain();
-  setHtml($('btn-scavenge'), `🔍 Vasculhar · +${fmt(sg.comida)} 🥫 +${fmt(sg.sucata)} 🔩 ${hk('V')}`);
+  const sg = scavGain(), night = nightLocked();
+  setHtml($('btn-scavenge'), (night ? '🌙 Vasculhar: só de dia' : `🔍 Vasculhar · +${fmt(sg.comida)} 🥫 +${fmt(sg.sucata)} 🔩`) + ' ' + hk('V'));
+  $('btn-scavenge').disabled = night;
 
-  const rc = recruitCost();
-  const full = S.survivors >= maxSurv();
-  const iso = hasMod('isolados');
-  setHtml($('btn-recruit'), (iso ? '📵 Isolados: sem recrutamento' : full ? '🧍 Lotado · construa barracas' : `🧍 Recrutar · ${RES.comida.icon} ${fmt(rc)}`) + ' ' + hk('R'));
-  $('btn-recruit').disabled = iso || full || S.res.comida < rc;
-  $('btn-recruit').title = iso || full ? '' : `Recrutar custa ${exact(rc)} de comida (você tem ${exact(S.res.comida)})`;
+  const rc = recruitCost(), why = recruitBlock(), cap = D().recruitDay;
+  const capTxt = cap ? ` · ${recruitLeft()}/${cap} hoje` : '';
+  setHtml($('btn-recruit'), ({
+    iso: '📵 Isolados: sem recrutamento',
+    full: '🧍 Lotado · construa barracas',
+    night: '🌙 Recrutar: só de dia',
+    cap: '🧍 Recrutas de hoje esgotados',
+  }[why] || `🧍 Recrutar · ${RES.comida.icon} ${fmt(rc)}${capTxt}`) + ' ' + hk('R'));
+  $('btn-recruit').disabled = !!why;
+  $('btn-recruit').title = why === 'iso' || why === 'full' ? ''
+    : why === 'night' ? `No ${D().nome}, só dá para recrutar de dia, entre as hordas.`
+    : why === 'cap' ? `No ${D().nome}, dá para recrutar ${cap} pessoa(s) por dia. Volta depois da próxima horda.`
+    : `Recrutar custa ${exact(rc)} de comida (você tem ${exact(S.res.comida)})` + (cap ? `. No ${D().nome}, até ${cap} por dia (faltam ${recruitLeft()}).` : '');
 
   const ji = $('jobs-idle'), nIdle = Math.max(0, idle());
   ji.classList.toggle('has', nIdle > 0);
   setHtml(ji, `<span>${nIdle > 0 ? 'Use + para dar uma função' : 'Use − para liberar alguém'}</span>` +
     `<b>🪑 ${nIdle} ocioso${nIdle === 1 ? '' : 's'}</b>` + (hurt() ? ` <small>· 🤕 ${hurt()} ferido${hurt() === 1 ? '' : 's'}</small>` : ''));
+  // funções ainda travadas somem (a não ser que alguém já esteja nela) e viram uma linha "Em breve"
+  for (const k in JOBS) $('jr-' + k).classList.toggle('hidden', !Unlocks.job(k) && !S.jobs[k]);
+  lockedSum($('jobs-next'), Unlocks.nextJobs().map(({ k, n }) => ({ n, icon: JOBS[k].icon, nome: JOBS[k].nome })), 'Novas funções');
   for (const k in JOBS) {
     $('jc-' + k).textContent = S.jobs[k];
     $('ja-' + k).disabled = idle() <= 0;
@@ -257,6 +347,15 @@ function render() {
     $('ja-' + k).title = idle() > 0 ? 'Colocar um ocioso nesta função' : 'Sem ociosos: tire alguém de outra função, recrute ou espere os feridos se recuperarem';
   }
 
+  // construções travadas (ou bloqueadas por desafio) saem da lista
+  const lockedB = [];
+  for (const k in BUILD) {
+    const off = buildLocked(k) || buildBlocked(k);
+    $('br-' + k).classList.toggle('hidden', off);
+    $('br-' + k).classList.toggle('built', !!S.build[k]);
+    if (buildLocked(k) && !buildBlocked(k)) lockedB.push({ n: BUILD[k].unlock, icon: BUILD[k].icon, nome: BUILD[k].nome });
+  }
+  lockedSum($('build-next'), lockedB, 'Novas construções');
   for (const k in BUILD) {
     const c = buildCost(k);
     $('bl-' + k).textContent = S.build[k] ? ` nv. ${S.build[k]}` : '';
@@ -273,17 +372,30 @@ function render() {
   const top = H.train
     ? `<div class="stat alert"><span>🎯 CAMPO DE TREINO (debug)</span><span>ondas pausadas</span></div>`
     : H.active
-    ? `<div class="stat alert"><span>🧟 HORDA ATACANDO (onda ${H.n})</span><span>${H.queue.length + H.zs.length} restantes</span></div>
-       <div class="bar wave"><div style="width:${(1 - (H.queue.length + H.zs.length) / Math.max(1, waveSize(H.n))) * 100}%"></div></div>`
-    : `<div class="stat"><span>Próxima horda (onda ${S.wave})</span><span>${Math.ceil(S.waveTimer)}s</span></div>
-       <div class="bar wave"><div style="width:${(1 - S.waveTimer / waveInterval()) * 100}%"></div></div>
+    ? (() => {
+      const left = H.queue.length + H.zs.length + (H.rush ? H.rush.length : 0);
+      const human = H.zs.some(z => ZTYPES[z.type].human) || (H.queue[0] && ZTYPES[H.queue[0]].human);
+      return `<div class="wave-head alert"><span class="wh-lbl">${human ? '🏴‍☠️' : '🧟'} HORDA ATACANDO · onda ${H.n}</span><span class="wh-big">${left}<small>restantes</small></span></div>
+       <div class="bar wave big"><div style="width:${Math.max(0, 1 - left / Math.max(1, waveSize(H.n))) * 100}%"></div></div>`;
+    })()
+    : `<div class="wave-head${S.waveTimer <= 10 ? ' soon' : ''}"><span class="wh-lbl">☀️ Próxima horda · onda ${S.wave}</span><span class="wh-big">${Math.ceil(S.waveTimer)}<small>s</small></span></div>
+       <div class="bar wave big"><div style="width:${(1 - S.waveTimer / waveInterval()) * 100}%"></div></div>
        <div class="stat"><span>Zumbis esperados</span><span>${num(waveSize(S.wave))}${bossCount(S.wave) ? ` + 👹 ${bossCount(S.wave) > 1 ? `${bossCount(S.wave)} chefes` : 'chefe'}` : ''}</span></div>`;
-  $('defense').innerHTML = top + `
+  // depois da onda 10, a cidade vai sendo tomada (zumbis mais resistentes a cada onda)
+  const siegeN = H.active ? H.n : S.wave;
+  const siege = siegeMult(siegeN) > 1 ? `<div class="stat warn" title="Depois da onda ${SIEGE_WAVE}, cada onda nesta cidade deixa os zumbis ${Math.round(SIEGE_HP * 100)}% mais resistentes (somando). Evacuar recomeça numa cidade nova."><span class="warn-text">☣️ Cidade sendo tomada</span><span class="warn-text">zumbis +${Math.round((siegeMult(siegeN) - 1) * 100)}% de vida</span></div>` : '';
+  $('defense').innerHTML = top + siege + `
     <div class="stat"><span>🧱 Muro</span><span title="${exact(Math.ceil(S.wallHp))} / ${exact(maxWall())}">${fmt(Math.ceil(S.wallHp))} / ${fmt(maxWall())}</span></div>
     <div class="bar ${wallPct < 30 ? 'low' : ''}"><div style="width:${wallPct}%"></div></div>
-    <div class="stat"><span>🛡️ ${S.jobs.guarda} guardas · ${Object.keys(TOWERS).filter(k => S.build[k]).map(k => `${BUILD[k].icon} ${towerStat(k).crew}`).join(' ') || '🗼 0'} nas torres</span><span>☠ ${fmt(S.kills)} · 🏆 onda ${S.best}</span></div>
-    <div class="stat" title="Chance de acerto. Melhora com Treinamento de tiro, a pesquisa Miras ópticas, o talento Boa mira e o herói Atirador. Tiro errado também gasta munição."><span>🎯 Precisão</span><span>guardas ${Math.round(accuracy('guard') * 100)}% · torres ${Math.round(accuracy('tower') * 100)}%</span></div>
-    ${Champions.defenseRow()}
+    ${(() => {
+      const towers = Object.keys(TOWERS).filter(k => S.build[k]), score = `<span>☠ ${fmt(S.kills)} · 🏆 onda ${S.best}</span>`;
+      // antes dos guardas e das torres, a defesa é só o líder
+      if (!S.jobs.guarda && !towers.length) return `<div class="stat"><span>🎯 ${Unlocks.job('guarda') ? 'Sem guardas: só você defende' : 'Por enquanto, a defesa é você'}</span>${score}</div>`;
+      const parts = [S.jobs.guarda ? `🛡️ ${S.jobs.guarda} guarda${S.jobs.guarda > 1 ? 's' : ''}` : '', towers.length ? `${towers.map(k => `${BUILD[k].icon} ${towerStat(k).crew}`).join(' ')} nas torres` : ''].filter(Boolean);
+      const acc = [S.jobs.guarda ? `guardas ${Math.round(accuracy('guard') * 100)}%` : '', towers.length ? `torres ${Math.round(accuracy('tower') * 100)}%` : ''].filter(Boolean);
+      return `<div class="stat"><span>${parts.join(' · ')}</span>${score}</div>
+        <div class="stat" title="Chance de acerto. Melhora com Treinamento de tiro, a pesquisa Miras ópticas, o talento Boa mira e o herói Atirador. Tiro errado também gasta munição."><span>🎯 Precisão</span><span>${acc.join(' · ')}</span></div>`;
+    })()}
     ${S.jobs.guarda ? `<div class="stat" title="Cada tiro cansa os guardas; entre as hordas eles descansam. Cansados, atiram mais devagar e erram mais. Ajudam: mais guardas (o cansaço se divide), o Alojamento e a pesquisa Turnos de vigia."><span>😓 Cansaço dos guardas</span><span class="${S.fatigue > 0.5 ? 'warn-text' : ''}">${Math.round((S.fatigue || 0) * 100)}% · cadência ${Math.round(guardFire() * 100)}%</span></div>` : ''}
     ${towerLevels() ? (() => {
       const up = upkeepTotal(), bad = S.horde.active ? (S.horde.unpaid || []).length > 0 : !canAfford(up);
@@ -296,9 +408,12 @@ function render() {
 
   const scale = expLootScale();
   const sieged = hasMod('semexp');
+  const lockedE = [];
   for (const k in EXPED) {
-    const L = EXPED[k], locked = sieged || S.best + 1 < L.unlock, n = expSel[k];
+    const L = EXPED[k], early = S.best + 1 < L.unlock, locked = sieged || early, n = expSel[k];
     $('er-' + k).classList.toggle('locked', locked);
+    $('er-' + k).classList.toggle('hidden', early && !sieged);
+    if (early && !sieged) lockedE.push({ n: L.unlock, icon: L.icon, nome: L.nome });
     $('en-' + k).textContent = n;
     if (sieged) {
       $('ed-' + k).textContent = '⛔ Cidade sitiada: expedições bloqueadas por um desafio';
@@ -313,6 +428,7 @@ function render() {
     $('ea-' + k).disabled = locked || n >= idle();
     $('eg-' + k).disabled = locked || idle() < n;
   }
+  lockedSum($('exp-next'), lockedE, 'Novos lugares');
   $('exp-active').innerHTML = S.exps.length
     ? S.exps.map(e => `<div class="stat"><span>${EXPED[e.loc].icon} ${EXPED[e.loc].nome} (${e.n})</span><span>${Math.ceil(e.t)}s</span></div>
         <div class="bar"><div style="width:${(1 - e.t / e.dur) * 100}%"></div></div>`).join('')
@@ -328,6 +444,7 @@ function render() {
   $('btn-evac').disabled = !g;
   for (const k in PERKS) {
     const lv = perk(k), max = lv >= PERKS[k].max, c = perkCost(k);
+    $('pr-' + k).classList.toggle('built', lv > 0);
     $('pl-' + k).textContent = lv ? ` nv. ${lv}` : '';
     $('pn-' + k).textContent = lv ? `Atual: ${PERK_FX[k](lv)}` : '';
     $('pb-' + k).textContent = max ? 'Máximo' : `✨ ${c}`;
@@ -339,16 +456,14 @@ function render() {
   $('tb-equipe').textContent = idle() > 0 ? idle() : '';
   $('tb-equipe').classList.toggle('idle', idle() > 0);
   $('tb-construir').textContent = affordable || '';
-  $('tb-expedicoes').textContent = S.exps.length ? `${S.exps.length} fora` : '';
+  $('tb-expedicoes').textContent = S.exps.length || '';
   $('tb-evacuacao').textContent = hopeGain() || perkReady ? '!' : '';
   $('tb-evacuacao').classList.add('gold');
-  $('tb-loja').textContent = S.meta.cash || '';
-  $('tb-loja').classList.add('cash');
+  $('tb-loja').textContent = `💵 ${S.meta.cash}`;
 
   const toClaim = ACH.filter(a => S.meta.ach[a.id] === 'unlocked');
   const done = ACH.filter(a => S.meta.ach[a.id]).length;
   $('tb-conquistas').textContent = toClaim.length || '';
-  $('tb-conquistas').classList.add('gold');
   $('ach-summary').textContent = `${done} / ${ACH.length} conquistas`;
   $('btn-claim-all').disabled = !toClaim.length;
   $('btn-claim-all').textContent = toClaim.length
@@ -374,6 +489,9 @@ function render() {
   Champions.render();
   Weapons.render();
   $('tb-armas').textContent = Weapons.tabBadge() || '';
+  // aba Cidade: expedições fora + distritos prontos para atacar
+  const cityN = S.exps.length + (+$('tb-mapa').textContent || 0);
+  $('tb-cidade').textContent = cityN || '';
 
   if (logDirty) {
     $('log').innerHTML = S.log.map(l => `<li class="${l.type}">${l.text}</li>`).join('');
@@ -390,6 +508,7 @@ function diffStats(k) {
     `⏱ ${d.interval}s entre hordas · 🥫 consumo ${d.food.toLocaleString('pt-BR')}/s por pessoa`,
     `🏭 Produção ${pct(d.prod)}`,
     `✨ Esperança ×${fmt(d.hope)} · 👹 Chefe 💵 ${d.bossCash}` + (d.loot ? ` · 🎒 saque ×${fmt(d.loot)}` : ''),
+    d.dayOnly ? `🌙 Recrutar e vasculhar só de dia · 🧍 até ${d.recruitDay} recruta${d.recruitDay > 1 ? 's' : ''} por dia` : '🧍 Recrutar e vasculhar a qualquer hora, sem limite',
     ...(d.permadeath ? ['<b class="bad-text">💀 Morte permanente: se o abrigo cair, o save é apagado</b>'] : []),
   ];
 }

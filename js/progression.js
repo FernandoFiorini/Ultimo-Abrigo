@@ -48,7 +48,9 @@ function evacuate() {
       addLog(`🚁 Evacuação concluída! Cidade ${meta.city} (${DIFFS[diff].icon} ${DIFFS[diff].nome}). +${g} de Esperança (agora +${hopePct(meta.hopeTotal)}% de produção).`, 'good');
       emit('evacuate', { city: meta.city, g });
       save();
-      chooseMods();
+      // primeira evacuação: a cena do rastro da equipe Aurora, depois os desafios da cidade nova
+      if (typeof Story !== 'undefined') Story.playOnce('evac', chooseMods);
+      else chooseMods();
     },
   });
 }

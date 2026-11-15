@@ -94,7 +94,8 @@ function importSave(code) {
 
 function startFirstRun() {
   awaitingChoice = true;
-  chooseDifficulty({
+  // a abertura da história vem antes da escolha de dificuldade (só uma vez por save)
+  Story.playOnce('intro', () => chooseDifficulty({
     title: '☣ Voidfall',
     sub: 'Você e mais dois sobreviventes encontraram um armazém abandonado. A horda chega ao anoitecer. <b>Escolha a dificuldade:</b>',
     cancel: false,
@@ -105,7 +106,7 @@ function startFirstRun() {
       awaitingChoice = false;
       save();
     },
-  });
+  }));
 }
 
 // Saves de antes do seletor: escolhe a dificuldade uma vez, sem perder o progresso

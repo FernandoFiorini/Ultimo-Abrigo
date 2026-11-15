@@ -56,7 +56,7 @@ function checkAchievements() {
   for (const a of ACH) {
     if (S.meta.ach[a.id] || a.val() < a.goal) continue;
     S.meta.ach[a.id] = 'unlocked';
-    addLog(`🏆 Conquista desbloqueada: ${a.icon} ${a.nome}! Resgate 💵 ${a.cash} na aba Conquistas.`, 'good');
+    addLog(`🏆 Conquista desbloqueada: ${a.icon} ${a.nome}! Resgate 💵 ${a.cash} em 🏆 Conquistas, no topo.`, 'good');
     emit('achievement', { a });
   }
 }

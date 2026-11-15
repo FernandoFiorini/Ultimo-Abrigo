@@ -25,6 +25,9 @@
     <div class="hub-btns">
       <button id="btn-codex" class="hub-btn codex" title="Bestiário e Glossário: fichas dos inimigos e fraquezas descobertas (B)">📖 <span>Bestiário</span><i class="hub-dot" hidden></i></button>
       <button id="btn-locker" class="hub-btn locker" title="Visual: skins das armas e do personagem (K)">🎨 <span>Visual</span><i class="hub-dot" hidden></i></button>
+      <button id="btn-ach" class="hub-btn ach" data-hub="conquistas" title="Conquistas e desafios da semana (9)">🏆 <span>Conquistas</span><b class="badge gold" id="tb-conquistas"></b></button>
+      <button id="btn-shop" class="hub-btn shop" data-hub="loja" title="Loja: cash e skins (0)">🛒 <span>Loja</span><b class="badge cash" id="tb-loja"></b></button>
+      <!-- o selo da Loja mostra o cash que você tem (💵) -->
     </div>
     <div class="audio-ctl">
       <button id="snd-music" title="Música">🎵</button>
@@ -40,6 +43,7 @@
         <div id="weapon-bar" class="weapon-bar hidden"></div>
         <div id="weapon-flash" class="weapon-flash hidden" aria-live="polite"></div>
         <div id="box-float" class="box-float hidden"></div>
+        <div id="skill-hud" class="skill-hud hidden"></div>
         <button id="pause-badge" class="pause-badge hidden" title="Clique ou aperte Espaço para continuar">⏸
           PAUSADO</button>
       </div>
@@ -65,22 +69,24 @@
 
     <aside class="side">
       <nav class="tabs">
-        <button class="tab" data-tab="equipe">👥 Equipe <span class="hk">(1)</span><span class="badge" id="tb-equipe"></span></button>
-        <button class="tab" data-tab="construir">🏗️ Construir <span class="hk">(2)</span><span class="badge" id="tb-construir"></span></button>
-        <button class="tab" data-tab="expedicoes">🎒 Expedições <span class="hk">(3)</span><span class="badge" id="tb-expedicoes"></span></button>
-        <button class="tab" data-tab="pesquisa">🧪 Pesquisa <span class="hk">(4)</span><span class="badge" id="tb-pesquisa"></span></button>
-        <button class="tab" data-tab="mapa">🗺️ Mapa <span class="hk">(5)</span><span class="badge" id="tb-mapa"></span></button>
-        <button class="tab" data-tab="armas">🔫 Armas <span class="hk">(6)</span><span class="badge" id="tb-armas"></span></button>
-        <button class="tab" data-tab="herois">🪖 Exército <span class="hk">(7)</span><span class="badge" id="tb-herois"></span></button>
-        <button class="tab" data-tab="evacuacao">🚁 Evacuar <span class="hk">(8)</span><span class="badge" id="tb-evacuacao"></span></button>
-        <button class="tab" data-tab="conquistas">🏆 Conquistas <span class="hk">(9)</span><span class="badge" id="tb-conquistas"></span></button>
-        <button class="tab" data-tab="loja">💵 Loja <span class="hk">(0)</span><span class="badge" id="tb-loja"></span></button>
+        <!-- as abas aparecem conforme a onda (Unlocks); o número do atalho é dado no render, só para as visíveis -->
+        <button class="tab" data-tab="equipe">👥 Equipe <span class="hk"></span><span class="badge" id="tb-equipe"></span></button>
+        <button class="tab" data-tab="construir">🏗️ Construir <span class="hk"></span><span class="badge" id="tb-construir"></span></button>
+        <button class="tab" data-tab="cidade">🗺️ Cidade <span class="hk"></span><span class="badge" id="tb-cidade"></span></button>
+        <button class="tab" data-tab="armas">🔫 Armas <span class="hk"></span><span class="badge" id="tb-armas"></span></button>
+        <button class="tab" data-tab="pesquisa">🧪 Pesquisa <span class="hk"></span><span class="badge" id="tb-pesquisa"></span></button>
+        <button class="tab" data-tab="herois">🪖 Exército <span class="hk"></span><span class="badge" id="tb-herois"></span></button>
+        <button class="tab" data-tab="evacuacao">🚁 Evacuar <span class="hk"></span><span class="badge" id="tb-evacuacao"></span></button>
+        <!-- Conquistas e Loja abrem pelos botões do topo -->
+        <button class="tab hub-tab" data-tab="conquistas" hidden>🏆 Conquistas</button>
+        <button class="tab hub-tab" data-tab="loja" hidden>💵 Loja</button>
       </nav>
 
       <div class="panes">
         <section class="pane" data-pane="equipe">
           <div id="jobs-idle" class="jobs-idle"></div>
           <div id="jobs"></div>
+          <p id="jobs-next" class="locked-sum hidden"></p>
           <h3>👥 O grupo</h3>
           <div id="people" class="people"></div>
           <p id="traits-sum" class="hint traits-sum"></p>
@@ -90,32 +96,41 @@
 
         <section class="pane" data-pane="construir">
           <div id="buildings"></div>
+          <p id="build-next" class="locked-sum hidden"></p>
         </section>
 
-        <section class="pane" data-pane="expedicoes">
-          <p class="hint">Mande sobreviventes ociosos atrás de suprimentos. Mais gente traz mais recompensa, mas cada um
-            corre o risco de não voltar.</p>
-          <div id="expeditions"></div>
-          <h3>Em andamento</h3>
-          <div id="exp-active"></div>
+        <section class="pane" data-pane="cidade">
+          <nav class="subtabs" id="city-tabs">
+            <button class="subtab" data-sub="exp" title="Expedições: sobreviventes ociosos atrás de suprimentos">🎒 Expedições<span class="badge" id="tb-expedicoes"></span></button>
+            <button class="subtab" data-sub="mapa" title="Distritos: esquadrões para libertar a cidade">🏴 Distritos<span class="badge" id="tb-mapa"></span></button>
+          </nav>
+          <div class="subpane" data-subpane="exp">
+            <p class="hint sub-intro">Mande sobreviventes ociosos atrás de suprimentos. Mais gente traz mais recompensa, mas cada um
+              corre o risco de não voltar.</p>
+            <div id="expeditions"></div>
+            <p id="exp-next" class="locked-sum hidden"></p>
+            <h3>Em andamento</h3>
+            <div id="exp-active"></div>
+          </div>
+          <div class="subpane" data-subpane="mapa">
+            <p class="hint sub-intro">Mande esquadrões para libertar distritos. Cada distrito libertado dá um bônus até
+              você evacuar, além de sucata, amostras e chance de armas e heróis. Se o ataque falhar, metade do esquadrão
+              morre.</p>
+            <div id="districts"></div>
+            <p id="dist-next" class="locked-sum hidden"></p>
+            <h3>Operações em andamento</h3>
+            <div id="ops"></div>
+          </div>
         </section>
 
         <section class="pane" data-pane="pesquisa">
           <div id="lab-head" class="card lab-head"></div>
           <div id="tech"></div>
           <h3>💉 A Cura</h3>
-          <p class="hint">O objetivo final: 5 etapas de pesquisa. Ao concluir, você pode começar um <b>Novo Mundo</b> e
-            ganhar Legado, um bônus permanente que sobrevive a tudo.</p>
+          <p class="hint">O objetivo final: 5 etapas de pesquisa. Os dados estão espalhados: <b>cada etapa só sai numa
+            cidade nova</b> (a etapa 2 na cidade 2, e assim até a 5), então é preciso evacuar para chegar à Cura. Ao concluir,
+            você pode começar um <b>Novo Mundo</b> e ganhar Legado, um bônus permanente que sobrevive a tudo.</p>
           <div id="cure"></div>
-        </section>
-
-        <section class="pane" data-pane="mapa">
-          <p class="hint">Mande esquadrões para libertar distritos da cidade. Cada distrito libertado dá um bônus até
-            você evacuar, além de sucata, amostras e chance de armas e heróis. Se o ataque falhar, metade do esquadrão
-            morre.</p>
-          <div id="districts"></div>
-          <h3>Operações em andamento</h3>
-          <div id="ops"></div>
         </section>
 
         <section class="pane" data-pane="armas">
@@ -235,6 +250,7 @@
   <script src="js/config.js?v=1.07.000"></script>
   <script src="js/settings.js?v=1.07.000"></script>
   <script src="js/state.js?v=1.07.000"></script>
+  <script src="js/unlocks.js?v=1.07.000"></script>
   <script src="js/achievements.js?v=1.07.000"></script>
   <script src="js/shop.js?v=1.07.000"></script>
   <script src="js/combat.js?v=1.07.000"></script>
@@ -253,6 +269,7 @@
   <script src="js/honored.js?v=1.07.000"></script>
   <script src="js/airdrop.js?v=1.07.000"></script>
   <script src="js/codex.js?v=1.07.000"></script>
+  <script src="js/story.js?v=1.07.000"></script>
   <script src="js/invasion.js?v=1.07.000"></script>
   <script src="js/bosses.js?v=1.07.000"></script>
   <script src="js/debug.js?v=1.07.000"></script>

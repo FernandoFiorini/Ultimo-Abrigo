@@ -48,6 +48,9 @@ const GUARD_HURT = { spit: 0.12, smash: 0.01, perWave: 10 };
 // Cidades mais perigosas: cada cidade dá +CITY_HP de vida e +CITY_COUNT de zumbis (somando);
 // um Novo Mundo conta como CITY_PER_WORLD cidades. Teto de CITY_MAX cidades.
 const CITY_HP = 0.12, CITY_COUNT = 0.05, CITY_PER_WORLD = 5, CITY_MAX = 40;
+// Cidade tomada: depois da onda SIEGE_WAVE (a da evacuação), cada onda a mais na mesma cidade
+// deixa os zumbis SIEGE_HP mais resistentes (somando). Evacuar recomeça a contagem numa cidade nova.
+const SIEGE_WAVE = 10, SIEGE_HP = 0.04;
 
 // Esperança: +3% de produção por ponto até HOPE_LINEAR pontos; depois cresce pela raiz (sem salto na transição)
 const HOPE_LINEAR = 30;
@@ -234,22 +237,23 @@ const DIFFS = {
     desc: 'Para relaxar. Hordas menores e mais espaçadas, comida sobrando.'
   },
   normal: {
-    nome: 'Normal', icon: '🧟', color: '#e0a940', count: 1, grow: 1.19, hp: 1, hpGrow: 0.08, dmg: 1, speed: 1, early: 0, interval: 90, food: 0.15, prod: 1, hope: 1, bossCash: 5, risk: 1, loot: 1,
+    nome: 'Normal', icon: '🧟', color: '#e0a940', count: 1, grow: 1.19, hp: 1, hpGrow: 0.08, dmg: 1, speed: 1, early: 0, interval: 90, food: 0.15, prod: 1, hope: 1, bossCash: 5, risk: 1, loot: 1, dayOnly: true, recruitDay: 4,
     desc: 'A experiência pensada para o jogo. Exige planejamento.'
   },
   dificil: {
-    nome: 'Difícil', icon: '💀', color: '#e05a4f', count: 1, grow: 1.21, hp: 1.05, hpGrow: 0.09, dmg: 1.1, speed: 1.1, early: 0, interval: 80, food: 0.16, prod: 0.9, hope: 1.5, bossCash: 7, risk: 1.3, loot: 1.3,
+    nome: 'Difícil', icon: '💀', color: '#e05a4f', count: 1, grow: 1.21, hp: 1.05, hpGrow: 0.09, dmg: 1.1, speed: 1.1, early: 0, interval: 80, food: 0.16, prod: 0.9, hope: 1.5, bossCash: 7, risk: 1.3, loot: 1.3, dayOnly: true, recruitDay: 3,
     desc: 'Zumbis mais duros e rápidos, que crescem mais a cada onda. Falta recurso.'
   },
   pesadelo: {
-    nome: 'Pesadelo', icon: '☣️', color: '#b04ad0', count: 1.05, grow: 1.23, hp: 1.1, hpGrow: 0.11, dmg: 1.25, speed: 1.2, early: 1, interval: 70, food: 0.17, prod: 0.8, hope: 2.2, bossCash: 10, risk: 1.6, loot: 1.65,
+    nome: 'Pesadelo', icon: '☣️', color: '#b04ad0', count: 1.05, grow: 1.23, hp: 1.1, hpGrow: 0.11, dmg: 1.25, speed: 1.2, early: 1, interval: 70, food: 0.17, prod: 0.8, hope: 2.2, bossCash: 10, risk: 1.6, loot: 1.65, dayOnly: true, recruitDay: 2,
     desc: 'Só para veteranos. Cada noite pode ser a última.'
   },
   // permadeath: se o abrigo cair, o save é apagado
   // risk/loot (em todas): multiplicam a chance de morte e o saque das expedições
+  // dayOnly: recrutar e vasculhar só de dia · recruitDay: recrutamentos com comida por dia (volta a cada horda vencida)
   apocalipse: {
     nome: 'Apocalipse', icon: '🔥', color: '#ff3b30', count: 1.15, grow: 1.25, hp: 1.25, hpGrow: 0.13, dmg: 1.45, speed: 1.3, early: 2, interval: 60, food: 0.18, prod: 0.7, hope: 4, bossCash: 20,
-    risk: 1.8, loot: 2.1, permadeath: true,
+    risk: 1.8, loot: 2.1, permadeath: true, dayOnly: true, recruitDay: 1,
     desc: 'Morte permanente: se o abrigo cair, o save é apagado. Recompensas enormes para quem aguentar.'
   },
 };
@@ -282,20 +286,20 @@ const BUILD = {
   oficina: { nome: 'Oficina', icon: '🛠️', desc: '+25% de produção de sucata', cost: { sucata: 35 }, mult: 1.35 },
   beliche: { nome: 'Barracas', icon: '⛺', desc: '+2 vagas para sobreviventes', cost: { sucata: 25, comida: 10 }, mult: 1.4 },
   // torres: a chave 'torre' é a média (saves antigos continuam com o mesmo nível)
-  torreC: { nome: 'Torre curta', icon: '💥', desc: 'Metralhadora junto ao muro: muitos tiros fracos, só em quem chega perto. Ignora blindados. Não gasta munição', cost: { sucata: 90, municao: 20 }, mult: 1.42, unlock: 5 },
-  torre: { nome: 'Torre média', icon: '🗼', desc: 'Fuzil de uso geral: atira no zumbi mais próximo do muro. Não gasta munição', cost: { sucata: 60, municao: 10 }, mult: 1.42 },
-  torreL: { nome: 'Torre longa', icon: '🎯', desc: 'Atirador de elite: tiro lento e devastador no zumbi mais resistente (brutamontes, chefes). Sempre acerta a cabeça. Não gasta munição', cost: { sucata: 150, municao: 30 }, mult: 1.45, unlock: 10 },
-  alojamento: { nome: 'Alojamento', icon: '🛏️', desc: 'Guardas descansam melhor entre as hordas: +30% de recuperação do cansaço', cost: { sucata: 80, comida: 40 }, mult: 1.5 },
-  radio: { nome: 'Rádio', icon: '📻', desc: 'Atrai sobreviventes sozinho de vez em quando', cost: { sucata: 120, remedio: 2 }, mult: 1.7 },
-  lab: { nome: 'Laboratório', icon: '🧪', desc: 'Libera cientistas (+2 vagas por nível) e +25% de pesquisa por nível acima do 1º', cost: { sucata: 150, remedio: 3 }, mult: 1.6 },
+  torreC: { nome: 'Torre curta', icon: '💥', desc: 'Metralhadora junto ao muro: muitos tiros fracos, só em quem chega perto. Ignora blindados. Não gasta munição', cost: { sucata: 90, municao: 20 }, mult: 1.42, unlock: 12 },
+  torre: { nome: 'Torre média', icon: '🗼', desc: 'Fuzil de uso geral: atira no zumbi mais próximo do muro. Não gasta munição', cost: { sucata: 60, municao: 10 }, mult: 1.42, unlock: 10 },
+  torreL: { nome: 'Torre longa', icon: '🎯', desc: 'Atirador de elite: tiro lento e devastador no zumbi mais resistente (brutamontes, chefes). Sempre acerta a cabeça. Não gasta munição', cost: { sucata: 150, municao: 30 }, mult: 1.45, unlock: 15 },
+  alojamento: { nome: 'Alojamento', icon: '🛏️', desc: 'Guardas descansam melhor entre as hordas: +30% de recuperação do cansaço', cost: { sucata: 80, comida: 40 }, mult: 1.5, unlock: 7 },
+  radio: { nome: 'Rádio', icon: '📻', desc: 'Atrai sobreviventes sozinho de vez em quando', cost: { sucata: 120, remedio: 2 }, mult: 1.7, unlock: 10 },
+  lab: { nome: 'Laboratório', icon: '🧪', desc: 'Libera cientistas (+2 vagas por nível) e +25% de pesquisa por nível acima do 1º', cost: { sucata: 150, remedio: 3 }, mult: 1.6, unlock: 7 },
 };
 
 const EXPED = {
-  mercado: { nome: 'Supermercado saqueado', icon: '🛒', dur: 45, min: 1, risk: 0.10, unlock: 1, loot: { comida: [20, 40] } },
-  ferro: { nome: 'Ferro-velho', icon: '🚗', dur: 60, min: 1, risk: 0.12, unlock: 1, loot: { sucata: [25, 50] } },
-  delegacia: { nome: 'Delegacia', icon: '🚓', dur: 90, min: 2, risk: 0.15, unlock: 3, loot: { municao: [12, 25], sucata: [8, 15] } },
+  mercado: { nome: 'Supermercado saqueado', icon: '🛒', dur: 45, min: 1, risk: 0.10, unlock: 4, loot: { comida: [20, 40] } },
+  ferro: { nome: 'Ferro-velho', icon: '🚗', dur: 60, min: 1, risk: 0.12, unlock: 4, loot: { sucata: [25, 50] } },
+  delegacia: { nome: 'Delegacia', icon: '🚓', dur: 90, min: 2, risk: 0.15, unlock: 5, loot: { municao: [12, 25], sucata: [8, 15] } },
   hospital: { nome: 'Hospital', icon: '🏥', dur: 120, min: 2, risk: 0.20, unlock: 5, loot: { remedio: [1, 3], comida: [8, 16] } },
-  base: { nome: 'Base militar', icon: '🪖', dur: 240, min: 3, risk: 0.25, unlock: 8, loot: { municao: [40, 80], sucata: [40, 70], remedio: [1, 3] } },
+  base: { nome: 'Base militar', icon: '🪖', dur: 240, min: 3, risk: 0.25, unlock: 10, loot: { municao: [40, 80], sucata: [40, 70], remedio: [1, 3] } },
 };
 
 // O cash só vem de conquistas e dos chefes (os zumbis mais fortes da horda)
@@ -313,6 +317,9 @@ const SHOP = {
   veterano: { nome: 'Sobrevivente veterano', icon: '🧍', cost: 3, desc: '+1 sobrevivente agora, sem gastar comida (precisa de vaga)' },
   medkit: { nome: 'Kit médico', icon: '💊', cost: 2, desc: '+5 remédios' },
   retorno: { nome: 'Retorno imediato', icon: '🎒', cost: 2, desc: 'Todas as expedições em andamento voltam agora' },
+  // conteúdo garantido (sem sorte): você escolhe o herói / recebe exatamente o que está escrito
+  fragmento: { nome: 'Fragmento de herói', icon: '🧩', cost: 15, desc: 'Escolha um herói de campo que você ainda não tem e ganhe 1 fragmento dele (6 liberam o herói). 1 por dia: volta a cada horda vencida' },
+  tampinhas: { nome: 'Pacote de Tampinhas', icon: '🏷️', cost: 5, desc: '+15 🏷️ Tampinhas, para comprar skins de armas, heróis, sobreviventes e do líder' },
 };
 
 const PERKS = {
@@ -414,10 +421,12 @@ const HONORED = [
     horda: ['Só na loucura! Bora pro muro!'],
     historia: 'Era bombeiro antes do apocalipse. Já entrou em prédio pegando fogo para tirar gente lá de dentro; zumbi nenhum vai fazê-lo recuar.'
   },
-  { nome: 'Fabiano', sexo: 'm',
+  {
+    nome: 'Fabiano', sexo: 'm',
     frases: ['Até eu não conseguir o que eu quero, não vou parar. E tu me conhece, Valde.', 'Jogo acima de tudo, farmar acima de todos.'],
     horda: ['Jogo acima de tudo, farmar acima de todos! Bora farmar zumbi!'],
-    historia: 'Era viciado antes do apocalipse, e nem é em drogas. Seu lema é: jogo acima de tudo, farmar acima de todos.' },
+    historia: 'Era viciado antes do apocalipse, e nem é em drogas. Seu lema é: jogo acima de tudo, farmar acima de todos.'
+  },
   // { nome: 'Fulana', sexo: 'f', frases: ['Primeira frase.', 'Segunda frase.'], horda: ['Lá vêm eles!'], adeus: ['Cuidem do abrigo por mim.'], visual: { hair: [200, 60, 130], longHair: true } },
 ];
 // ---------- airdrop no meio da horda (airdrop.js) ----------

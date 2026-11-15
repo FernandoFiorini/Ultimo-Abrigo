@@ -32,6 +32,8 @@ function startGame(slot) {
   else if (legacyChoice) startLegacyChoice();
   else if (returnReport) showReturn(returnReport);
   returnReport = null;
+  // partida nova (criada pelo menu): a abertura da história, uma vez por save. O guia espera ela terminar.
+  if (!firstRun && S.wave === 1 && !S.best && (S.meta.city || 1) === 1 && !(S.meta.worlds > 1)) Story.playOnce('intro');
 
   // Conquistas que ficaram pendentes (ou que foram desbloqueadas enquanto você estava fora)
   checkAchievements();
@@ -54,7 +56,7 @@ function startGame(slot) {
     Guide.update(frameDt);   // o tutorial guiado pausa o jogo enquanto explica
     step();
     // pausado: a cena congela (pessoas, fogo, partículas), mas a música continua
-    Scene.update(paused || guidePaused ? 0 : frameDt);
+    Scene.update(paused || guidePaused || Story.on() ? 0 : frameDt);
     Scene.draw();
     panelT += frameDt;
     if (panelT > 0.15) { Tutorial.update(panelT); panelT = 0; render(); }

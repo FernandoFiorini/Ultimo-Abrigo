@@ -15,7 +15,12 @@ const CHAMP_NEAR_WALL = 70;              // "perto do muro": até essa distânci
 // Caixas de heróis (só de chefes derrotados ao vivo). Ao abrir, a caixa começa em ★ e pode subir:
 // up2: chance de ★ → ★★ · up3: chance de ★★ → ★★★ (só se faltar algum herói) · frags: fragmentos para invocar
 // pity: no máximo isso de caixas seguidas sem fragmento de herói que você ainda não tem · caps: 🏷️ por fragmento repetido
-const BOX = { up2: 0.20, up3: 0.10, frags: 6, pity: 10, caps: 5 };
+// caps: Tampinhas por fragmento repetido · capsBy: Tampinhas fixas de cada caixa, por estrela (★ pouco, ★★ e ★★★ médio)
+// Herói repetido na ★★★ (todos já liberados) vira frags × caps Tampinhas.
+const BOX = { up2: 0.20, up3: 0.10, frags: 6, pity: 10, caps: 5, capsBy: [0, 3, 10, 10] };
+// Loja: fragmento escolhido (conteúdo garantido, sem sorte) e pacote de Tampinhas
+// (os preços em cash ficam no SHOP, em config.js)
+const FRAG_COST = SHOP.fragmento.cost, FRAG_DAY = 1, CAPS_PACK = 15;
 
 const champPct = v => `${Math.round(v * 100)}%`;
 
@@ -285,7 +290,10 @@ const Champions = (() => {
     if (H.solo > 0) H.solo = Math.max(0, H.solo - dt);
     const k = cur();
     if (!k) return;
-    if (c.actT > 0) c.actT = Math.max(0, c.actT - dt);
+    if (c.actT > 0) {
+      c.actT = Math.max(0, c.actT - dt);
+      if (c.actT === 0 && rank('act')) emit('champActReady', { k });
+    }
     atkT -= dt;
     if (atkT <= 0) atkT = basicAttack() ? CHAMPS[k].atk.cd / fireMult() * (0.9 + Math.random() * 0.2) : 0.3;
     // Urso amigo (Seu Bilú): bate em quem está atacando o muro
@@ -357,11 +365,13 @@ const Champions = (() => {
     let stars = 1;
     if (kind === 'presente' && all.length) stars = 3;
     else if (kind === 'airdrop') stars = 2;   // a carga rara do airdrop
-    else if (Math.random() < BOX.up2) { stars = 2; if (all.length && Math.random() < BOX.up3) stars = 3; }
+    // a ★★★ sai mesmo com todos os heróis liberados: aí o herói vem repetido e vira Tampinhas
+    else if (Math.random() < BOX.up2) { stars = 2; if (Math.random() < BOX.up3) stars = 3; }
     // garantia: depois de BOX.pity - 1 caixas seguidas sem fragmento de herói novo, a próxima sai ★★
     else if (miss.length && c.pity + 1 >= BOX.pity) stars = 2;
-    const r = { kind, stars, frags: {}, hero: null, res: {}, samples: {} };
-    if (stars === 3) { r.hero = pickOf(miss.length ? miss : all); return r; }
+    const r = { kind, stars, frags: {}, hero: null, res: {}, samples: {}, caps: BOX.capsBy[stars] || 0 };
+    // ★★★: prefere quem ainda precisa de fragmentos, depois quem falta; com todos liberados, qualquer um (repetido)
+    if (stars === 3) { r.hero = pickOf(miss.length ? miss : all.length ? all : Object.keys(CHAMPS)); return r; }
     // fragmentos só na ★★ (3 ou 4, ao menos um de quem ainda falta); a ★ traz só recursos
     if (stars === 2) {
       const add = k => { r.frags[k] = (r.frags[k] || 0) + 1; };
@@ -379,8 +389,19 @@ const Champions = (() => {
   // Aplica o conteúdo: fragmentos de quem falta acumulam até 6 (aí o herói fica pronto para invocar, na aba Exército);
   // de quem já está liberado (ou já está pronto), viram 🏷️ Tampinhas
   function applyBox(r) {
-    const c = C(), out = { items: [], unlocked: [], ready: [], caps: 0 };
-    if (r.hero) { grant(r.hero, 'caixa ★★★'); out.unlocked.push(r.hero); c.pity = 0; return out; }
+    const c = C(), out = { items: [], unlocked: [], ready: [], caps: 0, dupHero: 0 };
+    // Tampinhas fixas da caixa (todas as estrelas)
+    if (r.caps) { c.caps += r.caps; out.caps += r.caps; }
+    if (r.hero) {
+      c.pity = 0;
+      // herói que você já tem: vira Tampinhas (o valor dos 6 fragmentos)
+      if (c.owned[r.hero]) { out.dupHero = BOX.frags * BOX.caps; c.caps += out.dupHero; out.caps += out.dupHero; return out; }
+      grant(r.hero, 'caixa ★★★'); out.unlocked.push(r.hero);
+      // fragmentos que já estavam guardados para ele não servem mais: viram Tampinhas
+      const left = c.frags[r.hero] || 0;
+      if (left) { c.frags[r.hero] = 0; const v = left * BOX.caps; c.caps += v; out.caps += v; }
+      return out;
+    }
     const miss = missing().filter(k => !isReady(k));
     c.pity = Object.keys(r.frags).some(k => miss.includes(k)) ? 0 : c.pity + 1;
     const toCaps = (k, n) => { const caps = n * BOX.caps; c.caps += caps; out.caps += caps; out.items.push({ k, n, caps }); };
@@ -405,11 +426,57 @@ const Champions = (() => {
     const kind = c.boxes.shift(), r = rollBox(kind), out = applyBox(r);
     const parts = out.items.map(i => `${CHAMPS[i.k].icon} +${i.n}${i.caps ? ` (+${i.caps} 🏷️)` : ` (${i.have}/${BOX.frags})`}`);
     for (const [res, v] of Object.entries(r.res)) if (v) parts.push(`+${fmt(v)} ${RES[res].icon}`);
+    if (r.caps) parts.push(`+${r.caps} 🏷️`);
+    const heroTxt = r.hero && (out.dupHero
+      ? `${CHAMPS[r.hero].icon} ${CHAMPS[r.hero].nome} repetido, virou +${out.dupHero} 🏷️, e +${r.caps} 🏷️`
+      : `herói completo, ${CHAMPS[r.hero].icon} ${CHAMPS[r.hero].nome}!${r.caps ? ` E +${r.caps} 🏷️` : ''}`);
     // o registro só aparece quando a caixa abre (para não estragar a surpresa)
-    const log = () => addLog(`📦 Caixa ${'★'.repeat(r.stars)}: ${r.hero ? `herói completo, ${CHAMPS[r.hero].icon} ${CHAMPS[r.hero].nome}!` : parts.join(', ')}`, r.stars > 1 ? 'good' : '');
+    const log = () => addLog(`📦 Caixa ${'★'.repeat(r.stars)}: ${r.hero ? heroTxt : parts.join(', ')}`, r.stars > 1 ? 'good' : '');
     if (silent) { log(); readyList().forEach(k => summon(k, true)); }   // bot e testes: invoca direto
     else showBox(r, out, log);
     return r;
+  }
+
+  // ---------- fragmento comprado com cash: conteúdo garantido (você escolhe o herói), 1 por dia
+  // (o "dia" é o intervalo antes de cada horda, como o limite de recrutas)
+  const fragToday = () => (C().fragDay === S.wave ? 1 : 0);
+  function fragBlock(k) {
+    if (k && (C().owned[k] || isReady(k))) return 'Este herói não precisa de fragmentos';
+    if (!missing().some(x => !isReady(x))) return 'Nenhum herói precisando de fragmentos';
+    if (fragToday() >= FRAG_DAY) return 'Já comprou o fragmento de hoje: volta depois da próxima horda';
+    if (S.meta.cash < FRAG_COST) return `Cash insuficiente (precisa de 💵 ${FRAG_COST})`;
+    return '';
+  }
+  function buyFrag(k) {
+    if (!CHAMPS[k] || fragBlock(k)) return false;
+    const c = C();
+    S.meta.cash -= FRAG_COST;
+    c.fragDay = S.wave;
+    c.frags[k] = (c.frags[k] || 0) + 1;
+    S.meta.stats.fragsBought = (S.meta.stats.fragsBought || 0) + 1;
+    addLog(`🧩 Fragmento de ${CHAMPS[k].icon} ${CHAMPS[k].nome} comprado (${c.frags[k]}/${BOX.frags}).`, 'good');
+    if (isReady(k)) addLog(`✨ ${CHAMPS[k].icon} ${CHAMPS[k].nome}: ${BOX.frags} fragmentos reunidos! Invoque no cenário ou na aba Exército.`, 'good');
+    emit('summonShard', { i: Math.min(5, c.frags[k] - 1) });
+    sig = ''; fsig = '';
+    return true;
+  }
+  // Loja: escolher de qual herói comprar o fragmento
+  function fragPicker() {
+    const list = () => missing().filter(k => !isReady(k));
+    openDialog({
+      title: '🧩 Comprar fragmento de herói',
+      plain: true,
+      body: () => `<p class="event-text">Escolha um herói de campo que você ainda não tem. Cada fragmento custa <b>💵 ${FRAG_COST}</b>, e dá para comprar <b>${FRAG_DAY} por dia</b> (volta a cada horda vencida). ${BOX.frags} fragmentos liberam o herói.</p>
+        ${fragBlock() ? `<p class="hint warn-text">${fragBlock()}</p>` : ''}
+        <div class="frag-pick">${list().map(k => {
+          const T = CHAMPS[k], f = C().frags[k] || 0;
+          return `<button class="frag-opt" data-opt="${k}" ${fragBlock(k) ? 'disabled' : ''}>
+            <span class="frag-face">${shards(k, 52, f)}</span><b>${T.icon} ${T.nome}</b><small>${f}/${BOX.frags} fragmentos</small></button>`;
+        }).join('')}</div>`,
+      onMount: () => paintFaces($('dialog-body')),
+      onOpt: (k, d) => { if (buyFrag(k)) d.close(); },
+      cancel: 'Fechar',
+    });
   }
 
   // ---------- invocar: os 6 fragmentos se juntam e o herói aparece (silent: sem animação)
@@ -486,11 +553,20 @@ const Champions = (() => {
     const card = (rar, tag, icon, amount, name, foot = '', badge = '') => items.push({ rar, html:
       `<div class="bx-tag">${tag}</div><div class="bx-icon">${icon}${badge ? `<span class="bx-badge">${badge}</span>` : ''}</div>
        <div class="bx-amt">${amount}</div><div class="bx-name">${name}</div><div class="bx-foot">${foot}</div>` });
-    if (r.hero) {
+    if (r.hero && out.dupHero) {
+      // herói repetido: a carta mostra o herói e, logo depois, ele se desfaz em Tampinhas (classe .convert)
+      const T = CHAMPS[r.hero];
+      items.push({ rar: 'hero', dup: true, cry: r.hero, html: `<div class="bx-view bx-hero-view"><div class="bx-tag">JÁ LIBERADO</div><div class="bx-icon">${face(r.hero, 72)}</div>
+          <div class="bx-amt">${T.nome}</div><div class="bx-name">Você já tem este herói...</div></div>
+        <div class="bx-view bx-caps-view"><div class="bx-tag">VIROU TAMPINHAS</div><div class="bx-icon">🏷️</div>
+          <div class="bx-amt">+${out.dupHero} 🏷️</div><div class="bx-name">${T.nome} já estava liberado: os ${BOX.frags} fragmentos viraram Tampinhas</div></div>` });
+    } else if (r.hero) {
       const T = CHAMPS[r.hero];
       items.push({ rar: 'hero', cry: r.hero, html: `<div class="bx-tag">NOVO HERÓI</div><div class="bx-icon">${face(r.hero, 72)}</div>
         <div class="bx-amt">${T.nome}</div><div class="bx-name">${T.desc}</div>` });
     }
+    // Tampinhas fixas da caixa
+    if (r.caps) card('caps', 'Tampinhas', '🏷️', `+${r.caps} 🏷️`, 'Tampinhas', '<small>para skins na Loja</small>');
     const frags = [...out.items].sort((a, b) => (a.caps ? 1 : 0) - (b.caps ? 1 : 0));
     for (const i of frags) {
       const T = CHAMPS[i.k], fr = `fragmento${i.n > 1 ? 's' : ''}`;
@@ -584,7 +660,14 @@ const Champions = (() => {
       paintFaces(box);
       const cards = [...box.querySelectorAll('.bx-card')];
       const fill = c => c.querySelectorAll('[data-to]').forEach(b => { b.style.width = b.dataset.to; });
-      if (instant) { cards.forEach(fill); if (r.hero) emit('champCry', { k: r.hero }); return; }
+      // herói repetido: depois de aparecer, ele se converte em Tampinhas
+      const convert = (c, wait) => later(wait, () => { c.classList.add('convert'); emit('capsConvert', {}); });
+      if (instant) {
+        cards.forEach(fill);
+        if (r.hero) emit('champCry', { k: r.hero });
+        cards.forEach((c, i) => { if (items[i].dup) convert(c, 1200); });
+        return;
+      }
       cards.forEach((c, i) => later(650 + cards.length * 70 + i * 420, () => {
         c.classList.add('flip');
         setTimeout(() => {
@@ -592,6 +675,7 @@ const Champions = (() => {
           if (items[i].cry) setTimeout(() => emit('champCry', { k: items[i].cry }), 250);   // o herói "se apresenta"
         }, 180);
         setTimeout(() => fill(c), 450);
+        if (items[i].dup) convert(c, 1900);
       }));
     };
 
@@ -604,9 +688,9 @@ const Champions = (() => {
       cur = n; star(n, !instant); level(n); pips();
       icon('open s' + n, n >= 3 ? '🌟' : '✨');
       flash(); burst(n, 14 + n * 10); quake(n);
-      if (n >= 3) confetti();
+      if (n >= 3 && !out.dupHero) confetti();   // herói repetido: sem a festa toda
       emit('boxOpen', { n, hero: !!r.hero });
-      msg(r.hero ? 'Um herói saiu da caixa!' : n >= 2 ? 'Caixa ★★! Prêmios:' : 'Prêmios:');
+      msg(r.hero ? (out.dupHero ? 'Um herói saiu da caixa... mas você já tem!' : 'Um herói saiu da caixa!') : n >= 2 ? 'Caixa ★★! Prêmios:' : 'Prêmios:');
       const skip = $b('box-skip'); if (skip) skip.remove();
       deal(instant);
       doLog();
@@ -670,6 +754,7 @@ const Champions = (() => {
     if (!c.owned[k] || S.horde.active || c.cur === k) return;
     c.cur = k; c.charge = 0; c.actT = 0;
     addLog(`${CHAMPS[k].icon} ${CHAMPS[k].nome} assumiu o posto no telhado.`);
+    emit('champPick', { k });
   }
 
   // ---------- interface
@@ -808,9 +893,10 @@ const Champions = (() => {
         <div class="champ-head"><div class="champ-portrait shardy"${demoAttr(k, 'basic')}>${shards(k, 60, f)}</div><div class="champ-id">
           <div class="title">${T.icon} ${T.nome} <span class="lvl">${f}/${BOX.frags} fragmentos${ready ? '' : ` · faltam ${BOX.frags - f}`}</span></div>
           <div class="desc">${T.desc}</div>
-          ${ready ? `<button class="primary summon-btn" data-act="champSummon" data-k="${k}">✨ Invocar herói</button>` : ''}
+          ${ready ? `<button class="primary summon-btn" data-act="champSummon" data-k="${k}">✨ Invocar herói</button>`
+            : `<button class="cashbtn frag-btn" data-act="champFrag" data-k="${k}" ${fragBlock(k) ? 'disabled' : ''} title="${fragBlock(k) || `Compra 1 fragmento de ${T.nome}`}">🧩 Comprar fragmento · 💵 ${FRAG_COST}</button>`}
         </div></div>
-        <div class="desc">${ready ? 'Fragmentos completos!' : `Junte ${BOX.frags} fragmentos (caixas dos chefes) para invocar.`}</div>
+        <div class="desc">${ready ? 'Fragmentos completos!' : `Junte ${BOX.frags} fragmentos (caixas dos chefes, ou 1 por dia na Loja por 💵 ${FRAG_COST}) para invocar.`}</div>
         ${demoChips(k)}
         ${skillStrip(k)}
       </div></div>`;
@@ -846,6 +932,7 @@ const Champions = (() => {
   function render() {
     const el = $('champ');
     renderFloat();
+    renderHud();
     if (!el) return;
     const c = C(), nReady = readyList().length, pts = Object.keys(c.owned).some(canSpend);
     const tb = $('tb-herois');
@@ -889,8 +976,9 @@ const Champions = (() => {
     if (key !== ksig || !el.querySelector('.wsk-slot')) {
       ksig = key;
       el.innerHTML = `<div class="cash-big caps-big">🏷️ <span>${fmt(caps)}</span> <small>Tampinhas</small></div>
-        <p class="hint">As Tampinhas vêm dos <b>fragmentos repetidos</b>: nas caixas de herói ★★, cada fragmento de um herói que você já tem
-          (ou que já está pronto para invocar) vira <b>${BOX.caps} 🏷️</b>. Elas nunca se perdem, nem ao evacuar.</p>
+        <p class="hint">As Tampinhas vêm das <b>caixas de herói</b>: toda caixa traz algumas (★ ${BOX.capsBy[1]}, ★★ ${BOX.capsBy[2]}, ★★★ ${BOX.capsBy[3]}).
+          Cada <b>fragmento repetido</b> (de um herói que você já tem ou que já está pronto para invocar) vira <b>${BOX.caps} 🏷️</b>, e um
+          <b>herói repetido</b> na ★★★ vira <b>${BOX.frags * BOX.caps} 🏷️</b>. Elas nunca se perdem, nem ao evacuar.</p>
         <h3>🔫 Armas do líder</h3>
         <p class="hint">Só visual: cores, detalhes, efeito do tiro e som. Dano, alcance e recarga não mudam. Uma skin equipada por arma; clique em ✔ Equipada para voltar à padrão.</p>
         <div class="wsk-slot"></div>
@@ -932,6 +1020,66 @@ const Champions = (() => {
         <span class="bf-ico">${CHAMPS[k].icon}</span><span class="bf-lbl">${horde ? 'depois da horda' : '✨ Invocar'}</span></button>`).join('');
     if (grew) { const b = el.querySelector('.bf-box'); if (b) { b.classList.add('drop'); setTimeout(() => b.classList.remove('drop'), 900); } }
   }
+  // ---------- HUD das habilidades no cenário: ativa (A) e suprema (S) com recarga circular, e lembrete de pontos
+  let hsig = '', hprev = null;
+  function placeHud(el) {
+    const cv = $('scene');
+    if (!cv || !cv.offsetWidth) return;
+    el.style.left = `${cv.offsetLeft + 8}px`;
+    el.style.top = `${cv.offsetTop + cv.offsetHeight - 8}px`;
+  }
+  const flash = (b, cls, ms) => { if (!b) return; b.classList.remove(cls); void b.offsetWidth; b.classList.add(cls); setTimeout(() => b.classList.remove(cls), ms); };
+  function renderHud() {
+    const el = typeof document !== 'undefined' && $('skill-hud');
+    if (!el) return;
+    const k = cur();
+    el.classList.toggle('hidden', !k);
+    if (!k) { hsig = ''; hprev = null; return; }
+    placeHud(el);
+    const T = CHAMPS[k], h = me(), c = C(), horde = S.horde.active, ra = rank('act'), rs = rank('sup');
+    const A = T.skills.act, Su = T.skills.sup, cd = ra ? A.cd[ra - 1] : 1;
+    const actOk = !!ra && c.actT <= 0, supOk = !!rs && c.charge >= 1;
+    const free = canSpend(k) ? points(h) : 0;
+    const key = JSON.stringify([k, ra, rs, horde, free]);
+    if (key !== hsig) {
+      hsig = key; hprev = null;
+      const day = horde ? '' : ' · só durante a horda';
+      const tA = ra ? `${A.nome} (A) · ${A.fx(A.v[ra - 1])} · recarga ${cd}s${day}` : `Ativa: ${A.nome}, ainda não aprendida. Clique para abrir a árvore de habilidades.`;
+      const tS = rs ? `${Su.nome} (S) · ${Su.fx(Su.v[rs - 1])} · carrega abatendo zumbis${day}`
+        : `Suprema: ${Su.nome}, ainda não aprendida (a partir do nível ${CHAMP_SUP_LVL[0]}). Clique para abrir a árvore de habilidades.`;
+      el.style.setProperty('--hc', `rgb(${T.color})`);
+      const q = t => t.replace(/"/g, '&quot;');
+      el.innerHTML = `${free ? `<button class="sh-pts" data-act="champTree" data-k="${k}" title="${T.nome} tem pontos de habilidade para gastar">⭐ +${free} ponto${free > 1 ? 's' : ''}</button>` : ''}
+        <div class="sh-row">
+          <button class="sh-btn sh-act${ra ? '' : ' lock'}" data-act="${ra ? 'champActive' : 'champTree'}" data-k="${k}:act" title="${q(tA)}">
+            <span class="sh-ico">${A.icon}</span><span class="sh-val"></span><b class="sh-key">A</b></button>
+          <button class="sh-btn sh-sup${rs ? '' : ' lock'}" data-act="${rs ? 'champSupreme' : 'champTree'}" data-k="${k}:sup" title="${q(tS)}">
+            <span class="sh-ico">${Su.icon}</span><span class="sh-val"></span><b class="sh-key">S</b></button>
+        </div>`;
+    }
+    const a = el.querySelector('.sh-act'), s = el.querySelector('.sh-sup');
+    const set = (b, p, txt, ok) => {
+      b.style.setProperty('--p', p);
+      b.querySelector('.sh-val').textContent = txt;
+      b.classList.toggle('ready', ok && horde);
+      b.classList.toggle('full', ok);
+    };
+    set(a, ra ? 1 - c.actT / cd : 0, !ra ? '🔒' : c.actT > 0 ? `${Math.ceil(c.actT)}` : '', actOk);
+    set(s, rs ? Math.min(1, c.charge) : 0, !rs ? '🔒' : supOk ? '' : `${Math.floor(c.charge * 100)}%`, supOk);
+    // voltou a ficar disponível durante a horda: o botão "pula"
+    if (hprev && horde) {
+      if (actOk && !hprev.act) flash(a, 'back', 800);
+      if (supOk && !hprev.sup) flash(s, 'back', 800);
+    }
+    hprev = { act: actOk, sup: supOk };
+  }
+  // tentou usar e não deu (recarga, fora da horda...): o botão balança
+  function hudNope(slot) {
+    const b = typeof document !== 'undefined' && $('skill-hud') && $('skill-hud').querySelector(slot === 'sup' ? '.sh-sup' : '.sh-act');
+    if (b) flash(b, 'nope', 400);
+    return false;
+  }
+
   // fim da horda com caixas guardadas: um balão chamando para abrir
   function nudge() {
     const el = typeof document !== 'undefined' && $('box-float');
@@ -957,24 +1105,13 @@ const Champions = (() => {
     if (!modalOpen) openBox();
   }
 
-  // Linha no painel de defesa: herói em campo, botões da ativa e da suprema
-  function defenseRow() {
-    const k = cur();
-    if (!k) return '';
-    const T = CHAMPS[k], h = me(), c = C(), ra = rank('act'), rs = rank('sup');
-    const actTxt = !ra ? 'ativa: sem pontos' : c.actT > 0 ? `${T.skills.act.icon} ${Math.ceil(c.actT)}s` : `${T.skills.act.icon} ${T.skills.act.nome}`;
-    const supTxt = !rs ? `suprema: nível ${CHAMP_SUP_LVL[0]}` : c.charge >= 1 ? `${T.skills.sup.icon} ${T.skills.sup.nome}!` : `${T.skills.sup.icon} ${Math.floor(c.charge * 100)}%`;
-    return `<div class="stat"><span>${T.icon} ${T.nome} · nv. ${h.lvl}</span><span class="champ-act">
-      <button class="small" data-act="champActive" ${ra && c.actT <= 0 && S.horde.active ? '' : 'disabled'} title="Habilidade ativa (A)">${actTxt} <b class="hk">(A)</b></button>
-      <button class="small ${rs && c.charge >= 1 ? 'primary' : ''}" data-act="champSupreme" ${rs && c.charge >= 1 && S.horde.active ? '' : 'disabled'} title="Suprema (S)">${supTxt} <b class="hk">(S)</b></button>
-    </span></div>`;
-  }
 
   function buildUI() {
     Object.assign(actions, {
       champRaise: raise, champReset: reset, champPick: pick,
-      champActive: () => useActive(), champSupreme: () => useSupreme(), champOpen: () => openBox(),
+      champActive: () => useActive() || hudNope('act'), champSupreme: () => useSupreme() || hudNope('sup'), champOpen: () => openBox(),
       champSummon: k => summon(k),
+      champFrag: k => buyFrag(k),
       champSel: k => { sel = k; },
       wskBuy: id => WSkins.buy(id),
       wskEquip: id => WSkins.equip(id),
@@ -992,6 +1129,6 @@ const Champions = (() => {
 
   return {
     blank, cur, tag: () => tag, val, slow, fury, grant, gainXp, useActive, useSupreme, hordeTick, onTowerHit, onKill, onWaveEnd,
-    render, defenseRow, buildUI, look: k => heroLook(k), rank, xpNeed, addBox, openBox, rollBox, summon, isReady,
+    render, buildUI, hudNope, buyFrag, fragBlock, fragPicker, look: k => heroLook(k), rank, xpNeed, addBox, openBox, rollBox, summon, isReady,
   };
 })();

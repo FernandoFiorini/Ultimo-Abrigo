@@ -32,6 +32,11 @@ function waveComposition(n) {
   return q;
 }
 
+// Antes dos guardas, a defesa é só o líder: cada zumbi que chega ao muro bate LONE_HITS vezes a mais
+// antes de cair. Quem atira quase não sente (abate antes); quem não atira perde muito muro.
+const LONE_HITS = 2;
+const loneHits = () => (typeof Unlocks !== 'undefined' && !Unlocks.job('guarda') ? LONE_HITS : 0);
+
 function startWave(quiet) {
   const n = S.wave;
   // o evento pode ter sido sorteado antes, para o alarme de onda perigosa
@@ -314,7 +319,7 @@ function updateHorde(dt) {
         H.dmg += wallDamage(Z.dmg * (z.dmgM || 1) * dmgMult(H.n), z.y);
         if (S !== st) return;
         if (!S.wallDown) hurtGuard('smash');
-        if (z.hits >= Z.hits) killZombie(z, 'melee');
+        if (z.hits >= Z.hits + loneHits()) killZombie(z, 'melee');
       }
     }
   }
@@ -524,7 +529,10 @@ function endWave() {
   Champions.onWaveEnd(H);
   Invasion.onWaveEnd(H);
   if (H.dmg === 0 && !H.inv && !S.wallDown && H.n >= 5) st.flawless++;
-  if (H.n === EVAC_WAVE) addLog('🚁 Um helicóptero respondeu ao rádio! Agora você pode EVACUAR para outra cidade (painel Evacuação).', 'good');
+  // cidade sendo tomada: aviso a cada 3 ondas além da 10 (a próxima onda já vem mais resistente)
+  if (H.n >= SIEGE_WAVE && (H.n - SIEGE_WAVE) % 3 === 0 && H.n > SIEGE_WAVE)
+    addLog(`☣️ A cidade está sendo tomada: a próxima horda vem com zumbis +${Math.round((siegeMult(H.n + 1) - 1) * 100)}% mais resistentes, e piora a cada onda. Evacue para recomeçar numa cidade nova.`, 'warn');
+  if (H.n === EVAC_WAVE) addLog('🚁 Um helicóptero respondeu ao rádio! Agora você pode EVACUAR para outra cidade (aba Evacuar).', 'good');
   emit('waveEnd', { n: H.n, kills: H.kills, humans: !!(ev && ev.humans) });
 }
 

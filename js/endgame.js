@@ -71,12 +71,14 @@ const Endgame = (() => {
                     cost: () => ({ rp: 350, tecido: 4, gas: 3 }), fx: () => 'ativo' },
   };
 
+  // city: cada etapa só pode ser pesquisada a partir dessa cidade (do mundo atual): os dados de cada laboratório
+  // estão espalhados pelas cidades, então zerar exige evacuar (a Cura fica em 5 cidades)
   const CURE = [
-    { nome: 'Isolar o vírus',         desc: 'Separar o agente da infecção em laboratório.',            cost: { rp: 300, acido: 5, gas: 5 } },
-    { nome: 'Mapear as mutações',     desc: 'Entender por que alguns zumbis se transformam.',           cost: { rp: 1200, tecido: 10, raro: 1 } },
-    { nome: 'Anticorpo experimental', desc: 'Primeira molécula capaz de frear a infecção.',             cost: { rp: 4000, acido: 15, gas: 15, raro: 2 } },
-    { nome: 'Testes em campo',        desc: 'Testar o anticorpo em zumbis capturados.',                 cost: { rp: 12000, tecido: 25, raro: 4 } },
-    { nome: 'A Cura',                 desc: 'Produzir a vacina em escala e salvar a humanidade.',       cost: { rp: 40000, acido: 30, gas: 30, tecido: 30, raro: 8 } },
+    { nome: 'Isolar o vírus',         desc: 'Separar o agente da infecção em laboratório.',            cost: { rp: 300, acido: 5, gas: 5 }, city: 1 },
+    { nome: 'Mapear as mutações',     desc: 'Entender por que alguns zumbis se transformam.',           cost: { rp: 1200, tecido: 10, raro: 1 }, city: 2 },
+    { nome: 'Anticorpo experimental', desc: 'Primeira molécula capaz de frear a infecção.',             cost: { rp: 4000, acido: 15, gas: 15, raro: 2 }, city: 3 },
+    { nome: 'Testes em campo',        desc: 'Testar o anticorpo em zumbis capturados.',                 cost: { rp: 12000, tecido: 25, raro: 4 }, city: 4 },
+    { nome: 'A Cura',                 desc: 'Produzir a vacina em escala e salvar a humanidade.',       cost: { rp: 40000, acido: 30, gas: 30, tecido: 30, raro: 8 }, city: 5 },
   ];
 
   const EVENTS = {
@@ -109,12 +111,12 @@ const Endgame = (() => {
   ];
 
   const DISTRICTS = {
-    shopping:     { nome: 'Centro comercial',   icon: '🏬', unlock: 3,  n: 2, dur: 90,  power: 30,  bonus: '+25% de sucata',                     fx: { scrap: 0.25 } },
-    fazendas:     { nome: 'Fazendas',           icon: '🌾', unlock: 4,  n: 2, dur: 120, power: 45,  bonus: '+30% de comida',                     fx: { food: 0.3 } },
-    fabrica:      { nome: 'Fábrica de munição', icon: '🏭', unlock: 6,  n: 3, dur: 150, power: 80,  bonus: '+40% de munição',                    fx: { ammo: 0.4 } },
-    hospital:     { nome: 'Hospital central',   icon: '🏥', unlock: 8,  n: 3, dur: 180, power: 130, bonus: '+50% de remédios e +2 vagas de cientista', fx: { meds: 0.5, sci: 2 } },
-    universidade: { nome: 'Universidade',       icon: '🎓', unlock: 10, n: 4, dur: 240, power: 200, bonus: '+40% de pesquisa',                   fx: { rp: 0.4 } },
-    baseaerea:    { nome: 'Base aérea',         icon: '✈️', unlock: 12, n: 5, dur: 300, power: 320, bonus: '+20% de dano de todos os tiros',     fx: { dmg: 0.2 } },
+    shopping:     { nome: 'Centro comercial',   icon: '🏬', unlock: 10,  n: 2, dur: 90,  power: 30,  bonus: '+25% de sucata',                     fx: { scrap: 0.25 } },
+    fazendas:     { nome: 'Fazendas',           icon: '🌾', unlock: 11,  n: 2, dur: 120, power: 45,  bonus: '+30% de comida',                     fx: { food: 0.3 } },
+    fabrica:      { nome: 'Fábrica de munição', icon: '🏭', unlock: 12,  n: 3, dur: 150, power: 80,  bonus: '+40% de munição',                    fx: { ammo: 0.4 } },
+    hospital:     { nome: 'Hospital central',   icon: '🏥', unlock: 14,  n: 3, dur: 180, power: 130, bonus: '+50% de remédios e +2 vagas de cientista', fx: { meds: 0.5, sci: 2 } },
+    universidade: { nome: 'Universidade',       icon: '🎓', unlock: 16, n: 4, dur: 240, power: 200, bonus: '+40% de pesquisa',                   fx: { rp: 0.4 } },
+    baseaerea:    { nome: 'Base aérea',         icon: '✈️', unlock: 18, n: 5, dur: 300, power: 320, bonus: '+20% de dano de todos os tiros',     fx: { dmg: 0.2 } },
   };
 
   const HCLASS = {
@@ -357,9 +359,10 @@ const Endgame = (() => {
     const st = M().cureStage;
     if (st >= CURE.length) return;
     const c = CURE[st].cost;
-    if (!canPay(c)) return;
+    if (!cureCityOk(st) || !canPay(c)) return;
     payCost(c);
     M().cureStage++;
+    if (typeof Story !== 'undefined') Story.playOnce('cure' + st);   // a cena da etapa (por cima da vitória, na última)
     if (M().cureStage >= CURE.length) {
       M().cured = true;
       addLog('💉 A CURA FOI ENCONTRADA! A humanidade tem uma chance. Você pode começar um Novo Mundo na aba Pesquisa.', 'good');
@@ -374,6 +377,7 @@ const Endgame = (() => {
     }
   }
 
+  const cureCityOk = i => ((M().city) || 1) >= CURE[i].city;
   const legadoGain = () => 1 + Math.floor(Math.sqrt(M().hopeTotal / 10));
 
   function newWorld() {
@@ -389,7 +393,7 @@ const Endgame = (() => {
         const m = M();
         const keep = { cash: m.cash, ach: m.ach, stats: m.stats, heroes: m.heroes, weapons: m.weapons, active: m.active, hid: m.hid,
           records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, memorial: m.memorial, fallen: m.fallen, lw: m.lw, champ: m.champ, legado: m.legado + g, worlds: m.worlds + 1,
-          player: m.player, look: m.look, wsk: m.wsk, osk: m.osk, glos: m.glos, cxSeen: m.cxSeen, lockSeen: m.lockSeen, runId: m.runId, minDiff: m.minDiff, wins: m.wins, diffChosen: true };
+          player: m.player, look: m.look, wsk: m.wsk, osk: m.osk, glos: m.glos, cxSeen: m.cxSeen, story: m.story, lockSeen: m.lockSeen, runId: m.runId, minDiff: m.minDiff, wins: m.wins, diffChosen: true };
         S = newState(Object.assign(newMeta(), keep), diff);
         addLog(`🌍 Bem-vindo ao Mundo ${S.meta.worlds}! +${g} de Legado (total ${S.meta.legado}).`, 'good');
         emit('evacuate', { city: 1, g: 0, world: S.meta.worlds });
@@ -425,7 +429,7 @@ const Endgame = (() => {
     const before = weekTasks().filter(t => t.key === key && (c[key] || 0) < t.goal);
     c[key] = (c[key] || 0) + n;
     for (const t of before) if (c[key] >= t.goal) {
-      addLog(`📅 Desafio da semana concluído: ${t.desc}! Resgate 💵 ${t.cash} na aba Conquistas.`, 'good');
+      addLog(`📅 Desafio da semana concluído: ${t.desc}! Resgate 💵 ${t.cash} em 🏆 Conquistas, no topo.`, 'good');
       emit('achievement', { a: { icon: '📅', nome: t.desc, cash: t.cash } });
     }
   }
@@ -636,21 +640,23 @@ const Endgame = (() => {
   function automate() {
     if (tl('autoreparo'))
       while (S.wallHp < maxWall() * 0.5 && S.res.sucata >= REPAIR_COST) actions.repair();
-    if (tl('autorecruta') && !hasMod('isolados') && S.survivors < maxSurv() && S.res.comida > recruitCost() * 1.5 + 20 && rates().comida > 0.1) {
+    if (tl('autorecruta') && !recruitBlock() && S.res.comida > recruitCost() * 1.5 + 20 && rates().comida > 0.1) {
       S.res.comida -= recruitCost();
       addLog(`📢 Recrutamento automático: ${addSurvivor()} chegou.`, 'good');
       countRecruit();
+      countDay();
     }
     if (tl('autofuncao')) {
       S.heldIdle = heldIdle();
       for (let guard = 0; idle() > S.heldIdle && guard < 60; guard++) {
         const r = rates();
         let k;
+        const J = Unlocks.job;
         if (r.comida < 0.2) k = 'forrageiro';
-        else if (S.jobs.armeiro < Math.ceil(S.jobs.guarda / 2)) k = 'armeiro';
-        else if (S.jobs.guarda < Math.ceil(S.survivors * 0.35)) k = 'guarda';
-        else if (S.build.lab && S.jobs.cientista < sciCap()) k = 'cientista';
-        else if (S.jobs.medico < Math.floor(S.survivors / 8)) k = 'medico';
+        else if (J('armeiro') && S.jobs.armeiro < Math.ceil(S.jobs.guarda / 2)) k = 'armeiro';
+        else if (J('guarda') && S.jobs.guarda < Math.ceil(S.survivors * 0.35)) k = 'guarda';
+        else if (J('cientista') && S.build.lab && S.jobs.cientista < sciCap()) k = 'cientista';
+        else if (J('medico') && S.jobs.medico < Math.floor(S.survivors / 8)) k = 'medico';
         else k = 'coletor';
         S.jobs[k]++;
       }
@@ -674,10 +680,10 @@ const Endgame = (() => {
   function buildUI() {
     $('tech').innerHTML = Object.entries(BRANCHES).map(([br, label]) => `
       <h3>${label}</h3>` + Object.entries(TECH).filter(([, t]) => t.br === br).map(([k, t]) => `
-      <div class="row"${Demos.attr('tech:' + k)}>
+      <div class="row" id="tr-${k}"${Demos.attr('tech:' + k)}>
         <div class="main">
-          <div class="title">${t.icon} ${t.nome}<span class="lvl" id="tl-${k}"></span></div>
-          <div class="desc">${t.desc}</div>
+          <div class="title" title="${t.desc}">${t.icon} ${t.nome}<span class="lvl" id="tl-${k}"></span></div>
+          <div class="desc base">${t.desc}</div>
           <div class="desc now" id="tn-${k}"></div>
           <div class="cost" id="tc-${k}"></div>
         </div>
@@ -726,10 +732,13 @@ const Endgame = (() => {
       <div class="stat"><span>🔬 Pontos de pesquisa</span><span><b>${fmt(m.rp)}</b> (+${fmt(rpRate)}/s)</span></div>
       <div class="stat"><span>Amostras</span><span>${Object.entries(SAMPLES).map(([k, s]) => `<span title="${s.nome}">${s.icon} ${m.samples[k]}</span>`).join(' &nbsp;')}</span></div>
       <div class="stat"><span>Cientistas</span><span>${S.jobs.cientista} / ${sciCap()}</span></div>
-      ${S.build.lab ? '' : '<p class="hint warn-text">Construa um 🧪 Laboratório (aba Construir) para contratar cientistas e gerar pesquisa.</p>'}
+      ${S.build.lab ? '' : buildLocked('lab')
+        ? `<p class="hint warn-text">Nesta cidade, o 🧪 Laboratório libera na onda ${BUILD.lab.unlock}. Sem ele, não há cientistas nem pesquisa.</p>`
+        : '<p class="hint warn-text">Construa um 🧪 Laboratório (aba Construir) para contratar cientistas e gerar pesquisa.</p>'}
       <p class="hint">Amostras caem dos zumbis especiais: Cuspidor 🧪, Inchado ☁️, Brutamontes 🧫 e os chefes 🧬.</p>`;
     for (const k in TECH) {
       const T = TECH[k], lv = tl(k), max = lv >= T.max;
+      $('tr-' + k).classList.toggle('built', lv > 0);
       $('tl-' + k).textContent = lv ? ` nv. ${lv}${T.max !== Infinity ? '/' + T.max : ''}` : '';
       $('tn-' + k).textContent = lv ? `Atual: ${T.fx(lv)}` : '';
       $('tc-' + k).innerHTML = max ? '' : costHtml(techCost(k));
@@ -738,23 +747,29 @@ const Endgame = (() => {
     }
 
     const st = m.cureStage;
-    setIfChanged('cure', `${st}|${m.cured}|${canPay(CURE[Math.min(st, 4)].cost)}|${m.rp | 0}|${JSON.stringify(m.samples)}`, () =>
-      CURE.map((c, i) => `
+    setIfChanged('cure', `${st}|${m.city}|${m.cured}|${canPay(CURE[Math.min(st, 4)].cost)}|${m.rp | 0}|${JSON.stringify(m.samples)}`, () =>
+      CURE.map((c, i) => {
+        const away = !cureCityOk(i);   // etapa que só sai em outra cidade
+        return `
         <div class="row cure ${i < st ? 'done' : i === st ? 'current' : 'locked'}">
-          <div class="ach-icon">${i < st ? '✅' : i === st ? '🧪' : '🔒'}</div>
+          <div class="ach-icon">${i < st ? '✅' : i === st && !away ? '🧪' : '🔒'}</div>
           <div class="main">
             <div class="title">Etapa ${i + 1}: ${c.nome}</div>
             <div class="desc">${c.desc}</div>
+            ${i >= st && away ? `<div class="desc warn-text">🚁 Exige a cidade ${c.city} (você está na ${m.city || 1})${i === st ? ': evacue para continuar' : ''}</div>` : ''}
             ${i === st ? `<div class="cost">${costHtml(c.cost)}</div>` : ''}
           </div>
-          ${i === st ? `<button class="primary" data-act="cure" ${canPay(c.cost) ? '' : 'disabled'}>Pesquisar</button>` : ''}
-        </div>`).join('') +
+          ${i === st ? `<button class="primary" data-act="cure" ${!away && canPay(c.cost) ? '' : 'disabled'}>Pesquisar</button>` : ''}
+        </div>`;
+      }).join('') +
       (m.cured ? `<div class="cure-done">💉 A Cura foi encontrada! <button class="primary" data-act="newWorld">🌍 Começar Novo Mundo (+${legadoGain()} 🏛️ Legado)</button></div>` : '') +
       (m.legado ? `<p class="hint">🏛️ Legado: ${m.legado} (mundo ${m.worlds}). +${25 * m.legado}% de produção e pesquisa, +${10 * m.legado}% de dano.</p>` : ''));
 
+    const lockedD = [];
     for (const k in DISTRICTS) {
       const d = DISTRICTS[k], n = Math.max(d.n, opSel[k] || d.n), free = S.districts[k], busy = opBusy(k), open = districtOpen(k);
-      $('dr-' + k).className = 'row district ' + (free ? 'freed' : !open ? 'locked' : '');
+      $('dr-' + k).className = 'row district ' + (free ? 'freed' : !open ? 'locked hidden' : '');
+      if (!open) lockedD.push({ n: d.unlock, icon: d.icon, nome: d.nome });
       $('dn-' + k).textContent = n;
       let s;
       if (free) s = '🏴 Libertado';
@@ -768,6 +783,7 @@ const Endgame = (() => {
       $('dp-' + k).disabled = off || n >= idle();
       $('dg-' + k).disabled = off || idle() < n || S.res.municao < opAmmo(n);
     }
+    lockedSum($('dist-next'), lockedD, 'Novos distritos');
     setIfChanged('ops', S.ops.map(o => o.k).join(), () => S.ops.length
       ? S.ops.map(o => `<div class="stat"><span>${DISTRICTS[o.k].icon} ${DISTRICTS[o.k].nome} (${o.n} pessoas)</span><span id="ot-${o.k}"></span></div>`).join('')
       : '<div class="desc">Nenhuma operação em andamento.</div>');
@@ -869,7 +885,7 @@ const Endgame = (() => {
     setIfChanged('records', JSON.stringify(m.records), () =>
       Object.entries(DIFFS).map(([k, d]) => `<div class="stat"><span>${d.icon} ${d.nome}</span><span>${m.records[k] ? `onda ${m.records[k]}` : '—'}</span></div>`).join(''));
 
-    const techReady = Object.keys(TECH).filter(k => tl(k) < TECH[k].max && canPay(techCost(k))).length + (m.cureStage < 5 && canPay(CURE[m.cureStage].cost) ? 1 : 0);
+    const techReady = Object.keys(TECH).filter(k => tl(k) < TECH[k].max && canPay(techCost(k))).length + (m.cureStage < 5 && cureCityOk(m.cureStage) && canPay(CURE[m.cureStage].cost) ? 1 : 0);
     $('tb-pesquisa').textContent = techReady || '';
     $('tb-mapa').textContent = Object.keys(DISTRICTS).filter(k => !S.districts[k] && districtOpen(k) && !opBusy(k)).length || '';
     $('tb-herois').textContent = m.heroes.length ? m.active.length + '/' + HERO_ACTIVE : '';
