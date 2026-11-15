@@ -18,6 +18,15 @@ Apocalipse, saves e vitória.
   - **cada etapa da Cura** tem a sua cena (o vírus isolado, as mutações e o Rei Uivador, o sangue de quem resiste à mordida, o teste no zumbi capturado e o amanhecer com a vacina).
   - Cada cena aparece uma vez por save. Clique ou Espaço/Enter avança, Esc pula. Dá para rever as já liberadas no **📖 Códice › 🎞️ Memórias** (atalho B).
 
+- **Pets 🐾:** até 3 companheiros no abrigo, um de cada tipo. **Pets nunca morrem:** na horda, o cachorro e o gato se escondem no abrigo, e o pastor fica no pé do muro. Eles acompanham o grupo na evacuação e no Novo Mundo, andam pelo pátio, deitam perto da fogueira e aparecem na lista de sobreviventes (passe o mouse para ver o bônus).
+  - 🐕 **Cachorro:** late **15s antes** das noites perigosas (o alerta vem mais cedo) e tem bom faro: **+15% no saque das expedições**. Chega pelo evento *Um cachorro no portão* (a partir da onda 3) ou, raramente, seguindo uma expedição.
+  - 🐈 **Gato:** caça os ratos do depósito (**−8% no consumo de comida**) e faz companhia (**o luto passa 30% mais rápido**). Chega com as expedições (7% por expedição que volta).
+  - 🐕‍🦺 **Pastor alemão:** cão de guarda. A cada 8s de horda, **avança no zumbi que está batendo no muro e o atordoa por 2,5s** (chefes não). Chega pelo evento *Um cão do exército* (melhor onda 10+) ou pela expedição à Base militar (6%).
+  - **Cansaço:** cada pet dá **+8% de descanso** aos guardas. De dia, **clique num pet para fazer carinho**: o cansaço dos guardas cai 15% (uma vez por minuto por pet).
+  - **Nome do pet:** clique no pet na lista de sobreviventes para mudar o nome (até 16 letras, com sugestões).
+
+- **Vasculhar com fôlego:** o líder tem **5 cargas** e cada vasculhada gasta uma; **1 carga volta a cada 3s** (o relógio pausa com o jogo). Em troca, **cada vasculhada rende 50% a mais**. Dá para gastar tudo de uma vez quando falta sucata, mas clicar sem parar (ou usar autoclicker) não multiplica mais a produção. O botão mostra as cargas (●●●○○) e uma barra enchendo até a próxima.
+
 - **Nova dificuldade 🔥 Apocalipse**, acima do Pesadelo: hordas maiores e mais rápidas, zumbis bem mais fortes, especiais chegando 2 ondas antes, 60s entre hordas e produção −30%. Em troca: **Esperança ×4**, **Abominação vale 💵 20** e **saque das expedições ×1,5**.
 - **Morte permanente no Apocalipse:** se o abrigo cair e todos morrerem, o save é **apagado**. Vale também para quedas durante o progresso offline. Saves do Apocalipse não podem ser exportados, e um código exportado antes da morte não pode ser importado de novo.
 - **Dificuldade travada para cima:** cada save guarda a maior dificuldade em que já jogou e nunca pode voltar para uma menor (nem ao mudar a dificuldade, nem ao evacuar, nem num Novo Mundo). Assim não dá para juntar Esperança e cash numa dificuldade alta e voltar para uma fácil. Saves antigos ficam travados na dificuldade atual.

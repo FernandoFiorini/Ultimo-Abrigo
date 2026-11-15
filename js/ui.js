@@ -159,7 +159,7 @@ function buildUI() {
   window.openCity = sub => { openTab('cidade'); subGroups['city-tabs'](sub); };
   window.citySub = sub => subGroups['city-tabs'](sub);
 
-  $('btn-scavenge').title = 'O líder vasculha as ruínas por conta própria. Rende mais conforme sua produção e a onda aumentam. Também dá para clicar direto no cenário.';
+  $('btn-scavenge').title = `O líder vasculha as ruínas por conta própria. Rende mais conforme sua produção e a onda aumentam. Cada vez gasta 1 carga de fôlego (até ${SCAV_CHARGES}); uma carga volta a cada ${SCAV_REGEN}s.`;
   $('btn-scavenge').onclick = () => { if (paused) return; const g = actions.scavenge(); if (g) Scene.float(g); render(); };
   $('btn-recruit').onclick = () => { actions.recruit(); render(); };
   $('btn-repair').onclick = () => { actions.repair(); render(); };
@@ -315,8 +315,14 @@ function render() {
   renderPeople();
 
   const sg = scavGain(), night = nightLocked();
-  setHtml($('btn-scavenge'), (night ? '🌙 Vasculhar: só de dia' : `🔍 Vasculhar · +${fmt(sg.comida)} 🥫 +${fmt(sg.sucata)} 🔩`) + ' ' + hk('V'));
-  $('btn-scavenge').disabled = night;
+  // cargas: bolinhas cheias/vazias e uma barra no pé do botão enchendo até a próxima
+  const sc = Math.floor(S.scav ?? scavMax()), sm = scavMax();
+  const pips = `<span class="scav-pips" title="Fôlego do líder: ${sc}/${sm} cargas. Volta 1 a cada ${scavRegen()}s.">${'<i class="on"></i>'.repeat(sc)}${'<i></i>'.repeat(Math.max(0, sm - sc))}</span>`;
+  setHtml($('btn-scavenge'), (night ? '🌙 Vasculhar: só de dia'
+    : sc < 1 ? `😮‍💨 Recuperando o fôlego… ${pips}`
+    : `🔍 Vasculhar ${pips} · +${fmt(sg.comida)} 🥫 +${fmt(sg.sucata)} 🔩`) + ' ' + hk('V'));
+  $('btn-scavenge').disabled = night || sc < 1;
+  $('btn-scavenge').style.setProperty('--scav', sc >= sm ? '0%' : `${Math.min(100, (S.scavT || 0) / scavRegen() * 100)}%`);
 
   const rc = recruitCost(), why = recruitBlock(), cap = D().recruitDay;
   const capTxt = cap ? ` · ${recruitLeft()}/${cap} hoje` : '';
@@ -633,7 +639,7 @@ function alertsHtml(r, left) {
 // ---------- lista de sobreviventes ----------
 let peopleSig = '', memSig = '';
 function renderPeople() {
-  const sig = S.people.join('|') + '|' + away() + '|' + JSON.stringify(S.traits) + '|' + S.injured.map(w => w.n).join('|');
+  const sig = S.people.join('|') + '|' + away() + '|' + JSON.stringify(S.traits) + '|' + S.injured.map(w => w.n).join('|') + '|' + Pets.sig();
   if (sig !== peopleSig) {
     peopleSig = sig;
     $('people').innerHTML = S.people.length
@@ -642,7 +648,7 @@ function renderPeople() {
           const tip = [t && `${t.nome}: ${t.desc}`, w && 'Ferido: não trabalha até um médico tratar'].filter(Boolean).join(' · ');
           const hon = typeof Honored !== 'undefined' && Honored.is(n);
           return `<span class="person${t ? ' gifted' : ''}${w ? ' hurt' : ''}${hon ? ' honored' : ''}"${tip || hon ? ` title="${[hon && 'Homenageado: tem frases próprias', tip].filter(Boolean).join(' · ')}"` : ''}>${w ? '🤕 ' : ''}${hon ? '💬 ' : ''}${n}${t ? ` ${t.icon}` : ''}</span>`;
-        }).join('') + (away() ? `<p class="hint">${away()} estão fora, em expedições ou operações.</p>` : '')
+        }).join('') + (away() ? `<p class="hint">${away()} estão fora, em expedições ou operações.</p>` : '') + Pets.chipsHtml()
       : '<p class="hint">Ninguém no abrigo.</p>';
     const c = traitCounts();
     const parts = Object.keys(TRAITS).filter(k => c[k]).map(k => {

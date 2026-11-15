@@ -225,6 +225,9 @@ const ARMOR_HEAD = { guard: 0.2, tower: 0.3 }, ARMOR_BLAST = 0.5, ARMOR_OFFLINE 
 // Efeito de quem morre gritando (haste) ou soltando esporos (harden): alcance, multiplicador e limite de acúmulo
 const ZBUFF = { haste: { r: 60, mult: 1.3, max: 2 }, harden: { r: 45, mult: 1.3, max: 3 } };
 const WARN_TIME = 10;   // segundos de alarme e contagem regressiva antes de uma onda perigosa
+// Vasculhar gasta 1 carga de fôlego do líder: até SCAV_CHARGES cargas, 1 volta a cada SCAV_REGEN segundos (relógio do jogo).
+// Cada clique rende SCAV_GAIN× o normal, para quem vasculha num ritmo comum não perder com o limite.
+const SCAV_CHARGES = 5, SCAV_REGEN = 3, SCAV_GAIN = 1.5;
 const RUSH_DELAY = 14;  // Investida: segundos depois do início da onda até a massa chegar (os últimos 5 com contagem)
 const leakOf = (t, n) => { const Z = ZTYPES[t]; return (Z.leak ?? (Z.dmg * Z.hits + (Z.spit ? Z.spit.dmg * Z.spit.count : 0))) * dmgMult(n); };
 const foeWord = t => (ZTYPES[t] && ZTYPES[t].human ? 'saqueadores' : 'zumbis');
@@ -262,7 +265,7 @@ const DIFF_ORDER = Object.keys(DIFFS);
 const diffRank = k => Math.max(0, DIFF_ORDER.indexOf(k));
 const D = () => DIFFS[(S && S.diff) || 'normal'];
 const waveInterval = () => D().interval * (hasMod('rapida') ? 0.7 : 1);
-const foodPer = () => D().food * (hasMod('fome') ? 1.5 : 1) * traitMult('frugal') * (1 - Endgame.ab('food'));
+const foodPer = () => D().food * (hasMod('fome') ? 1.5 : 1) * traitMult('frugal') * (1 - Endgame.ab('food')) * Pets.foodMult();
 
 const RES = {
   comida: { nome: 'Comida', icon: '🥫' },

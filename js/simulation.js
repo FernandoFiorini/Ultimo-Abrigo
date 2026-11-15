@@ -14,6 +14,13 @@ function tick(dt, live) {
   // médicos tratando feridos não produzem remédio
   S.res.remedio += (S.jobs.medico - treating()) * 0.04 * prodMult() * Endgame.mult('meds') * dt;
   S.clickCd = Math.max(0, S.clickCd - dt);
+  // fôlego do líder: as cargas de vasculhar voltam com o tempo
+  if (S.scav == null) S.scav = scavMax();
+  if (S.scav < scavMax()) {
+    S.scavT = (S.scavT || 0) + dt;
+    while (S.scavT >= scavRegen() && S.scav < scavMax()) { S.scavT -= scavRegen(); S.scav++; }
+    if (S.scav >= scavMax()) S.scavT = 0;
+  } else S.scavT = 0;
 
   // feridos, luto e quem foi liberado depois de uma mordida
   Invasion.tick(dt);
@@ -81,10 +88,12 @@ function tick(dt, live) {
     const before = Math.ceil(S.waveTimer);
     S.waveTimer -= dt;
     // ao vivo, o evento da próxima onda é sorteado um pouco antes: se for perigosa, toca o alarme e conta
-    if (live && S.waveTimer <= WARN_TIME && S.pending === undefined) {
+    // com o cachorro, o sorteio (e o alerta) vem uns segundos antes: ele late quando sente a horda grande
+    if (live && S.waveTimer <= WARN_TIME + Pets.warnBonus() && S.pending === undefined) {
       S.pending = Endgame.rollEvent(S.wave);
       const dg = Endgame.danger(S.pending, S.wave);
       if (dg) {
+        Pets.onDanger();
         addLog(`🚨 ALERTA: ${dg.icon} ${dg.nome} em ${Math.ceil(S.waveTimer)} segundos! Prepare a defesa.`, 'bad');
         emit('dangerWarn', { ...dg, t: S.waveTimer });
       }

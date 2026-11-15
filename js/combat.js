@@ -270,6 +270,8 @@ function updateHorde(dt) {
   // granadas em voo e zumbis em chamas
   Weapons.hordeTick(dt);
   if (S !== st) return;
+  // pastor alemão: avança em quem bate no muro
+  Pets.hordeTick(dt);
   // poças de ácido da Mãe-Cuspideira
   if (!Bosses.hordeTick(dt)) return;
 

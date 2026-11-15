@@ -132,7 +132,7 @@ const Invasion = (() => {
   function tick(dt) {
     const st = S;
     if (S.mourn > 0) {
-      S.mourn = Math.max(0, S.mourn - dt);
+      S.mourn = Math.max(0, S.mourn - dt * Pets.mournMult());   // o gato faz companhia
       if (!S.mourn) addLog('🕯️ O luto passou. O grupo voltou ao ritmo de trabalho.');
     }
     heal(dt);

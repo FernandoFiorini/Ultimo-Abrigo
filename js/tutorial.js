@@ -229,7 +229,8 @@ function setupKeys() {
       night: `🌙 No ${D().nome}, só dá para recrutar de dia, entre as hordas.`,
       cap: `🧍 Recrutas de hoje esgotados (${D().recruitDay} por dia no ${D().nome}). Volta depois da próxima horda.`,
     }[recruitBlock()] || `🧍 Comida insuficiente para recrutar: precisa de ${RES.comida.icon} ${fmt(recruitCost())} (${exact(recruitCost())}).`);
-    const scavWhy = () => nightLocked() ? `🌙 No ${D().nome}, só dá para vasculhar de dia, entre as hordas.` : '';
+    const scavWhy = () => nightLocked() ? `🌙 No ${D().nome}, só dá para vasculhar de dia, entre as hordas.`
+      : S.scav < 1 ? `😮‍💨 O líder está sem fôlego: 1 carga volta a cada ${scavRegen()}s.` : '';
     switch (k) {
       case ' ':
         e.preventDefault();

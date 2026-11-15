@@ -238,7 +238,10 @@ const Events = (() => {
     }, 200);
   }
 
-  function triggerDilemma() {
+  // id: abre esse dilema direto (debug), sem checar a condição
+  function triggerDilemma(id) {
+    const forced = id && DILEMMAS.find(d => d.id === id);
+    if (forced) { openDilemma(forced); return; }
     const pool = DILEMMAS.filter(d => d.id !== S.lastEvent && (!d.cond || d.cond()));
     if (!pool.length) return;
     const D = pick(pool);

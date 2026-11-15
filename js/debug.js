@@ -292,6 +292,17 @@ const Debug = (() => {
         medico: ['+1 médico', () => { if (idle() <= 0) addPeople(1); S.jobs.medico++; }, 'usa um ocioso ou traz alguém'],
         semMedico: ['Tirar todos os médicos', () => { S.jobs.medico = 0; }, 'para testar feridos sem tratamento'],
       }],
+      // pets (js/pets.js): um de cada tipo
+      ['Pets', {
+        petCao: ['🐕 Ganhar cachorro', () => { if (!Pets.add('cao', 'debug')) note('já tem cachorro.'); }, 'alerta antecipado e +saque nas expedições'],
+        petGato: ['🐈 Ganhar gato', () => { if (!Pets.add('gato', 'debug')) note('já tem gato.'); }, 'menos consumo de comida e luto mais curto'],
+        petPastor: ['🐕‍🦺 Ganhar pastor alemão', () => { if (!Pets.add('pastor', 'debug')) note('já tem pastor.'); }, 'atordoa zumbis no muro durante a horda'],
+        petTodos: ['🐾 Ganhar os 3', () => { ['cao', 'gato', 'pastor'].forEach(k => Pets.add(k, 'debug')); return true; }, 'fecha o menu para ver na cena'],
+        petSem: ['Tirar todos os pets', () => { S.meta.pets = []; note('sem pets.'); }, 'para testar a chegada de novo'],
+        petDilCao: ['Dilema do cachorro', () => { S.meta.pets = (S.meta.pets || []).filter(p => p.k !== 'cao'); setTimeout(() => Events.triggerDilemma('cachorro')); return true; }, 'abre o evento do cachorro no portão (tira o cachorro antes)'],
+        petDilPastor: ['Dilema do pastor', () => { S.meta.pets = (S.meta.pets || []).filter(p => p.k !== 'pastor'); setTimeout(() => Events.triggerDilemma('pastor')); return true; }, 'abre o evento do cão do exército (tira o pastor antes)'],
+        petCansar: ['Guardas exaustos', () => { S.fatigue = 1; note('cansaço no máximo: faça carinho num pet para ver cair.'); }, 'cansaço dos guardas em 100%'],
+      }],
       ['Feridos, mordidos e luto', {
         ferir: ['Ferir 1 pessoa', () => injure(1), 'sempre sobra alguém de pé'],
         morder: ['Morder 1 pessoa', () => { bite(1); }, 'abre a decisão ao fechar o menu'],
@@ -307,6 +318,8 @@ const Debug = (() => {
         semRemedio: ['Zerar remédios', () => { S.res.remedio = 0; }, 'para testar feridos piorando'],
         municao: ['Zerar munição', () => { S.res.municao = 0; }, 'guardas e torres param de atirar'],
         avancar: ['Avançar 60s', () => { simulate(60); }, 'simula 60s como se fosse progresso offline'],
+        scavFull: ['Encher fôlego do vasculhar', () => { S.scav = scavMax(); S.scavT = 0; }, `${SCAV_CHARGES} cargas de vasculhar`],
+        scavZero: ['Zerar fôlego do vasculhar', () => { S.scav = 0; S.scavT = 0; }, 'para ver a recarga no botão'],
       }],
     ]],
     // armas do líder: equipa no espaço atual, no nível máximo, com munição cheia

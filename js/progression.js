@@ -27,6 +27,7 @@ function expReturn(e) {
   if (back > 0 && e.loc === 'base' && Math.random() < 0.25) Endgame.gainWeapon('na Base militar');
   if (back > 0 && e.loc === 'base' && Math.random() < 0.08) Endgame.gainHero('na Base militar', 'base');
   if (back > 0) Weapons.expLoot(e.loc, `na expedição: ${L.nome}`);
+  if (back > 0) Pets.expFind(e.loc);
   if (S.survivors <= 0) gameOver();
 }
 

@@ -33,6 +33,7 @@ function newState(meta = newMeta(), diff = 'normal') {
       : { forrageiro: 2, coletor: 1, armeiro: 0, guarda: 0, medico: 0, cientista: 0 },
     build: { muro: 0, horta: 0, oficina: 0, beliche: 0, torreC: 0, torre: 0, torreL: 0, alojamento: 0, radio: 0, lab: 0 },
     fatigue: 0,      // cansaço médio dos guardas (0 a 1)
+    scav: SCAV_CHARGES, scavT: 0,   // cargas de vasculhar e o tempo recuperando a próxima
     wallHp: Math.round(100 * (1 + 0.2 * P.engenharia)),
     wallDown: false,
     overflow: 0,
@@ -97,10 +98,13 @@ function fixJobs() {
 const scavGain = () => {
   const base = 2 + Math.floor(S.wave / 2);
   return {
-    comida: Math.max(base, Math.round(S.jobs.forrageiro * 0.6 * foodMult() * 5)),
-    sucata: Math.max(base, Math.round(S.jobs.coletor * 0.5 * scrapMult() * 5)),
+    comida: Math.round(SCAV_GAIN * Math.max(base, S.jobs.forrageiro * 0.6 * foodMult() * 5)),
+    sucata: Math.round(SCAV_GAIN * Math.max(base, S.jobs.coletor * 0.5 * scrapMult() * 5)),
   };
 };
+// cargas de vasculhar (um ponto só para futuras melhorias mexerem)
+const scavMax = () => SCAV_CHARGES;
+const scavRegen = () => SCAV_REGEN;
 // Cada recrutado com comida encarece o próximo em ×1,3; quem chega de graça (rádio, eventos, expedições)
 // encarece só meio passo (FREE_JOIN_WEIGHT), para essas chegadas continuarem sendo vantagem.
 // Limitado ao tamanho do grupo, para o preço cair quando gente morre (saves antigos usam o grupo todo).
@@ -108,7 +112,7 @@ const FREE_JOIN_WEIGHT = 0.5;
 // Expedições: risco por pessoa e multiplicador de saque (dificuldade, onda, Esperança, batedor, talentos)
 const EXP_RISK_CAP = 0.6;
 const expRisk = k => Math.min(EXP_RISK_CAP, EXPED[k].risk * (D().risk || 1) * Endgame.riskMult());
-const expLootScale = () => (1 + 0.08 * (S.wave - 1)) * hopeMult() * Endgame.scoutLoot() * (D().loot || 1);
+const expLootScale = () => (1 + 0.08 * (S.wave - 1)) * hopeMult() * Endgame.scoutLoot() * (D().loot || 1) * Pets.lootMult();
 const recruitCost = () => Math.round(12 * Math.pow(1.3, Math.max(0, Math.min(S.recruits ?? Infinity, S.survivors - 3))));
 // Do Normal para cima: recrutar e vasculhar só de dia, e um limite de recrutamentos por dia
 // (o "dia" é o intervalo antes de cada horda: a contagem zera quando a onda muda)
@@ -147,7 +151,7 @@ function accuracy(src, base = src === 'tower' ? TOWER_ACC : GUARD_ACC) {
 // Cansaço dos guardas: multiplicador de cadência, quanto cada tiro cansa e a velocidade de recuperação
 const guardFire = () => 1 - FAT_FIRE * (S.fatigue || 0);
 const fatigueShot = () => FAT_SHOT * (1 - 0.15 * Endgame.tl('turnos'));
-const restRate = () => (1 + 0.3 * (S.build.alojamento || 0)) * (1 + Champions.val('rest')) / FAT_TAU;
+const restRate = () => (1 + 0.3 * (S.build.alojamento || 0)) * (1 + Champions.val('rest')) * Pets.restMult() / FAT_TAU;
 const tire = shots => { if (S.jobs.guarda > 0) S.fatigue = Math.min(1, (S.fatigue || 0) + shots * fatigueShot() / S.jobs.guarda); };
 const dmgMult = n => D().dmg * (1 + 0.04 * (n - 1));
 // A horda inteira chega em ~30s: hordas maiores = mais zumbis por segundo

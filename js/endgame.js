@@ -393,7 +393,7 @@ const Endgame = (() => {
         const m = M();
         const keep = { cash: m.cash, ach: m.ach, stats: m.stats, heroes: m.heroes, weapons: m.weapons, active: m.active, hid: m.hid,
           records: m.records, weekly: m.weekly, boosts: m.boosts, tutorial: m.tutorial, memorial: m.memorial, fallen: m.fallen, lw: m.lw, champ: m.champ, legado: m.legado + g, worlds: m.worlds + 1,
-          player: m.player, look: m.look, wsk: m.wsk, osk: m.osk, glos: m.glos, cxSeen: m.cxSeen, story: m.story, lockSeen: m.lockSeen, runId: m.runId, minDiff: m.minDiff, wins: m.wins, diffChosen: true };
+          player: m.player, look: m.look, wsk: m.wsk, osk: m.osk, glos: m.glos, cxSeen: m.cxSeen, story: m.story, pets: m.pets, lockSeen: m.lockSeen, runId: m.runId, minDiff: m.minDiff, wins: m.wins, diffChosen: true };
         S = newState(Object.assign(newMeta(), keep), diff);
         addLog(`🌍 Bem-vindo ao Mundo ${S.meta.worlds}! +${g} de Legado (total ${S.meta.legado}).`, 'good');
         emit('evacuate', { city: 1, g: 0, world: S.meta.worlds });

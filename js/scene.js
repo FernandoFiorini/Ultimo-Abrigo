@@ -2321,6 +2321,9 @@ const Scene = (() => {
     scale = cv.width / W;
   }
 
+  // o que os pets (js/pets.js) usam da cena
+  const petApi = { rect, FIRE, WALL_X, time: () => time, say: (x, y, t, c) => texts.push({ x, y, t, c, life: 1 }) };
+
   // ---------- passar o mouse num sobrevivente (de dia): nome, função, talento e uma história curta ----------
   const JOBNAME = { forrageiro: 'Forrageiro', coletor: 'Coletor', armeiro: 'Armeiro', guarda: 'Guarda', medico: 'Médico', cientista: 'Cientista', ocioso: 'Sem função', ferido: 'Ferido' };
   let tipEl = null, tipWho = null;
@@ -2332,6 +2335,17 @@ const Scene = (() => {
     const hide = () => { tipEl.classList.add('hidden'); tipWho = null; cv.classList.remove('over-person'); };
     if (!e || S.horde.active || paused || typeof Honored === 'undefined') return hide();
     assignNames();
+    const pet = Pets.at(ptr.x, ptr.y);
+    if (pet) {
+      cv.classList.add('over-person');
+      tipWho = null;
+      tipEl.innerHTML = Pets.tipHtml(pet);
+      const r = cv.getBoundingClientRect(), pr = cv.parentNode.getBoundingClientRect();
+      tipEl.style.left = Math.min(e.clientX - pr.left + 14, pr.width - 250) + 'px';
+      tipEl.style.top = Math.min(e.clientY - pr.top + 14, r.bottom - pr.top - 10) + 'px';
+      tipEl.classList.remove('hidden');
+      return;
+    }
     const p = people.filter(q => !q.hidden && q.who && Math.abs(ptr.x - q.x) <= 4 && ptr.y >= q.y - 20 && ptr.y <= q.y + 1).sort((a, b) => b.y - a.y)[0];
     if (!p) return hide();
     cv.classList.add('over-person');
@@ -2368,6 +2382,7 @@ const Scene = (() => {
       if (paused) return;
       if (S.horde.active && Airdrop.click(ptr.x, ptr.y)) return;   // clique na caixa do airdrop
       if (S.horde.active) { ptr.down = true; Weapons.fire(ptr.x, ptr.y); return; }
+      if (Pets.click(ptr.x, ptr.y, petApi)) { personTip(e); return; }   // carinho num pet
       if (!dayHintT) { texts.push({ x: ptr.x, y: ptr.y, t: 'Use o botão 🔍 Vasculhar', c: '#ece6d0', life: 1.2 }); dayHintT = 1.5; }
     });
     cv.addEventListener('wheel', e => {
@@ -2425,6 +2440,7 @@ const Scene = (() => {
     hordeVis += ((Hd.active && Hd.queue.length ? 1 : 0) - hordeVis) * Math.min(1, dt * 0.8);
 
     updatePeople(dt);
+    if (dt > 0) Pets.sceneUpdate(dt, petApi);
 
     for (const p of travelers) {
       if (p.delay > 0) { p.delay -= dt; continue; }
@@ -2509,6 +2525,7 @@ const Scene = (() => {
     const ents = [];
     for (const p of people) if (!p.hidden) ents.push([p.y, () => drawPerson(p)]);
     for (const p of travelers) ents.push([p.y, () => drawHuman(p.x, p.y, p)]);
+    Pets.sceneEnts(ents, petApi);
     S.meta.heroes.filter(h => S.meta.active.includes(h.id)).forEach((h, i) => {
       const x = 118 + i * 11, y = 186;
       ents.push([y, () => drawHero(h, x, y)]);

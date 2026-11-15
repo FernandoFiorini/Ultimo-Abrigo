@@ -5,7 +5,8 @@ for (const k in EXPED) expSel[k] = EXPED[k].min;
 
 const actions = {
   scavenge() {
-    if (nightLocked()) return '';
+    if (nightLocked() || !(S.scav >= 1)) return '';
+    S.scav--;
     const g = scavGain();
     S.res.comida += g.comida;
     S.res.sucata += g.sucata;
