@@ -531,6 +531,13 @@ button.merchant:hover:not(:disabled) { background: #4a3d10; border-color: #ffe06
 .file-pick { display: inline-block; margin-top: 8px; padding: 6px 12px; font-size: 13px; border: 1px dashed var(--border); border-radius: 6px; cursor: pointer; color: var(--muted); }
 .file-pick:hover { border-color: var(--accent); color: var(--text); }
 .file-pick input { display: none; }
+/* importar: área de arrastar/clicar */
+.drop-zone { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 8px; padding: 26px 16px; text-align: center; cursor: pointer;
+  border: 2px dashed var(--border); border-radius: 10px; background: var(--panel-2); color: var(--text); transition: border-color 0.15s, background 0.15s; }
+.drop-zone:hover, .drop-zone:focus-visible, .drop-zone.over { border-color: var(--accent); background: var(--accent-dim); outline: none; }
+.drop-zone input { display: none; }
+.drop-zone .dz-ico { font-size: 30px; line-height: 1; }
+.drop-zone small { color: var(--muted); }
 #save-msg { margin: 8px 0 0; }
 
 kbd {
@@ -564,6 +571,10 @@ table.keys td:first-child { white-space: nowrap; width: 1%; padding-right: 16px;
   box-shadow: 0 10px 34px rgba(0, 0, 0, 0.65);
   animation: toastIn 0.45s ease-out;
 }
+.tip.docked { bottom: auto; overflow-y: auto; border-radius: 8px; border-color: var(--accent); padding: 10px 12px; gap: 10px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.5); }
+.tip.docked .tip-icon { font-size: 24px; }
+.tip.docked .tip-body { display: flex; flex-direction: column; min-height: 100%; }
+.tip.docked .tip-actions { margin-top: auto; padding-top: 8px; }
 .tip-icon { font-size: 30px; line-height: 1; }
 .tip-body { flex: 1; min-width: 0; }
 .tip-label { font-size: 10.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); font-weight: 700; }
@@ -587,6 +598,9 @@ button.speed.active { background: #12324a; border-color: #4aa3ff; color: #bfe0ff
 #dialog-body h3:first-child { margin-top: 0; }
 .set-tabs { grid-template-columns: repeat(4, 1fr); margin: 0 0 12px; background: transparent; }
 .set-tabs .tab { font-size: 12.5px; }
+.cfg-tabs { grid-template-columns: repeat(5, auto); justify-content: stretch; }   /* Configurações: as 5 abas numa linha */
+.cfg-tabs .tab { white-space: nowrap; padding: 9px 8px; }
+@media (max-width: 560px) { .cfg-tabs { grid-template-columns: repeat(3, 1fr); } .cfg-tabs .tab { white-space: normal; padding: 9px 2px; } }
 .set-pane { min-height: 260px; }
 .set-pane > .actions { margin-top: 12px; }
 .set-pane > .hint:first-child { margin-top: 0; }
@@ -1656,3 +1670,13 @@ button.danger-solid:hover:not(:disabled) { background: #c23a30; border-color: #f
 .bug-info dt { float: left; clear: left; width: 92px; opacity: 0.7; }
 .bug-info dd { margin: 0 0 2px 92px; }
 .bug-form details textarea { min-height: 70px; font-family: monospace; font-size: 11px; }
+
+/* Códice › Estatísticas */
+.cx-statgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.cx-sts { padding: 8px 10px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
+.cx-sts h4 { margin: 0 0 6px; }
+.cx-st { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: 12.5px; border-bottom: 1px solid var(--border); }
+.cx-st:last-child { border-bottom: none; }
+.cx-st span { color: var(--muted); }
+.cx-st b { text-align: right; font-variant-numeric: tabular-nums; }
+.cx-top { margin-top: 10px; }

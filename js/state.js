@@ -217,6 +217,9 @@ function rates() {
 }
 
 let simulating = false;
+// Decisões sem janela (só o bot, tools/bot.js, usa): autoDecide(tipo, dados, opções) → índice da opção escolhida.
+// tipo: 'dilemma' (eventos do dia) ou 'bite' (o que fazer com quem foi mordido). null: o jogador decide na janela.
+let autoDecide = null;
 const listeners = [];
 function emit(type, data = {}) { if (!simulating) for (const f of listeners) f(type, data); }
 

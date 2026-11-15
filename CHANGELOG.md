@@ -260,7 +260,24 @@ Apocalipse, saves e vitória.
   - **O sorteio é decidido quando a caixa cai:** exportar e importar o save não dá outra chance de tirar ★★★. As estrelas e os prêmios saem sempre iguais para a mesma caixa.
   - Caixas guardadas de versões anteriores recebem o nível da onda em que o save for aberto.
 
-- **🐞 Reportar bug** (rodapé e Configurações › 💾 Dados): uma janela para descrever o problema, com o tipo, e que anexa sozinha a versão, a dificuldade, a onda, a cidade, o navegador, as últimas linhas do registro e um **snapshot do save**. O envio ainda não está pronto (chega numa próxima versão).
+- **🐞 Reportar bug** (rodapé e Configurações › 💾 Dados): uma janela para descrever o problema, com o tipo, e que anexa sozinha a versão, a dificuldade, a onda, a cidade, o navegador, as últimas linhas do registro e um **snapshot do save**. Dá para **baixar o relatório** (arquivo com tudo, inclusive o save), **copiar** ou **abrir uma issue no GitHub** já preenchida. Com uma chave do Web3Forms configurada, o botão **Enviar** manda o relatório direto para o e-mail de quem cuida do jogo, sem o jogador precisar de conta.
+
+- **Rede de segurança para erros:** se algum erro de código acontecer, o jogo continua rodando em vez de travar, mostra um aviso "Algo deu errado" com o atalho para o Reportar bug, e os erros recentes vão anexados no relatório.
+
+- **Importar pelo menu principal:** na tela **📂 Carregar**, cada espaço tem um botão **📥 Importar**, inclusive os vazios. Dá para trazer um progresso exportado sem precisar começar um jogo antes. O Carregar fica disponível mesmo sem nenhum jogo salvo. A janela de importar ficou mais simples: **arraste o arquivo do save** para a área (ou clique nela para escolher) e ele importa na hora.
+
+- **Arquivo de save próprio (.voidfall):** o Exportar agora baixa direto um arquivo do jogo, com o nome do jogador, a cidade e a data (ex.: `voidfall-ana-cidade3-2026-11-15.voidfall`), no lugar do código para copiar. Os arquivos .txt exportados antes continuam sendo aceitos no Importar.
+
+- **Cópia de segurança do save:** a cada minuto, o save anterior vira uma cópia de segurança do espaço. Se o save principal corromper (aba fechada no meio da gravação, armazenamento cheio), o jogo abre a cópia sozinho e avisa (pode faltar o último minuto de jogo).
+
+- **♿ Acessibilidade virou uma aba própria nas Configurações** (antes ficava dentro de Visual): reduzir efeitos visuais, desligar o tremor de tela e cores para daltonismo.
+  - A janela ficou mais larga, com as 5 abas numa linha só. As abas das Configurações **não têm mais atalho de número** (os números ficam só para as abas do jogo).
+  - **Abrir as Configurações durante o jogo pausa o jogo**, e fechar retoma (se já estava pausado, continua pausado). Segue a mesma regra da pausa: no ☣️ Pesadelo e no 🔥 Apocalipse, conta como uma pausa (no máximo 30s, depois 2 min até poder pausar de novo).
+
+- **Dicas do tutorial encaixadas:** a dica (a que fecha com "Entendi") agora ocupa exatamente o quadro de baixo à esquerda, acompanhando o tamanho dele, em vez de flutuar desalinhada por cima. Em telas estreitas continua no canto da tela.
+
+- **📊 Estatísticas no Códice** (atalho B): uma aba nova com os números do save, somando todas as cidades: **tempo jogado** (e nesta sessão), data em que o save começou, melhor onda, evacuações, zumbis abatidos (e abates por hora), chefes, tiros certeiros, vasculhadas, construções, expedições, pesquisas, vidas salvas, perdidos, e a coleção (conquistas, heróis, skins, pets, bestiário, glossário e memórias). Também mostra os 3 inimigos que você mais abateu.
+  - O tempo jogado conta enquanto o jogo está aberto na tela, a partir desta versão. Saves antigos não têm a data de início.
 
 ## 1.06.000
 

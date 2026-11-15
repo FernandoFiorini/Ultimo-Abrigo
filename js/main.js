@@ -2,6 +2,7 @@
 
 // Ao abrir: menu principal (Continuar, Carregar, Novo jogo). Trocar de save recarrega a página direto no espaço escolhido.
 function boot() {
+  counter();
   Slots.migrate();
   Menu.init();
   Sound.setup();   // a música do menu começa no primeiro clique ou tecla
@@ -50,17 +51,22 @@ function startGame(slot) {
 
   // A simulação segue o relógio do jogo (pausa, progresso offline); a cena anima pelo tempo real dos quadros.
   let panelT = 0, lastFrame = performance.now();
+  // um erro num quadro não pode parar o jogo: fica registrado (Reportar bug) e o próximo quadro segue
   function frame(now) {
+    try { frame0(now); } catch (e) { BugReport.caught(e, 'quadro'); }
+    requestAnimationFrame(frame);
+  }
+  function frame0(now) {
     const frameDt = Math.min(0.1, Math.max(0, (now - lastFrame) / 1000));
     lastFrame = now;
     Guide.update(frameDt);   // o tutorial guiado pausa o jogo enquanto explica
+    if (!Slots.dead) { S.meta.stats.time = (S.meta.stats.time || 0) + frameDt; sessionT += frameDt; }   // tempo jogado (Códice › Estatísticas)
     step();
     // pausado: a cena congela (pessoas, fogo, partículas), mas a música continua
     Scene.update(paused || guidePaused || Story.on() ? 0 : frameDt);
     Scene.draw();
     panelT += frameDt;
     if (panelT > 0.15) { Tutorial.update(panelT); panelT = 0; render(); }
-    requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
@@ -70,3 +76,14 @@ function startGame(slot) {
   window.addEventListener('beforeunload', save);
 }
 window.addEventListener('load', boot);
+
+// contador de visitas (GOATCOUNTER, em config.js): só no site publicado, nunca rodando localmente
+function counter() {
+  const local = location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(location.hostname);
+  if (!GOATCOUNTER || local || !/^[a-z0-9-]+$/i.test(GOATCOUNTER)) return;
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://gc.zgo.at/count.js';
+  s.dataset.goatcounter = `https://${GOATCOUNTER}.goatcounter.com/count`;
+  document.head.appendChild(s);
+}

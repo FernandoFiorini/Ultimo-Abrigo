@@ -68,17 +68,21 @@ function openSettings() {
     <label class="opt range"><span><b>${label}</b></span>
       <input type="range" min="0" max="100" data-set="${key}" value="${Math.round(Settings.get(key) * 100)}"><output>${Math.round(Settings.get(key) * 100)}%</output></label>`;
 
-  const TABS = { game: '⏩ Jogo', visual: '🎨 Visual', audio: '🔊 Áudio', data: '💾 Dados' };
+  const TABS = { game: '⏩ Jogo', visual: '🎨 Visual', audio: '🔊 Áudio', acess: '♿ Acessibilidade', data: '💾 Dados' };
   const cur = TABS[openSettings.tab] ? openSettings.tab : 'game';
+  // durante o jogo, abrir as Configurações pausa (com a mesma regra da pausa: limite de tempo e recarga no Pesadelo e no Apocalipse)
+  // e, ao fechar, retoma só se foi ela que pausou
+  const ownPause = inGame && !paused && (togglePause(true, true), paused);
   const pane = (id, html) => `<div class="set-pane" data-pane="${id}"${id === cur ? '' : ' hidden'}>${html}</div>`;
 
   openDialog({
     title: '⚙️ Configurações',
     staticBody: true,
+    wide: true,   // as 5 abas numa linha só
     plain: true,
     body: `
-      <div class="tabs set-tabs" role="tablist">${Object.entries(TABS).map(([id, nome], i) => `
-        <button class="tab${id === cur ? ' active' : ''}" role="tab" aria-selected="${id === cur}" data-tab="${id}" data-hotkey="${i + 1}">${nome} ${hk(i + 1)}</button>`).join('')}
+      <div class="tabs set-tabs cfg-tabs" role="tablist">${Object.entries(TABS).map(([id, nome]) => `
+        <button class="tab${id === cur ? ' active' : ''}" role="tab" aria-selected="${id === cur}" data-tab="${id}">${nome}</button>`).join('')}
       </div>
 
       ${pane('game', `
@@ -100,7 +104,9 @@ function openSettings() {
         <label class="seg${ok ? '' : ' locked'}" title="${ok ? f.desc : '🔒 ' + VFilter.how(k)}"><input type="radio" name="vfilter" value="${k}" data-set="vfilter" ${VFilter.current() === k ? 'checked' : ''} ${ok ? '' : 'disabled'}><span>${ok ? f.icon : '🔒'} ${f.nome}</span></label>`; }).join('')}</div>
       <p class="hint"><span id="vf-desc">${VFILTERS[VFilter.current()].desc}.</span> Novos filtros são liberados ao encontrar a Cura: cada dificuldade vencida libera um.</p>
       ${check('blood', 'Sangue e mutilação', 'Sangue no cenário e zumbis se despedaçando ao morrer. Desligado, os zumbis só caem e os impactos levantam poeira.')}
-      <h3>♿ Acessibilidade</h3>
+`)}
+
+      ${pane('acess', `
       ${check('reduceFx', 'Reduzir efeitos visuais', 'Menos partículas, fumaça e clarões')}
       ${check('noShake', 'Desligar tremor de tela')}
       ${check('colorblind', 'Cores para daltonismo', 'Troca verde e vermelho por azul e laranja nos avisos')}`)}
@@ -125,6 +131,7 @@ function openSettings() {
         <button data-cmd="bug">🐞 Reportar bug</button>
       </div>`)}`,
     cancel: 'Fechar',
+    onEnd: () => { if (ownPause && paused) togglePause(false, true); },
     onMount: () => {
       const body = $('dialog-body');
       body.querySelector('.set-tabs').addEventListener('click', e => {

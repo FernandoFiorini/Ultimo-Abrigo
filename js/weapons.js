@@ -406,5 +406,5 @@ const Weapons = (() => {
   const isAuto = () => !!LWEAPONS[current()].auto;
   const tabBadge = () => Object.keys(LWEAPONS).filter(k => unlocked(k) && lvl(k) < LW_MAX_LVL && canAfford(cost(k))).length;
 
-  return { dbgGive, dbgMaxAll, fire, hordeTick, refill, onKill, select, cycle, current, isAuto, ammoOf, stat, reach, startReload, shotsToKill, gainSpecial, bossLoot, expLoot, spec, howToGet, buildUI, render, tabBadge, projectiles, MUZZLE };
+  return { buy, equip, cost, unlocked, lvl, owned, dbgGive, dbgMaxAll, fire, hordeTick, refill, onKill, select, cycle, current, isAuto, ammoOf, stat, reach, startReload, shotsToKill, gainSpecial, bossLoot, expLoot, spec, howToGet, buildUI, render, tabBadge, projectiles, MUZZLE };
 })();

@@ -448,8 +448,9 @@ const Endgame = (() => {
   const opBusy = k => S.ops.some(o => o.k === k);
   const districtOpen = k => S.best + 1 >= DISTRICTS[k].unlock;
 
-  function opGo(k) {
-    const d = DISTRICTS[k], n = Math.max(d.n, opSel[k] || d.n);
+  // nForce: tamanho do esquadrão escolhido direto (bot)
+  function opGo(k, nForce) {
+    const d = DISTRICTS[k], n = Math.max(d.n, nForce || opSel[k] || d.n);
     if (S.districts[k] || opBusy(k) || !districtOpen(k) || idle() < n || S.res.municao < opAmmo(n)) return;
     S.res.municao -= opAmmo(n);
     const dur = d.dur * durMult();
@@ -899,6 +900,8 @@ const Endgame = (() => {
     rollEvent, danger, modifyQueue, hpMultEv, speedMultEv, lootMult, range, event,
     onKill, onKills, onWaveEnd, hit, hordeTick, offlineMult, offlineTrap, tick, gainHero, gainWeapon,
     buildUI, render, count, tl,
+    // usados pelo bot (tools/bot.js), que joga sem a interface
+    research, researchCure, techCost, canPay, cureCityOk, opGo, opChance, districtOpen, heroEquip,
   };
 })();
 

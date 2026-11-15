@@ -152,6 +152,71 @@ const Codex = (() => {
         : `<div class="cx-g unknown"><span class="cx-gi">🔒</span><div><b>???</b><p>${m.hint}</p></div></div>`).join('')}</div>`;
   }
 
+  // ---------- estatísticas do save (S.meta.stats e o que já existe no meta: vale para todas as cidades do save)
+  const dur = s => {
+    s = Math.floor(s || 0);
+    const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    return d ? `${d}d ${h}h` : h ? `${h}h ${String(m).padStart(2, '0')}min` : m ? `${m}min` : `${s}s`;
+  };
+  function statsHtml() {
+    const st = S.meta.stats, m = S.meta, n = v => fmt(v || 0), c = m.champ || {};
+    const row = (icon, label, v, tip) => `<div class="cx-st"${tip ? ` title="${tip}"` : ''}><span>${icon} ${label}</span><b>${v}</b></div>`;
+    const sec = (title, rows) => `<section class="cx-sts"><h4>${title}</h4>${rows.join('')}</section>`;
+    const Df = DIFFS[S.diff] || DIFFS.normal;
+    const achDone = ACH.filter(a => m.ach[a.id]).length;
+    const all = GROUPS.flatMap(g => g[1]), seen = all.filter(t => level(t)).length;
+    const glos = Object.keys(GLOS).filter(id => G()[id]).length;
+    const mem = typeof Story !== 'undefined' ? Story.list() : [];
+    const skins = (typeof WSkins !== 'undefined' ? WSkins.DEFS.filter(d => WSkins.owned(d.id)).length : 0) + ((m.osk && m.osk.own && m.osk.own.length) || 0);
+    const top = Object.entries(st.zk || {}).filter(([t]) => ZTYPES[t]).sort((a, b) => b[1] - a[1]).slice(0, 3)
+      .map(([t, k]) => `${ZTYPES[t].icon || '🧟'} ${ZTYPES[t].nome} (${fmt(k)})`).join(' · ');
+    const kph = st.time > 600 ? fmt(Math.round(st.kills / (st.time / 3600))) : '—';
+    return `<p class="hint">Números deste save, somando todas as cidades e mundos. O tempo conta enquanto o jogo está aberto na tela.</p>
+      <div class="cx-statgrid">
+        ${sec('⏱️ Geral', [
+          row('⏱️', 'Tempo jogado', dur(st.time), 'Tempo com o jogo aberto na tela (contado a partir da versão 1.07)'),
+          row('▶️', 'Nesta sessão', dur(sessionT)),
+          row('📅', 'Começou em', st.since ? new Date(st.since).toLocaleDateString('pt-BR') : '—', st.since ? '' : 'Save de antes da versão 1.07: sem data'),
+          row(Df.icon, 'Dificuldade', Df.nome),
+          row('🌊', 'Melhor onda', n(Math.max(st.bestWave || 0, S.best || 0))),
+          row('🏙️', 'Cidade · mundo', `${m.city || 1} · ${m.worlds || 1}`),
+          row('🚁', 'Evacuações', n(st.evacs)),
+          row('✨', 'Esperança total', n(m.hopeTotal)),
+        ])}
+        ${sec('⚔️ Combate', [
+          row('☠️', 'Zumbis abatidos', n(st.kills)),
+          row('⚡', 'Abates por hora', kph, 'Média: abates ÷ tempo jogado'),
+          row('👹', 'Chefes derrotados', n(st.bosses)),
+          row('🎯', 'Tiros certeiros do líder', n(st.shots)),
+          row('🪖', 'Tiros na cabeça (blindados)', n(st.headshots)),
+          row('🛡️', 'Ondas sem dano no muro', n(st.flawless), 'Ondas 5+ vencidas sem o muro levar dano'),
+          row('🏴‍☠️', 'Ataques de saqueadores repelidos', n(st.raids)),
+          row('✈️', 'Ataques aéreos', n(st.airstrikes)),
+        ])}
+        ${sec('🏠 Abrigo', [
+          row('🔍', 'Vasculhadas', n(st.scav)),
+          row('🏗️', 'Construções', n(st.builds)),
+          row('🗺️', 'Expedições', n(st.exps)),
+          row('🔬', 'Pesquisas concluídas', n(st.research)),
+          row('🏴', 'Distritos libertados', n(st.districts)),
+          row('💊', 'Vidas salvas com remédio', n(st.saved)),
+          row('🌅', 'Mordidos que voltaram curados', n(st.cured)),
+          row('🕯️', 'Perdidos (memorial)', n(m.fallen)),
+        ])}
+        ${sec('🏆 Coleção', [
+          row('🏆', 'Conquistas', `${achDone}/${ACH.length}`),
+          row('🪖', 'Heróis de campo', `${Object.keys(c.owned || {}).length}/${Object.keys(CHAMPS).length}`),
+          row('🏷️', 'Tampinhas', n(c.caps)),
+          row('🎨', 'Skins', n(skins)),
+          row('🐾', 'Pets', n((m.pets || []).length)),
+          row('🧟', 'Bestiário', `${seen}/${all.length}`),
+          row('📖', 'Glossário', `${glos}/${Object.keys(GLOS).length}`),
+          row('🎞️', 'Memórias', `${mem.filter(x => x.unlocked).length}/${mem.length}`),
+        ])}
+      </div>
+      ${top ? `<p class="hint cx-top">☠️ Mais abatidos: ${top}</p>` : ''}`;
+  }
+
   function beastHtml() {
     const all = GROUPS.flatMap(g => g[1]), seen = all.filter(t => level(t)).length;
     return `<p class="hint">Abata inimigos para revelar a ficha de cada um. <b>${seen}/${all.length}</b> descobertos.</p>
@@ -167,8 +232,9 @@ const Codex = (() => {
     return `<div class="tabs set-tabs cx-tabs" role="tablist">
         <button class="tab${tab === 'beast' ? ' active' : ''}" data-cxtab="beast">🧟 Bestiário${ALL().some(newZ) ? ' <i class="tab-dot"></i>' : ''}</button>
         <button class="tab${tab === 'glos' ? ' active' : ''}" data-cxtab="glos">📖 Glossário${Object.keys(GLOS).some(newG) ? ' <i class="tab-dot"></i>' : ''}</button>
-        <button class="tab${tab === 'mem' ? ' active' : ''}" data-cxtab="mem">🎞️ Memórias</button></div>
-      <div id="cx-body">${tab === 'beast' ? beastHtml() : tab === 'glos' ? glosHtml() : memHtml()}</div>`;
+        <button class="tab${tab === 'mem' ? ' active' : ''}" data-cxtab="mem">🎞️ Memórias</button>
+        <button class="tab${tab === 'stats' ? ' active' : ''}" data-cxtab="stats">📊 Estatísticas</button></div>
+      <div id="cx-body">${tab === 'beast' ? beastHtml() : tab === 'glos' ? glosHtml() : tab === 'stats' ? statsHtml() : memHtml()}</div>`;
   }
 
   function open(which) {
@@ -178,7 +244,7 @@ const Codex = (() => {
     if (!sel || !level(sel)) sel = ALL().find(t => level(t)) || null;
     if (tab === 'beast' && ALL().some(newZ)) sel = ALL().find(newZ);
     openDialog({
-      title: '📖 Bestiário, Glossário e Memórias',
+      title: '📖 Códice',
       staticBody: true, plain: true, wide: true,
       body: body(),
       cancel: 'Fechar',

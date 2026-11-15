@@ -479,7 +479,7 @@ const Menu = (() => {
           <button class="mm-go mm-cont" data-go="continue" ${L && !L.broken ? '' : 'disabled'}><span>Continuar</span>
             ${L && !L.broken ? `<small>Espaço ${L.i} · ${escHtml(L.name)} · ${diffTag(L.diff)} · Cidade ${L.city}, onda ${L.wave}</small>` : '<small>Nenhum jogo salvo</small>'}</button>
           <button class="mm-go" data-go="new"><span>Novo jogo</span></button>
-          <button class="mm-go" data-go="load" ${any ? '' : 'disabled'}><span>Carregar</span></button>
+          <button class="mm-go" data-go="load"><span>Carregar</span>${any ? '' : '<small>Nenhum jogo salvo · importe um progresso</small>'}</button>
           <button class="mm-go" data-go="hall"><span>Hall da Fama</span></button>
           <button class="mm-go" data-go="skins"><span>Skins</span></button>
           <button class="mm-go" data-go="settings"><span>Configurações</span></button>
@@ -496,12 +496,14 @@ const Menu = (() => {
             <div class="slot-info"><small>Jogado em ${fmtDate(x.last)}</small></div>
             <div class="slot-actions">
               <button class="primary" data-load="${i + 1}" ${x.broken ? 'disabled' : ''}>Carregar</button>
+              <button data-imp="${i + 1}" title="Substituir este espaço por um progresso exportado">📥 Importar</button>
               <button class="danger" data-del="${i + 1}">Apagar</button>
             </div>
           </div>` : `
           <div class="slot-card empty">
             <div class="slot-head"><b>Espaço ${i + 1}</b> <small>vazio</small></div>
-            <div class="slot-actions"><button data-newin="${i + 1}">✨ Novo jogo aqui</button></div>
+            <div class="slot-actions"><button data-newin="${i + 1}">✨ Novo jogo aqui</button>
+              <button data-imp="${i + 1}" title="Colar um código ou escolher o arquivo exportado">📥 Importar progresso</button></div>
           </div>`).join('')}</div>
         <div class="mm-back"><button data-go="home">← Voltar</button></div>`;
     },
@@ -649,7 +651,8 @@ const Menu = (() => {
       const x = Slots.info(+ds.del);
       askConfirm({ title: `🗑️ Apagar o espaço ${ds.del}?`, body: `<p class="event-text">O save${x ? ` de <b>${escHtml(x.name)}</b>` : ''} será apagado. <b>Isso não pode ser desfeito.</b></p>`, ok: 'Apagar', danger: true },
         () => { Slots.remove(+ds.del); draw(); });
-    } else if (ds.newin) { pick = { slot: +ds.newin, diff: 'normal', name: pick.name, look: pick.look || Profile.lastLook() }; screen = 'new'; draw(); }
+    } else if (ds.imp) { showImport(+ds.imp); $('dialog').classList.add('over-menu'); }   // a janela abre por cima do menu
+    else if (ds.newin) { pick = { slot: +ds.newin, diff: 'normal', name: pick.name, look: pick.look || Profile.lastLook() }; screen = 'new'; draw(); }
     else if (ds.slot) { pick.slot = +ds.slot; draw(); }
     else if (ds.diff) { pick.diff = ds.diff; box().querySelectorAll('.diff-card').forEach(c => c.classList.toggle('current', c === t)); }
   }

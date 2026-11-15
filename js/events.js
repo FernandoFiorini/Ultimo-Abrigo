@@ -187,6 +187,18 @@ const Events = (() => {
   function openDilemma(D) {
     const data = D.setup ? D.setup() : {};
     const val = (v, ...a) => (typeof v === 'function' ? v(...a) : v);
+    // bot: escolhe na hora entre as opções possíveis, sem janela
+    if (autoDecide) {
+      const can = D.opts.map((o, i) => i).filter(i => !D.opts[i].ok || D.opts[i].ok(data));
+      if (!can.length) return;
+      const i = autoDecide('dilemma', { D, data, can }, D.opts);
+      const o = D.opts[can.includes(i) ? i : can[0]];
+      const st = S, r = o.run(data) || ['', ''];
+      if (S !== st) return;
+      addLog(`${D.icon} ${D.title}: ${r[0]}`, r[1]);
+      emit('dilemma', { good: r[1] === 'good', bad: r[1] === 'bad' });
+      return;
+    }
     let result = null, auto = null, closeAt = 0;
     const deadline = Date.now() + DILEMMA_TIME * 1000;
     const left = () => (deadline - Date.now()) / 1000;
@@ -391,5 +403,6 @@ const Events = (() => {
     }
   }
 
-  return { tick, openMerchant, DILEMMAS, triggerDilemma };
+  // merchantBuy/offerBlock: o bot troca com o comerciante sem abrir a janela
+  return { tick, openMerchant, DILEMMAS, triggerDilemma, merchantBuy: buy, offerBlock };
 })();

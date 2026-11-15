@@ -6,6 +6,13 @@ const SLOT_COUNT = 3;                 // espaços de salvamento
 const REPO_URL = 'https://github.com/fernandofiorini/Ultimo-Abrigo';
 // Desenvolvimento: true libera o menu de debug (F9), mas só rodando localmente. Deixe false ao publicar.
 const DEV_MODE = true;
+// Reportar bug (js/bugreport.js): com uma chave do Web3Forms (grátis em web3forms.com, ligada ao seu e-mail),
+// os relatórios chegam no seu e-mail direto do jogo. Vazio: o jogador baixa o relatório e abre uma issue no GitHub.
+// A chave pode ficar no código público: ela só permite enviar mensagens para o seu e-mail.
+const BUG_REPORT = { web3formsKey: 'ab5dc17c-c94b-4499-b148-6cc9f63da1e9' };
+// Contador de visitas (GoatCounter, sem cookies e sem dados pessoais): o código do seu site em goatcounter.com,
+// ex.: 'voidfall' para voidfall.goatcounter.com. Vazio: sem contador. Nunca conta rodando localmente.
+const GOATCOUNTER = '';
 const OFFLINE_MAX = 8 * 3600;      // produção offline: no máximo isso (segundos) de produção; o tempo além disso se perde, para o jogador voltar
 const OFFLINE_YIELD = 0.5;          // fração da produção normal que o abrigo rende offline
 const RETURN_NOTICE = 300;          // ausência mínima (segundos) para mostrar o aviso de retorno com o que foi progredido

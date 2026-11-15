@@ -239,6 +239,15 @@ const Invasion = (() => {
           return [`${name} pegou uma mochila, agradeceu com os olhos e saiu pelo portão. Ninguém sabe o que vai acontecer.`, 'warn'];
         } },
     ];
+    // bot: decide na hora, sem janela
+    if (autoDecide) {
+      const i = Math.max(0, Math.min(opts.length - 1, autoDecide('bite', { name }, opts) | 0));
+      S.bitten.shift();
+      const r = opts[i].run();
+      addLog(`🦷 ${r[0]}`, r[1]);
+      emit('biteChoice', { kill: i === 0 });
+      return;
+    }
     dlg = openDialog({
       title: '🦷 Uma mordida',
       body: () => result

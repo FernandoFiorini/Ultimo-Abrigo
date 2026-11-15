@@ -110,9 +110,23 @@ Os scripts são carregados em ordem pelo `index.html`, sem etapa de build.
 node tools/bot.js                          # 60 min em cada dificuldade
 node tools/bot.js --min 120 --dif normal   # 2h só no Normal
 node tools/bot.js --cidade 5 --clicar      # cidade 5 (zumbis mais fortes), vasculhando 1x/s
+node tools/bot.js --campanha 6 --dif normal                       # 6 cidades seguidas, evacuando
+node tools/bot.js --completo --campanha 8 --dif normal --min 90   # teste completo, até a Cura
 ```
 
-Ele não usa as armas do líder, não faz expedições, pesquisa nem evacua: mede a defesa de um jogador passivo, sem prestígio.
+Sem `--completo`, ele mede a defesa de um jogador passivo: não usa as armas do líder, não faz expedições nem pesquisa.
+Com `--completo`, joga tudo: laboratório, pesquisa e a Cura (cada etapa antes de evacuar da cidade), expedições, distritos, armas do líder, comerciante, dilemas e mordidos (escolha sorteada), heróis de campo (habilidades e pontos) e heróis de apoio. O relatório mostra, por cidade, as etapas da Cura, pesquisas, expedições, distritos, armas, trocas, dilemas e, no fim, em quanto tempo a Cura foi encontrada (em tempo de jogo e em tempo real, usando o 2x de dia). `--desafios N` aceita N desafios sorteados em cada cidade nova.
+
+### Analisar o save de um jogador
+
+Quando alguém manda um save (o arquivo `.voidfall`, um `.txt` exportado ou o **texto inteiro do e-mail do Reportar bug**, salvo num arquivo), o bot abre esse save, confere se há valores quebrados (recursos NaN ou negativos, funções a mais que pessoas, muro acima do máximo, caixas inválidas...), continua jogando a partir dele e registra qualquer erro de código:
+
+```bash
+node tools/bot.js --save saves-recebidos/relatorio.txt               # 30 min a partir do save
+node tools/bot.js --save saves-recebidos/ana.voidfall --min 60 --completo
+```
+
+O relatório mostra o estado antes e depois, a evolução a cada 5 min, os últimos avisos ruins do registro e o diagnóstico: cada erro (com onde aconteceu e quantas vezes) e cada valor quebrado (desde quando). Se houver erro de código, o comando termina com código 2. Guarde os saves recebidos na pasta `saves-recebidos/`, que fica fora do git (eles têm o nome dos jogadores).
 
 ## Rodando localmente
 

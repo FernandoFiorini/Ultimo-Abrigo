@@ -3,10 +3,20 @@
 // o campo de treino do debug não vai para o save (volta como se não houvesse horda)
 const saveJson = () => JSON.stringify(S, (k, v) => (k === 'horde' && v && v.train ? { active: false, queue: [], zs: [] } : v));
 
+// Cópia de segurança: a cada BAK_GAP, o save anterior (que já carregou direito) vira a cópia do espaço.
+// Se o save principal corromper (aba fechada no meio da gravação, armazenamento cheio), o jogo abre a cópia.
+const BAK_GAP = 60000;
+let lastBak = 0;
 function save() {
   if (awaitingChoice || importing || Slots.dead || !Slots.ready) return false;
   try {
-    localStorage.setItem(Slots.key(Slots.cur), saveJson());
+    const key = Slots.key(Slots.cur);
+    if (Date.now() - lastBak > BAK_GAP) {
+      const prev = localStorage.getItem(key);
+      if (prev && Slots.valid(prev)) { try { localStorage.setItem(Slots.bakKey(Slots.cur), prev); } catch (e) { /* sem espaço para a cópia: segue sem ela */ } }
+      lastBak = Date.now();
+    }
+    localStorage.setItem(key, saveJson());
     $('save-status').textContent = 'Salvo às ' + new Date().toLocaleTimeString('pt-BR');
     return true;
   } catch (e) { return false; /* armazenamento indisponível */ }
@@ -25,7 +35,13 @@ function mergeDeep(base, saved) {
 function load() {
   S = newState();
   try {
-    const raw = localStorage.getItem(Slots.key(Slots.cur));
+    let raw = localStorage.getItem(Slots.key(Slots.cur));
+    // save corrompido: abre a cópia de segurança (e avisa depois de carregar)
+    let restored = false;
+    if (raw && !Slots.valid(raw)) {
+      const bak = localStorage.getItem(Slots.bakKey(Slots.cur));
+      if (bak && Slots.valid(bak)) { raw = bak; restored = true; }
+    }
     if (raw) {
       const d = JSON.parse(raw);
       if (!(d.meta && d.meta.diffChosen)) legacyChoice = true;
@@ -36,6 +52,8 @@ function load() {
       // saves antigos: aproveita o que já foi conquistado nesta partida
       meta.stats.bestWave = Math.max(meta.stats.bestWave, d.best || 0);
       meta.stats.kills = Math.max(meta.stats.kills, d.kills || 0);
+      // saves de antes da 1.07 não sabem quando começaram (o padrão seria a data de hoje)
+      if (d.meta && d.meta.stats && !d.meta.stats.since) meta.stats.since = 0;
       S = { ...base, ...d, meta,
         res: { ...base.res, ...d.res },
         jobs: { ...base.jobs, ...d.jobs },
@@ -52,11 +70,16 @@ function load() {
       Endgame.migrateHeroes();
       syncPeople();
       offlineProgress();
+      if (restored) {
+        addLog('💾 O save deste espaço estava corrompido. Abrimos a cópia de segurança mais recente (pode faltar o último minuto de jogo).', 'warn');
+        setTimeout(() => { if (typeof toast === 'function') toast({ icon: '💾', label: 'Progresso recuperado', name: 'Abrimos a cópia de segurança', desc: 'O save estava corrompido. Pode faltar o último minuto de jogo.', time: 8000 }); }, 1500);
+      }
     } else {
       firstRun = true;
     }
   } catch (e) { S = newState(); firstRun = true; }
 }
+let sessionT = 0;   // segundos jogados desde que a página abriu
 let firstRun = false, legacyChoice = false, awaitingChoice = false, modalOpen = false, importing = false, paused = false;
 
 // ---------- exportar / importar ----------
@@ -83,13 +106,14 @@ function decodeSave(code) {
   return d;
 }
 // Substitui o save atual e recarrega a página (o carregamento normal cuida da migração)
-function importSave(code) {
+function importSave(code, slot = Slots.cur) {
   const d = decodeSave(code);
   if (Slots.buried(d.meta.runId)) throw new Error('Este save morreu no modo Apocalipse. A morte é permanente: ele não pode ser recuperado.');
   d.last = Date.now();
   importing = true;
-  localStorage.setItem(Slots.key(Slots.cur), JSON.stringify(d));
-  Slots.open(Slots.cur);
+  localStorage.setItem(Slots.key(slot), JSON.stringify(d));
+  Store.del(Slots.bakKey(slot));   // a cópia de segurança era do progresso substituído
+  Slots.open(slot);
 }
 
 function startFirstRun() {

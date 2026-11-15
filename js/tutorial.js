@@ -50,6 +50,19 @@ const Tutorial = (() => {
   const seen = id => !!T()[id];
   let cur = null, wait = 2;
 
+  // a dica ocupa o quadro inteiro do canto de baixo (o primeiro card, das informações do grupo), sem sobrar borda;
+  // se ele não estiver visível (tela estreita), fica no canto da tela, como antes
+  function place() {
+    const box = $('tip'), card = document.querySelector('.strip .card');
+    const r = card && card.offsetParent ? card.getBoundingClientRect() : null;
+    const ok = r && r.width >= 200 && r.height >= 120;
+    box.classList.toggle('docked', !!ok);
+    if (!ok) { box.style.left = box.style.top = box.style.width = box.style.height = ''; return; }
+    box.style.left = `${r.left}px`; box.style.top = `${r.top}px`;
+    box.style.width = `${r.width}px`; box.style.height = `${r.height}px`;
+  }
+  addEventListener('resize', () => { if (cur) place(); });
+
   function show(tip) {
     cur = tip;
     const box = $('tip');
@@ -66,6 +79,7 @@ const Tutorial = (() => {
         </div>
       </div>`;
     highlight(box.querySelector('.tip-text'));
+    place();
     box.classList.remove('hidden');
   }
 
@@ -92,6 +106,7 @@ const Tutorial = (() => {
     if (T().off || !Settings.get('tips')) { if (cur) { cur = null; $('tip').classList.add('hidden'); } return; }
     // o tutorial guiado está explicando: nenhuma dica solta por cima dele
     if (typeof Guide !== 'undefined' && Guide.active()) { if (cur) { cur = null; $('tip').classList.add('hidden'); } return; }
+    if (cur) place();   // o quadro muda de tamanho com o layout
     if (cur || awaitingChoice || modalOpen) return;
     wait -= dt;
     if (wait > 0) return;
@@ -146,11 +161,12 @@ let pauseEnd = 0, pauseReady = 0;
 const pauseRule = () => (typeof S !== 'undefined' && S ? PAUSE_RULES[S.diff] : null);
 const clockS = s => `${Math.floor(s / 60)}:${String(Math.ceil(s % 60) === 60 ? 0 : Math.ceil(s % 60)).padStart(2, '0')}`;
 
-function togglePause(force) {
+// quiet: sem mensagem no registro (pausa automática das Configurações)
+function togglePause(force, quiet) {
   const want = force ?? !paused, rule = pauseRule(), now = Date.now();
   if (want === paused) return;
   if (want && rule && now < pauseReady) {
-    addLog(`⏸ A pausa volta em ${clockS((pauseReady - now) / 1000)} (no ${DIFFS[S.diff].nome}, a pausa tem limite).`, 'warn');
+    if (!quiet) addLog(`⏸ A pausa volta em ${clockS((pauseReady - now) / 1000)} (no ${DIFFS[S.diff].nome}, a pausa tem limite).`, 'warn');
     render();
     return;
   }
@@ -159,7 +175,7 @@ function togglePause(force) {
     if (paused) pauseEnd = now + rule.max * 1000;
     else { pauseReady = now + rule.cd * 1000; pauseEnd = 0; }
   }
-  addLog(paused ? `⏸ Jogo pausado.${rule ? ` Volta sozinho em ${rule.max}s.` : ''}` : '▶ Jogo retomado.');
+  if (!quiet) addLog(paused ? `⏸ Jogo pausado.${rule ? ` Volta sozinho em ${rule.max}s.` : ''}` : '▶ Jogo retomado.');
   render();
 }
 

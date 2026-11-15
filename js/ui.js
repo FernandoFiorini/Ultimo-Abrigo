@@ -171,7 +171,7 @@ function buildUI() {
       : { icon: '⚠️', label: 'Progresso', name: 'Não foi possível salvar', desc: 'O armazenamento do navegador está cheio ou bloqueado.', time: 4000 });
   };
   $('btn-export').onclick = showExport;
-  $('btn-import').onclick = showImport;
+  $('btn-import').onclick = () => showImport();   // sem o evento como argumento (o 1º parâmetro é o espaço)
   $('btn-keys').onclick = showShortcuts;
   $('btn-settings').onclick = openSettings;
   $('btn-locker').onclick = () => showLocker('armas');
@@ -726,7 +726,8 @@ function setHtml(el, html) {
 
 // ---------- janela genérica ----------
 // o: { title, body (texto ou função), buttons: [{ label, cls, onClick(d), keep, disabled(), hidden() }],
-//      cancel (true ou texto do botão de fechar), onOpt(chave, d) para elementos [data-opt], onClose, onMount(d), staticBody }
+//      cancel (true ou texto do botão de fechar), onOpt(chave, d) para elementos [data-opt], onClose, onEnd (também quando outra janela
+//      toma o lugar), onMount(d), staticBody }
 let dlg = null;
 // Aviso de retorno: quanto tempo o jogador ficou fora e o que o abrigo produziu (no máximo OFFLINE_MAX)
 function showReturn(r) {
@@ -759,6 +760,7 @@ function openDialog(o) {
       el.classList.add('hidden');
       modalOpen = !$('modal').classList.contains('hidden');
       if (!silent && o.onClose) o.onClose();
+      if (o.onEnd) o.onEnd();   // sempre que a janela sai (fechada ou trocada por outra)
     },
     get open() { return dlg === d; },
     canCancel: !!o.cancel,
@@ -805,20 +807,31 @@ function showExport() {
     });
     return;
   }
-  const code = exportCode();
   openDialog({
     title: '💾 Exportar progresso',
     staticBody: true,
-    body: `<p class="event-text">Guarde este código em um lugar seguro. Para continuar em outro navegador ou aparelho, use <b>Importar</b> e cole o código.</p>
-      <textarea id="save-code" class="save-code" readonly spellcheck="false">${code}</textarea>
+    body: `<p class="event-text">Baixe o arquivo do seu progresso (<b>${SAVE_EXT}</b>) e guarde num lugar seguro. Para continuar em outro navegador ou aparelho, use <b>Importar</b> e arraste o arquivo.</p>
       <p id="save-msg" class="hint"></p>`,
-    onMount: () => $('save-code').select(),
-    buttons: [
-      { label: '📋 Copiar', cls: 'primary', keep: true, onClick: () => copyCode(code) },
-      { label: '⬇️ Baixar arquivo', keep: true, onClick: () => downloadCode(code) },
-    ],
+    buttons: [{ label: '⬇️ Baixar save', cls: 'primary', keep: true, onClick: () => downloadSave() }],
     cancel: 'Fechar',
   });
+}
+
+// arquivo do save: o mesmo código do exportar, com a extensão própria do jogo (nome: voidfall-jogador-cidade-data)
+const SAVE_EXT = '.voidfall';
+function downloadSave() {
+  const m = S.meta, slug = String(m.player || 'save').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'save';
+  downloadFile(exportCode(), `voidfall-${slug}-cidade${m.city || 1}-${new Date().toISOString().slice(0, 10)}${SAVE_EXT}`, 'application/octet-stream');
+  $('save-msg').textContent = '✔ Save baixado. Ele está na pasta de downloads do navegador.';
+}
+function downloadFile(text, name, type = 'text/plain') {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 function copyCode(code) {
@@ -831,38 +844,41 @@ function copyCode(code) {
   else fallback();
 }
 
+// texto comum (relatório de bug)
 function downloadCode(code) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([code], { type: 'text/plain' }));
-  a.download = `voidfall-${new Date().toISOString().slice(0, 10)}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  $('save-msg').textContent = '✔ Arquivo baixado.';
+  downloadFile(code, `voidfall-${new Date().toISOString().slice(0, 10)}.txt`);
+  if ($('save-msg')) $('save-msg').textContent = '✔ Arquivo baixado.';
 }
 
-function showImport() {
+// slot: espaço que recebe o progresso (padrão: o aberto). Pelo menu principal dá para importar em qualquer espaço, sem abrir um jogo antes.
+function showImport(slot = Slots.cur) {
+  const x = Slots.info(slot);
   openDialog({
     title: '📂 Importar progresso',
     staticBody: true,
-    body: `<p class="event-text">Cole o código exportado ou escolha o arquivo <b>.txt</b>. <span class="bad-text">O progresso do espaço ${Slots.cur} (${escHtml(S.meta.player)}) será substituído.</span></p>
-      <textarea id="save-code" class="save-code" spellcheck="false" placeholder="UA1:..."></textarea>
-      <label class="file-pick"><input type="file" id="save-file" accept=".txt,text/plain"> 📄 Escolher arquivo</label>
-      <p id="save-msg" class="hint"></p>`,
+    // uma área só: clicar escolhe o arquivo, arrastar o arquivo para cima dela importa na hora
+    // (aceita também os .txt das versões antigas; colar o código com Ctrl+V funciona, sem aviso: útil para o save que vem no relatório de bug)
+    body: `<div id="imp-root"><p class="event-text">${x
+      ? `<span class="bad-text">O progresso do espaço ${slot} (${escHtml(x.name)}) será substituído.</span>`
+      : `O progresso vai para o <b>espaço ${slot}</b>, que está vazio.`}</p>
+      <label class="drop-zone" id="save-drop" tabindex="0"><input type="file" id="save-file" accept="${SAVE_EXT},.txt">
+        <span class="dz-ico">💾</span><b>Arraste o arquivo do save aqui</b><small>ou clique para escolher (arquivo ${SAVE_EXT})</small></label>
+      <p id="save-msg" class="hint"></p></div>`,
     onMount: () => {
-      $('save-code').focus();
-      $('save-file').onchange = e => {
-        const f = e.target.files[0];
-        if (!f) return;
-        f.text().then(t => { $('save-code').value = t.trim(); $('save-msg').textContent = `Arquivo "${f.name}" carregado. Clique em Importar.`; });
+      const dz = $('save-drop'), msg = h => { $('save-msg').innerHTML = h; };
+      const go = (code, from) => {
+        if (!String(code || '').trim()) { msg('<span class="bad-text">O arquivo está vazio.</span>'); return; }
+        try { msg(`Importando ${from}...`); importSave(code, slot); } catch (e) { msg(`<span class="bad-text">${e.message}</span>`); }
       };
+      const file = f => { if (f) f.text().then(t => go(t, `"${escHtml(f.name)}"`), () => msg('<span class="bad-text">Não deu para ler o arquivo.</span>')); };
+      $('save-file').onchange = e => file(e.target.files[0]);
+      dz.ondragover = e => { e.preventDefault(); dz.classList.add('over'); };
+      dz.ondragleave = () => dz.classList.remove('over');
+      dz.ondrop = e => { e.preventDefault(); dz.classList.remove('over'); file(e.dataTransfer.files[0]); };
+      // no elemento desta janela (o #dialog-body é reaproveitado pelas outras janelas)
+      $('imp-root').onpaste = e => { const t = e.clipboardData && e.clipboardData.getData('text'); if (t) { e.preventDefault(); go(t, 'o código colado'); } };
+      dz.focus();
     },
-    buttons: [{ label: 'Importar', cls: 'primary', keep: true, onClick: () => {
-      const code = $('save-code').value;
-      if (!code.trim()) { $('save-msg').innerHTML = '<span class="bad-text">Cole um código primeiro.</span>'; return; }
-      try { importSave(code); } catch (e) { $('save-msg').innerHTML = `<span class="bad-text">${e.message}</span>`; }
-    } }],
     cancel: 'Cancelar',
   });
 }

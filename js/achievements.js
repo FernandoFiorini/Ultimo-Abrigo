@@ -2,7 +2,8 @@
 
 function newStats() {
   return { kills: 0, bosses: 0, bloaters: 0, exps: 0, builds: 0, scav: 0, shots: 0, saved: 0, evacs: 0, airstrikes: 0, flawless: 0, bestWave: 0,
-    bk: {}, leapStops: 0, bloatFar: 0 };   // bk: chefes derrotados por tipo
+    bk: {}, leapStops: 0, bloatFar: 0,   // bk: chefes derrotados por tipo
+    time: 0, since: Date.now() };        // time: segundos com o jogo aberto na tela · since: quando o save começou (saves antigos: sem data)
 }
 let achT = 0;
 const stat = k => S.meta.stats[k];

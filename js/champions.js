@@ -1151,5 +1151,6 @@ const Champions = (() => {
   return {
     blank, cur, tag: () => tag, val, slow, fury, grant, gainXp, useActive, useSupreme, hordeTick, onTowerHit, onKill, onWaveEnd,
     render, buildUI, hudNope, buyFrag, fragBlock, fragPicker, look: k => heroLook(k), rank, xpNeed, addBox, openBox, rollBox, summon, isReady,
+    canRaise, raise,
   };
 })();

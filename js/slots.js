@@ -10,8 +10,18 @@ const Store = {
 const Slots = (() => {
   const PFX = 'ultimoAbrigo.slot', LAST = 'ultimoAbrigo.last', GRAVE = 'ultimoAbrigo.graveyard', AUTO = 'ultimoAbrigo.autoload';
   const ids = () => Array.from({ length: SLOT_COUNT }, (_, i) => i + 1);
-  const key = i => PFX + i;
-  const raw = i => { try { return localStorage.getItem(key(i)); } catch (e) { return null; } };
+  const key = i => PFX + i, bakKey = i => PFX + i + '.bak';
+  // o texto é um save que dá para abrir?
+  const valid = r => { try { const d = JSON.parse(r); return !!(d && typeof d === 'object' && d.meta && typeof d.survivors === 'number'); } catch (e) { return false; } };
+  // save do espaço; se estiver corrompido, a cópia de segurança
+  const raw = i => {
+    try {
+      const r = localStorage.getItem(key(i));
+      if (!r || valid(r)) return r;
+      const b = localStorage.getItem(bakKey(i));
+      return b && valid(b) ? b : r;
+    } catch (e) { return null; }
+  };
 
   // Save único das versões antigas vira o espaço 1
   function migrate() {
@@ -44,7 +54,7 @@ const Slots = (() => {
     dead: false,    // o save atual morreu no Apocalipse: nada mais é salvo
     ready: false,   // o jogo está rodando (antes disso não há o que salvar)
     death: null,    // resumo da última morte permanente, para a tela de fim
-    ids, key, migrate, info, rid,
+    ids, key, bakKey, valid, migrate, info, rid,
     list: () => ids().map(info),
     has: i => !!raw(i),
     firstFree: () => ids().find(i => !raw(i)) || null,
@@ -52,9 +62,11 @@ const Slots = (() => {
     setLast(i) { Store.set(LAST, i); },
     remove(i) {
       Store.del(key(i));
+      Store.del(bakKey(i));
       if (Store.get(LAST) === i) Store.del(LAST);
     },
-    write(i, state) { try { localStorage.setItem(key(i), JSON.stringify(state)); return true; } catch (e) { return false; } },
+    // jogo novo no espaço: a cópia de segurança do jogo antigo não vale mais
+    write(i, state) { try { localStorage.setItem(key(i), JSON.stringify(state)); Store.del(bakKey(i)); return true; } catch (e) { return false; } },
     // ids de saves mortos no Apocalipse: um código exportado antes da morte não ressuscita o save
     bury(id) { if (!id) return; const g = Store.get(GRAVE, []); if (!g.includes(id)) { g.push(id); Store.set(GRAVE, g.slice(-500)); } },
     buried: id => !!id && Store.get(GRAVE, []).includes(id),
