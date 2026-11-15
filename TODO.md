@@ -18,5 +18,8 @@ Ideias aprovadas para versões futuras, ainda não implementadas.
 - [ ] **Caixas à prova de exploração:** (1) **fixar a recompensa na hora em que a caixa cai** (hoje a sucata e a munição crescem com a onda em que ela é aberta: guardar caixas da onda 10 para abrir na 40 rende 4x); (2) **sortear o conteúdo ao cair** e guardar na caixa, para que exportar/importar o save não permita tentar de novo até sair ★★★ (a animação e os cliques só revelam); (3) se um dia as caixas forem vendidas, limitar o acúmulo (ex.: 20) e converter o excesso em 🏷️ Tampinhas.
 - [ ] **Caixas de heróis na loja:** vender caixas por cash (hoje só caem de chefes). Pensar preços, se vale vender só caixas de conteúdo garantido (se um dia o cash for vendido por dinheiro real, caixas com sorte têm regras legais em vários países) e como isso afeta o ritmo de liberar heróis.
 
+## Desenvolvimento
+- [ ] **Botão para reportar bug:** um botão (rodapé e Configurações) que abre uma janela para o jogador descrever o problema e anexa automaticamente um **snapshot do save** (o mesmo código do Exportar), a versão do jogo, a dificuldade, a onda, o navegador e as últimas linhas do registro. Pensar para onde vai o relatório (copiar para a área de transferência, baixar um arquivo ou enviar para um formulário/e-mail) e em não incluir dados pessoais além do nome do jogador.
+
 ## Balanceamento
 - [ ] **Bot mais completo:** expedições, pesquisa, evacuação, armas do líder e prestígio, para ajustar os desafios de prestígio, os dilemas, o comerciante, os talentos e a velocidade 2x.
