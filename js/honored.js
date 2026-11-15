@@ -22,14 +22,38 @@ const Honored = (() => {
     return true;
   }
 
+  // easter egg (campo "bug" em HONORED): a pessoa "acha um bug" e quebra a economia, que logo é refeita.
+  // Só de mentira: no fim sobra 1 sucata de consolação.
+  let bugT = 0, bugWho = null;
+  function speak(h, text) {
+    emit('say', { name: h.nome, text, fem: h.sexo === 'f', look: h.visual });
+    addLog(`💬 ${h.nome}: "${text}"`);
+  }
+  function startBug(h) {
+    speak(h, h.bug.antes);
+    addLog(`📈 ${h.nome} achou um jeito de duplicar sucata... a economia do abrigo quebrou completamente!`);
+    bugWho = h; bugT = 6;
+  }
+  function endBug() {
+    const h = bugWho; bugWho = null;
+    if (!h || !present().includes(h.nome)) return;
+    addLog(`🛠️ O desenvolvedor refez o código quase todo e a economia voltou ao normal. ${h.nome} ficou com 1 🔩 sucata de consolação.`);
+    S.res.sucata += 1;
+    speak(h, h.bug.depois);
+  }
+
   // de tempos em tempos, de dia ou de noite, alguém da lista que está no grupo fala
   function tick(dt) {
     if (!list().length || (typeof paused !== 'undefined' && paused)) return;
+    if (bugWho && (bugT -= dt) <= 0) endBug();
     wait -= dt;
     if (wait > 0) return;
     wait = rand(HONORED_GAP[0], HONORED_GAP[1]);
     const ps = present();
-    if (ps.length) say(pickOf(ps));
+    if (!ps.length) return;
+    const name = pickOf(ps), h = byName(name);
+    if (h.bug && !bugWho && Math.random() < h.bug.chance) startBug(h);
+    else say(name);
   }
 
   // a horda chegou: às vezes um deles grita a frase de horda

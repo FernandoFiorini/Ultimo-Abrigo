@@ -447,6 +447,20 @@ const HONORED = [
     horda: ['Eu nao quero batalhar contra eles, podem ir vocês!'],
     historia: 'Era enfermeira antes do apocalipse. Tinha um relacionamento com Fernando (outro sobrevivente), mas ele morreu. Ela não quer mais lutar, só quer jogar The Sims.'
   },
+  {
+    nome: 'Bernardo', sexo: 'm', visual: { skin: [80, 52, 36] },
+    frases: ['Preso no porão, como sempre.', 'Vou entrar pra jogar (on-line pela última vez 200 dias atrás).'],
+    horda: ['Preferia estar no porão, lá era mais seguro'],
+    historia: 'Era muito trabalhador antes do apocalipse: 12h de trabalho para 12min de descanso. Quando tinha tempo livre, era preso pela mulher no porão.'
+  },
+  {
+    nome: 'Roney', sexo: 'm',
+    frases: ['Sou muito bom com esse boneco.', 'O que eu jogo esse joguinho aqui, não tá escrito.'],
+    horda: ['Pode deixar que o paizinho toca aqui... *morreu para um zumbi*'],
+    historia: 'Era o melhor de todos no LoL antes do apocalipse (era o que achava).',
+    // easter egg (honored.js): ajudou a testar o jogo e quebrou a economia inteira, que teve de ser refeita
+    bug: { chance: 0.12, antes: 'Pera... se eu fizer isso aqui, a sucata não acaba nunca. 👀', depois: 'Ué, cadê? Juro que tava funcionando agora mesmo.' }
+  },
   // { nome: 'Fulana', sexo: 'f', frases: ['Primeira frase.', 'Segunda frase.'], horda: ['Lá vêm eles!'], adeus: ['Cuidem do abrigo por mim.'], visual: { hair: [200, 60, 130], longHair: true } },
 ];
 // ---------- airdrop no meio da horda (airdrop.js) ----------

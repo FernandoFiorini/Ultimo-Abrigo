@@ -24,4 +24,4 @@ Sem servidor, a data vem do relógio do aparelho (dá para adiantar): as recompe
 ## Desenvolvimento
 - [ ] **Testar o envio do Reportar bug:** a chave do Web3Forms já está no config.js; mandar um relatório de teste com um save grande e conferir se chega no e-mail.
 - [ ] **Contador de visitas:** criar o site em goatcounter.com e pôr o código em `GOATCOUNTER` (config.js).
-- [ ] **Antes do lançamento:** autorização dos homenageados, testar no Firefox/Edge/Safari (filtros visuais e áudio), uma partida completa até a Cura jogando, e `DEV_MODE = false`.
+- [ ] **Antes do lançamento:** testar no Firefox/Edge/Safari (filtros visuais e áudio), uma partida completa até a Cura jogando, e `DEV_MODE = false`.

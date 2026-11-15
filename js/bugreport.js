@@ -113,9 +113,8 @@ const BugReport = (() => {
           ${row('Navegador', I.navegador)}
           ${I.registro && I.registro.length ? `<dt>Registro</dt><dd>${I.registro.map(escHtml).join('<br>')}</dd>` : ''}
           ${I.erros ? `<dt>Erros</dt><dd>${I.erros.map(e => escHtml(e.split(' · ')[0])).join('<br>')}</dd>` : ''}
+          ${code ? row('Save', `💾 cópia do progresso (${kb} KB)`) : ''}
         </dl>
-        ${code ? `<details><summary>💾 Snapshot do save (${kb} KB)</summary>
-          <textarea class="save-code" readonly spellcheck="false">${code}</textarea></details>` : ''}
         ${hasKey ? '' : `<p class="hint">Para enviar: <b>baixe o relatório</b> e anexe o arquivo numa issue do GitHub (precisa de uma conta), ou copie e mande para quem cuida do jogo.</p>`}
         <p class="hint" id="bug-msg"></p>
         <span id="save-msg" hidden></span><textarea id="save-code" hidden></textarea>

@@ -247,6 +247,9 @@ Apocalipse, saves e vitória.
   - Os 12 heróis antigos continuam como **equipe de apoio**, com os mesmos bônus.
 
 - **Nova sobrevivente homenageada: Natalia**, enfermeira antes do apocalipse ("Né miguelzinho!" · "Vou jogar the sims agora."), sempre com **cabelo vermelho** comprido para reconhecer no cenário. Não quer mais lutar: na horda, manda os outros irem no lugar dela.
+- **Novo sobrevivente homenageado: Bernardo**, trabalhador incansável antes do apocalipse (12h de trabalho para 12min de descanso) que passava o tempo livre preso no porão pela mulher ("Preso no porão, como sempre." · "Vou entrar pra jogar (on-line pela última vez 200 dias atrás)."). Tem pele preta para reconhecer no cenário.
+- **Novo sobrevivente homenageado: Roney**, o melhor de todos no LoL antes do apocalipse (era o que achava) ("Sou muito bom com esse boneco." · "O que eu jogo esse joguinho aqui, não tá escrito."). Na horda, promete resolver tudo sozinho... e morre para um zumbi.
+  - **Easter egg:** de vez em quando o Roney "acha um jeito" de duplicar sucata e quebra a economia do abrigo; o desenvolvedor refaz o código quase todo e ele fica só com 1 sucata de consolação. Homenagem ao teste dele, que quebrou a economia de verdade.
 
 - **📺 Filtros visuais** (Configurações › 🎨 Visual): mudam o jeito da imagem do cenário e do menu, por cima do estilo escolhido. Valem para todos os saves deste navegador e são **liberados ao encontrar a Cura**: vencer numa dificuldade libera o filtro dela e os das menores.
   - 📺 **TV de tubo** (vença no 🌱 Fácil): linhas de TV antiga, cores mais vivas, cantos escurecidos.
