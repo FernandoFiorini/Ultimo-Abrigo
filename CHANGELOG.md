@@ -282,6 +282,10 @@ Apocalipse, saves e vitória.
 - **📊 Estatísticas no Códice** (atalho B): uma aba nova com os números do save, somando todas as cidades: **tempo jogado** (e nesta sessão), data em que o save começou, melhor onda, evacuações, zumbis abatidos (e abates por hora), chefes, tiros certeiros, vasculhadas, construções, expedições, pesquisas, vidas salvas, perdidos, e a coleção (conquistas, heróis, skins, pets, bestiário, glossário e memórias). Também mostra os 3 inimigos que você mais abateu.
   - O tempo jogado conta enquanto o jogo está aberto na tela, a partir desta versão. Saves antigos não têm a data de início.
 
+- **🎯 Dano por parte do corpo** nas armas de bala do líder (pistola, espingarda, rifle e submetralhadora): tiro na **cabeça** dá **150%** do dano, no **tronco 75%** e na **perna 30%**. A cabeça ocupa a parte de cima do boneco, 15% maior do que a área de cabeça usada antes contra o Policial blindado. Cada acerto na cabeça mostra um **HEADSHOT!** amarelo (inclusive no blindado, que continua só sentindo tiro na cabeça), e a regra entra no Glossário do Códice no primeiro acerto. Granada, foguete, lança-chamas, guardas e torres não mudam.
+
+- **O muro muda de visual conforme o nível** do Muro reforçado: 🪵 **Barricada de madeira** (nível 0), **Madeira reforçada com chapas** (2), **Sacos de areia e arame**, com estacas na frente (4), **Muro de concreto**, com vigas de aço e vergalhões no topo (7), e **Muralha de aço** rebitada, com faixa de alerta e luz vermelha piscando (10). A construção mostra o visual atual e em que nível ele muda.
+
 ## 1.06.000
 
 Quando o muro cai.

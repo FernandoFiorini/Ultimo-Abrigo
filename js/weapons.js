@@ -232,6 +232,14 @@ const Weapons = (() => {
     return best;
   }
 
+  // parte do corpo na altura do tiro: o boneco tem ~21 px (×escala) dos pés para cima
+  function bodyZone(z, py) {
+    const s = zsc(z), feet = z.y - (z.lift || 0), h = 21 * s;
+    if (py < feet - h * (1 - BODY_ZONES.head)) return 'head';
+    if (py > feet - h * BODY_ZONES.legs) return 'legs';
+    return 'torso';
+  }
+
   const dbg = f => typeof Debug !== 'undefined' && Debug.flags[f];
   const baseDmg = k => dbg('maxDmg') ? 1e9 : stat(k).dmg * (1 + 0.2 * perk('mira')) * (furia() ? 2 : 1) * Endgame.mult('dmg') * (1 + Endgame.ab('leader'));
 
@@ -255,9 +263,14 @@ const Weapons = (() => {
         if (!z) continue;
         hits++;
         // espingarda: perde força com a distância do muro
-        const d = w.falloff ? dmg * Math.max(0.25, 1 - 0.75 * Math.max(0, z.x - WORLD.WALL_X) / st.range) : dmg;
-        // a cabeça fica no topo do boneco (só faz diferença contra o blindado)
-        Endgame.hit(z, d, 'player', { head: py < z.y - (z.lift || 0) - 12.5 * zsc(z) });
+        const far0 = w.falloff ? Math.max(0.25, 1 - 0.75 * Math.max(0, z.x - WORLD.WALL_X) / st.range) : 1;
+        // onde pegou: cabeça (dano cheio + 50%), tronco ou perna. O blindado só sente na cabeça (Endgame.hit)
+        const part = bodyZone(z, py);
+        if (part === 'head' && !ZTYPES[z.type].armor) {
+          emit('headshot', { x: z.x, y: zy(z) - 7 * zsc(z), src: 'player' });
+          Codex.discover('body_zones');
+        }
+        Endgame.hit(z, dmg * far0 * BODY_ZONES.mult[part], 'player', { head: part === 'head' });
         if (st.pierce) {
           // atravessa os zumbis atrás, na mesma faixa, até o limite do alcance
           const behind = S.horde.zs.filter(o => !o.dead && o !== z && o.x > z.x && o.x <= far && o.x - z.x < 90 && Math.abs(o.y - z.y) < 10)

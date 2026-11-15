@@ -55,6 +55,7 @@ const Codex = (() => {
     burn_split: { icon: '✂️', title: 'Divisão queimada', text: 'Hospedeiro Gigante ou Broto que morre queimando não se divide.' },
     bullet_gosma: { icon: '🫧', title: 'Balas × Gosma', text: 'As balas afundam na gelatina: só 30% do dano. Pedras dos guardas também.' },
     fire_gosma: { icon: '🔥', title: 'Fogo × Gosma', text: 'O fogo derrete a Gosma: dano triplo.' },
+    body_zones: { icon: '🎯', title: 'Mire na cabeça', text: 'Pistola, espingarda, rifle e submetralhadora: tiro na cabeça dá 150% do dano, no tronco 75% e na perna 30%.' },
     head_blindado: { icon: '🪖', title: 'Na cabeça', text: 'O Policial blindado só leva dano cheio com tiro na cabeça. No corpo, a bala ricocheteia.' },
     weak_carcaca: { icon: '🦴', title: 'Tumor aberto', text: 'A Carcaça só leva dano de verdade com o tumor aberto, e aí leva dano extra.' },
     rocket_rolador: { icon: '🚀', title: 'Foguete × Rolador', text: 'O foguete da bazuca fere o Rolador mesmo rolando, quando as balas ricocheteiam.' },

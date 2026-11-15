@@ -348,7 +348,10 @@ const PERKS = {
 
 // Efeito total de cada nível (mostrado no registro e no painel)
 const BUILD_FX = {
-  muro: lv => `muro com ${fmt(maxWall())} de resistência máxima`,
+  muro: lv => {
+    const t = wallTier(lv), nx = WALL_LOOKS[t + 1];
+    return `muro com ${fmt(maxWall())} de resistência máxima · visual: ${WALL_LOOKS[t].nome}${nx ? ` (muda no nível ${nx.lvl})` : ''}`;
+  },
   horta: lv => `+${25 * lv}% de produção de comida`,
   oficina: lv => `+${25 * lv}% de produção de sucata`,
   beliche: lv => `${maxSurv()} vagas para sobreviventes`,
@@ -431,7 +434,7 @@ const HONORED = [
   },
   {
     nome: 'Nardi', sexo: 'm', roupa: 'bombeiro',
-    frases: ['Só na loucura!'],
+    frases: ['Só na loucura!, "Joguinho de lambari", "Joguinho de 6 itens"'],
     horda: ['Só na loucura! Bora pro muro!'],
     historia: 'Era bombeiro antes do apocalipse. Já entrou em prédio pegando fogo para tirar gente lá de dentro; zumbi nenhum vai fazê-lo recuar.'
   },
@@ -461,6 +464,12 @@ const HONORED = [
     // easter egg (honored.js): ajudou a testar o jogo e quebrou a economia inteira, que teve de ser refeita
     bug: { chance: 0.12, antes: 'Pera... se eu fizer isso aqui, a sucata não acaba nunca. 👀', depois: 'Ué, cadê? Juro que tava funcionando agora mesmo.' }
   },
+  {
+    nome: 'Pig', sexo: 'm',
+    frases: ['Jogador assiduo de aram, aqui joga não adianta!', 'O que eu jogo esse joguinho aqui, não tá escrito.'],
+    horda: ['Será que dá pra ultar de *mordekaiser* esses zumbis?'],
+    historia: 'Era jogador de aram antes do apocalipse. Depois também, mordekaiser e Dr.mundo sua paixão.'
+  }
   // { nome: 'Fulana', sexo: 'f', frases: ['Primeira frase.', 'Segunda frase.'], horda: ['Lá vêm eles!'], adeus: ['Cuidem do abrigo por mim.'], visual: { hair: [200, 60, 130], longHair: true } },
 ];
 // ---------- airdrop no meio da horda (airdrop.js) ----------
@@ -521,6 +530,18 @@ const LWEAPONS = {
   },
 };
 const LW_MAX_LVL = 5, LW_UP_MULT = 1.7;
+// Dano por parte do corpo nas armas de bala do líder (pistola, espingarda, rifle, submetralhadora).
+// head: fração do boneco, a partir do topo, que conta como cabeça (40% ampliados em 15%) · legs: fração de baixo que conta como perna
+// Visual do muro conforme o nível (scene.js, drawWall): lvl = nível mínimo do Muro reforçado
+const WALL_LOOKS = [
+  { lvl: 0, nome: 'Barricada de madeira' },
+  { lvl: 2, nome: 'Madeira reforçada com chapas' },
+  { lvl: 4, nome: 'Sacos de areia e arame' },
+  { lvl: 7, nome: 'Muro de concreto' },
+  { lvl: 10, nome: 'Muralha de aço' },
+];
+const wallTier = (lv = S.build.muro) => WALL_LOOKS.reduce((t, w, i) => (lv >= w.lvl ? i : t), 0);
+const BODY_ZONES = { head: 0.46, legs: 0.30, mult: { head: 1.5, torso: 0.75, legs: 0.3 } };
 const LW_KEYS = ['Q', 'W', 'E'];   // até 3 armas por noite (R recarrega durante a horda; de dia, recruta)
 // Munição especial da bazuca, do lança-granadas e do lança-chamas: não vem do abrigo e é rara de propósito.
 // Fica no metajogo (não se perde ao evacuar). max: quanto dá para guardar (para munição por tiro, contando o que está carregado)

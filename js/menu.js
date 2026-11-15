@@ -558,7 +558,7 @@ const Menu = (() => {
           
           <p><b>Agradecimentos</b><br>A todos que testaram, deram ideias e sobreviveram mais uma noite.${HALL_OF_FAME.length ? `<br>E às lendas do Hall da Fama: ${HALL_OF_FAME.map(w => escHtml(w.n)).join(', ')}.` : ''}</p>
 
-          <p class="thanks"><b>Agradecimento especial</b><br><span class="thanks-names">Erik · Roney · Valde · Natalia</span><br>que ajudaram a testar e a desenvolver as funcionalidades do jogo.</p>
+          <p class="thanks"><b>Agradecimento especial</b><br><span class="thanks-names">Erik · Roney · Valde · Natalia · Pig</span><br>que ajudaram a testar e a desenvolver as funcionalidades do jogo.</p>
 
           <p><a href="${REPO_URL}" target="_blank" rel="noopener">Código-fonte no GitHub</a></p>
           <p class="hint">v${VERSION}</p>

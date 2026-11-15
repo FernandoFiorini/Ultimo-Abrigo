@@ -888,7 +888,7 @@ const Scene = (() => {
         break;
       case 'headshot':
         sparks(d.x - 2, d.y);
-        texts.push({ x: d.x + rand(-3, 3), y: d.y - 8, t: 'NA CABEÇA!', c: '#ffe066', life: 0.8 });
+        texts.push({ x: d.x + rand(-3, 3), y: d.y - 8, t: 'HEADSHOT!', c: '#ffe066', life: 0.8 });
         break;
       case 'dangerWarn':
         alert = { t: d.t, icon: d.icon, nome: d.nome };
@@ -1717,19 +1717,60 @@ const Scene = (() => {
     const hp = S.wallHp / maxWall(), broken = S.wallHp <= 0;
     const r = seeded(99);
 
-    rect([70, 50, 32], x, top - 4, 2, bottom - top + 4);
-    rect([70, 50, 32], x + 8, top - 2, 2, bottom - top + 2);
+    // o visual muda com o nível do muro (WALL_LOOKS): madeira → reforçado → sacos de areia → concreto → aço
+    const tier = wallTier();
+    // postes: madeira até o reforçado, vigas de aço depois
+    const post = tier >= 3 ? [88, 92, 100] : [70, 50, 32];
+    rect(post, x, top - 4, 2, bottom - top + 4);
+    rect(post, x + 8, top - 2, 2, bottom - top + 2);
+    const sandTop = tier >= 2 ? bottom - 15 : bottom;   // faixa de sacos de areia na base
     for (let y = top, row = 0; y < bottom; y += 5, row++) {
       const miss = r();
       if (broken && y < 178 && miss < 0.8) continue;
       if (!broken && hp < 0.4 && miss < 0.4 - hp) continue;
-      rect(row % 2 ? [128, 92, 56] : [112, 80, 48], x - 1, y, 12, 4);
-      rect([70, 50, 30], x + 1 + (row % 3) * 3, y + 1, 1, 1);
+      if (y >= sandTop) {   // sacos de areia, um pouco mais largos que o muro
+        rect(row % 2 ? [176, 156, 112] : [160, 140, 98], x - 3, y, 16, 4);
+        rect([120, 104, 72], x + 2 + (row % 2) * 3, y, 1, 4);
+        rect([196, 178, 134], x - 2, y, 14, 1);
+      } else if (tier >= 4) {   // chapas de aço rebitadas, com uma faixa de alerta no meio
+        rect(row % 2 ? [104, 112, 122] : [92, 100, 110], x - 1, y, 12, 4);
+        rect([140, 148, 158], x - 1, y, 12, 1);
+        rect([60, 64, 72], x, y + 2, 1, 1); rect([60, 64, 72], x + 9, y + 2, 1, 1);
+        if (row === 3) for (let k = 0; k < 12; k += 3) rect(k % 6 ? [30, 30, 30] : [230, 190, 40], x - 1 + k, y + 1, 3, 2);
+      } else if (tier === 3) {   // blocos de concreto desencontrados
+        rect(row % 2 ? [150, 150, 146] : [138, 138, 134], x - 1, y, 12, 4);
+        rect([96, 96, 94], x - 1 + (row % 2 ? 3 : 7), y, 1, 4);
+        rect([170, 170, 166], x - 1, y, 12, 1);
+      } else {   // tábuas de madeira
+        rect(row % 2 ? [128, 92, 56] : [112, 80, 48], x - 1, y, 12, 4);
+        rect([70, 50, 30], x + 1 + (row % 3) * 3, y + 1, 1, 1);
+      }
     }
-    if (lvl >= 2 && !broken) rect([110, 115, 120], x + 2, top + 6, 6, 10);
-    if (lvl >= 4 && !broken) rect([100, 104, 110], x + 2, top + 24, 6, 12);
-    for (let i = 0; i < 4; i++) rect([170, 150, 110], x - 3 + (i % 2) * 7, 188 - Math.floor(i / 2) * 4, 7, 4);
-    if (!broken) for (let k = 0; k < 12; k += 2) rect([160, 160, 160], x - 1 + k, top - 2 + (k % 4 ? 1 : 0), 1, 1);
+    if (!broken) {
+      // remendos de chapa (reforçado e sacos de areia)
+      if (tier === 1 || tier === 2) {
+        rect([110, 115, 120], x + 2, top + 6, 6, 10); rect([150, 155, 160], x + 2, top + 6, 6, 1);
+        rect([70, 72, 76], x + 3, top + 8, 1, 1); rect([70, 72, 76], x + 6, top + 13, 1, 1);
+      }
+      if (tier === 2) { rect([100, 104, 110], x + 2, top + 22, 6, 9); rect([140, 144, 150], x + 2, top + 22, 6, 1); }
+      // concreto: ferros de vergalhão saindo do topo
+      if (tier === 3) for (let k = 1; k < 11; k += 3) rect([120, 70, 50], x - 1 + k, top - 4 + (k % 2), 1, 4);
+      // aço: luz de alerta piscando no topo do poste
+      if (tier >= 4) {
+        const on = Math.sin(time * 4) > 0;
+        rect(on ? [255, 70, 50] : [120, 30, 24], x, top - 7, 2, 2);
+        if (on) light(x + 1, top - 6, 9, '255,70,50', 0.35);
+      }
+      // arame no topo: farpado simples até o reforçado, concertina (em espiral) a partir dos sacos de areia
+      if (tier >= 2) {
+        for (let k = 0; k < 14; k++) rect([175, 175, 180], x - 2 + k, top - 3 + Math.round(Math.sin(k * 1.4) * 1.5), 1, 1);
+        for (let k = 0; k < 14; k += 2) rect([120, 120, 126], x - 2 + k, top - 3 + Math.round(Math.cos(k * 1.4) * 1.5), 1, 1);
+      } else if (tier === 1) for (let k = 0; k < 12; k += 2) rect([160, 160, 160], x - 1 + k, top - 2 + (k % 4 ? 1 : 0), 1, 1);
+    }
+    // estacas na frente do muro (sacos de areia em diante)
+    if (tier >= 2) for (let i = 0; i < 3; i++) { const sx = x + 15 + i * 5; rect([96, 70, 42], sx, 188 - i % 2, 1, 7); rect([96, 70, 42], sx + 1, 186 - i % 2, 1, 2); }
+    else for (let i = 0; i < 4; i++) rect([170, 150, 110], x - 3 + (i % 2) * 7, 188 - Math.floor(i / 2) * 4, 7, 4);
+    if (!broken && tier === 0) for (let k = 0; k < 12; k += 2) rect([160, 160, 160], x - 1 + k, top - 2 + (k % 4 ? 1 : 0), 1, 1);
     if (!broken && hp < 0.75) {
       const n = Math.floor((0.75 - hp) * 30);
       for (let i = 0; i < n; i++) rect([40, 28, 18], x + r() * 9, top + r() * (bottom - top), 1, 2 + r() * 3);
