@@ -202,7 +202,13 @@ function renderTabs() {
     t.hidden = !open[i];
     t.classList.toggle('is-new', open[i] && Unlocks.isNew(t.dataset.tab));
     t.querySelector('.hk').textContent = open[i] ? `(${++n})` : '';
+    // o nome aparece ao passar o mouse (no modo compacto ele some da aba)
+    t.title = open[i] ? `${t.querySelector('.tab-name').textContent} (${n})` : '';
   });
+  // a partir da 5ª aba: todas numa linha só, com ícone e contador (sem o nome)
+  const nav = document.querySelector('.side > .tabs');
+  nav.classList.toggle('compact', n > 4);
+  nav.style.setProperty('--tabs', Math.max(4, n));
   // sub-aba de distritos (aba Cidade) só a partir da onda dela
   const dist = document.querySelector('#city-tabs .subtab[data-sub="mapa"]');
   if (dist) {
@@ -295,7 +301,7 @@ function render() {
     let now = '';
     if (SHOP[k].secs) {
       const g = timeGain(SHOP[k].secs);
-      now = 'Você receberia: ' + (Object.keys(g).filter(r => g[r] >= 1).map(r => `+${fmt(g[r])} ${RES[r].icon}`).join(' ') || 'nada (sem produção)');
+      now = 'Você receberia: ' + (Object.keys(g).filter(r => g[r] >= 1).map(r => nbsp(`+${fmt(g[r])} ${RES[r].icon}`)).join(' ') || 'nada (sem produção)');
     } else if (k === 'prod2x' && B.prod > 0) now = `Ativo: ${fmtClock(B.prod)} restantes`;
     else if (k === 'furia' && B.furia > 0) now = `Ativo: ${fmtClock(B.furia)} restantes`;
     else if (block && block !== 'Cash insuficiente') now = block;
@@ -303,7 +309,7 @@ function render() {
   }
   $('rr-hope').textContent = S.meta.hopeTotal ? `+${hopePct()}% prod.` : '';
 
-  let info = `<b>${S.survivors}</b> / ${maxSurv()} sobreviventes · ${idle() > 0 ? `<b class="idle-warn">${idle()} ocioso(s): dê uma função</b>` : '<b>0</b> ociosos'}`;
+  let info = keepSegs(`<b>${S.survivors}</b> / ${maxSurv()} sobreviventes`) + '<br>' + keepSegs(`${idle() > 0 ? `<b class="idle-warn">${idle()} ocioso(s): dê uma função</b>` : '<b>0</b> ociosos'}`);
   if (away()) info += ` · <b>${away()}</b> em expedição`;
   if (Endgame.tl('autofuncao')) info += heldIdle() > 0
     ? `<br>📋 Distribuição automática: os ${heldIdle()} ocioso(s) que você liberou ficam parados até você dar uma função`
@@ -319,8 +325,8 @@ function render() {
   const sc = Math.floor(S.scav ?? scavMax()), sm = scavMax();
   const pips = `<span class="scav-pips" title="Fôlego do líder: ${sc}/${sm} cargas. Volta 1 a cada ${scavRegen()}s.">${'<i class="on"></i>'.repeat(sc)}${'<i></i>'.repeat(Math.max(0, sm - sc))}</span>`;
   setHtml($('btn-scavenge'), (night ? '🌙 Vasculhar: só de dia'
-    : sc < 1 ? `😮‍💨 Recuperando o fôlego… ${pips}`
-    : `🔍 Vasculhar ${pips} · +${fmt(sg.comida)} 🥫 +${fmt(sg.sucata)} 🔩`) + ' ' + hk('V'));
+    : sc < 1 ? `😮‍💨 Sem fôlego…${pips}`
+    : `🔍 Vasculhar · ${nbsp(`+${fmt(sg.comida)} 🥫 +${fmt(sg.sucata)} 🔩`)}${pips}`) + ' ' + hk('V'));
   $('btn-scavenge').disabled = night || sc < 1;
   $('btn-scavenge').style.setProperty('--scav', sc >= sm ? '0%' : `${Math.min(100, (S.scavT || 0) / scavRegen() * 100)}%`);
 
@@ -394,18 +400,18 @@ function render() {
     <div class="stat"><span>🧱 Muro</span><span title="${exact(Math.ceil(S.wallHp))} / ${exact(maxWall())}">${fmt(Math.ceil(S.wallHp))} / ${fmt(maxWall())}</span></div>
     <div class="bar ${wallPct < 30 ? 'low' : ''}"><div style="width:${wallPct}%"></div></div>
     ${(() => {
-      const towers = Object.keys(TOWERS).filter(k => S.build[k]), score = `<span>☠ ${fmt(S.kills)} · 🏆 onda ${S.best}</span>`;
+      const towers = Object.keys(TOWERS).filter(k => S.build[k]), score = `<div class="stat"><span>☠ Abates · 🏆 Recorde</span><span>${keepSegs(`${fmt(S.kills)} · onda ${S.best}`)}</span></div>`;
       // antes dos guardas e das torres, a defesa é só o líder
-      if (!S.jobs.guarda && !towers.length) return `<div class="stat"><span>🎯 ${Unlocks.job('guarda') ? 'Sem guardas: só você defende' : 'Por enquanto, a defesa é você'}</span>${score}</div>`;
-      const parts = [S.jobs.guarda ? `🛡️ ${S.jobs.guarda} guarda${S.jobs.guarda > 1 ? 's' : ''}` : '', towers.length ? `${towers.map(k => `${BUILD[k].icon} ${towerStat(k).crew}`).join(' ')} nas torres` : ''].filter(Boolean);
+      if (!S.jobs.guarda && !towers.length) return `<div class="stat"><span>🎯 ${Unlocks.job('guarda') ? 'Sem guardas: só você defende' : 'Por enquanto, a defesa é você'}</span></div>${score}`;
+      const parts = [S.jobs.guarda ? `${S.jobs.guarda} guarda${S.jobs.guarda > 1 ? 's' : ''}` : '', towers.length ? `${towers.map(k => `${BUILD[k].icon}${towerStat(k).crew}`).join(' ')} nas torres` : ''].filter(Boolean);
       const acc = [S.jobs.guarda ? `guardas ${Math.round(accuracy('guard') * 100)}%` : '', towers.length ? `torres ${Math.round(accuracy('tower') * 100)}%` : ''].filter(Boolean);
-      return `<div class="stat"><span>${parts.join(' · ')}</span>${score}</div>
-        <div class="stat" title="Chance de acerto. Melhora com Treinamento de tiro, a pesquisa Miras ópticas, o talento Boa mira e o herói Atirador. Tiro errado também gasta munição."><span>🎯 Precisão</span><span>${acc.join(' · ')}</span></div>`;
+      return `<div class="stat"><span>🛡️ Defesa</span><span>${keepSegs(parts.join(' · '))}</span></div>${score}
+        <div class="stat" title="Chance de acerto. Melhora com Treinamento de tiro, a pesquisa Miras ópticas, o talento Boa mira e o herói Atirador. Tiro errado também gasta munição."><span>🎯 Precisão</span><span>${keepSegs(acc.join(' · '))}</span></div>`;
     })()}
     ${S.jobs.guarda ? `<div class="stat" title="Cada tiro cansa os guardas; entre as hordas eles descansam. Cansados, atiram mais devagar e erram mais. Ajudam: mais guardas (o cansaço se divide), o Alojamento e a pesquisa Turnos de vigia."><span>😓 Cansaço dos guardas</span><span class="${S.fatigue > 0.5 ? 'warn-text' : ''}">${Math.round((S.fatigue || 0) * 100)}% · cadência ${Math.round(guardFire() * 100)}%</span></div>` : ''}
     ${towerLevels() ? (() => {
       const up = upkeepTotal(), bad = S.horde.active ? (S.horde.unpaid || []).length > 0 : !canAfford(up);
-      return `<div class="stat" title="Cobrada no começo de cada horda. Torre sem manutenção atira na metade da velocidade naquela horda."><span>🔧 Manutenção das torres</span><span class="${bad ? 'warn-text' : ''}">${S.horde.active && bad ? 'não paga: torres mais lentas' : Object.entries(up).map(([r, v]) => `${fmt(v)} ${RES[r].icon}`).join(' + ') + ' por horda'}</span></div>`;
+      return `<div class="stat" title="Cobrada no começo de cada horda. Torre sem manutenção atira na metade da velocidade naquela horda."><span>🔧 Manutenção das torres</span><span class="${bad ? 'warn-text' : ''}">${S.horde.active && bad ? 'não paga: torres mais lentas' : nbsp(Object.entries(up).map(([r, v]) => `${fmt(v)} ${RES[r].icon}`).join(' + ') + ' por horda')}</span></div>`;
     })() : ''}`;
 
   setHtml($('btn-repair'), `🔨 Reparar muro · ${RES.sucata.icon} ${fmt(REPAIR_COST)} ${hk('C')}`);
@@ -428,7 +434,7 @@ function render() {
     } else {
       const loot = Object.entries(L.loot).map(([r, [a, b]]) =>
         `${RES[r].icon} ${fmt(a * n * scale)}–${fmt(b * n * scale)}`).join(' ');
-      $('ed-' + k).innerHTML = `⏱ ${fmtTime(L.dur)} · ☠ ${Math.round(expRisk(k) * 100)}% por pessoa · ${loot}`;
+      $('ed-' + k).innerHTML = keepSegs(`⏱ ${fmtTime(L.dur)} · ☠ ${Math.round(expRisk(k) * 100)}% por pessoa · ${loot}`);
     }
     $('es-' + k).disabled = locked || n <= L.min;
     $('ea-' + k).disabled = locked || n >= idle();
@@ -506,16 +512,28 @@ function render() {
   }
 }
 
+// Uma informação por linha, curta o bastante para caber no cartão; [texto, dica ao passar o mouse]
 function diffStats(k) {
   const d = DIFFS[k], pct = v => (v >= 1 ? '+' : '') + Math.round((v - 1) * 100) + '%';
+  const num = v => String(v).replace('.', ',');
+  const sc = d.scav || [SCAV_CHARGES, SCAV_REGEN];
   return [
-    `🧟 Hordas ${pct(d.count)} · crescem ${Math.round((d.grow - 1) * 100)}%/onda`,
-    `❤️ Vida dos zumbis ${pct(d.hp)} · dano ${pct(d.dmg)}`,
-    `⏱ ${d.interval}s entre hordas · 🥫 consumo ${d.food.toLocaleString('pt-BR')}/s por pessoa`,
-    `🏭 Produção ${pct(d.prod)}`,
-    `✨ Esperança ×${fmt(d.hope)} · 👹 Chefe 💵 ${d.bossCash}` + (d.loot ? ` · 🎒 saque ×${fmt(d.loot)}` : ''),
-    d.dayOnly ? `🌙 Recrutar e vasculhar só de dia · 🧍 até ${d.recruitDay} recruta${d.recruitDay > 1 ? 's' : ''} por dia` : '🧍 Recrutar e vasculhar a qualquer hora, sem limite',
-    ...(d.permadeath ? ['<b class="bad-text">💀 Morte permanente: se o abrigo cair, o save é apagado</b>'] : []),
+    [`🧟 Hordas ${pct(d.count)}`, 'Tamanho das hordas'],
+    [`📈 +${num(Math.round((d.grow - 1) * 1000) / 10)}% por onda`, 'Quanto cada horda cresce em relação à anterior'],
+    [`❤️ Vida dos zumbis ${pct(d.hp)}`],
+    [`💥 Dano no muro ${pct(d.dmg)}`],
+    [`⏱ ${d.interval}s entre hordas`],
+    [`🥫 Consumo ${num(d.food)}/s`, 'Comida por pessoa, por segundo'],
+    [`🏭 Produção ${pct(d.prod)}`],
+    [`✨ Esperança ×${fmt(d.hope)}`, 'Esperança ganha ao evacuar'],
+    [`👹 Chefe 💵 ${d.bossCash}`, 'Cash por chefe abatido'],
+    ...(d.loot ? [[`🎒 Saque ×${fmt(d.loot)}`, 'Saque das expedições']] : []),
+    d.dayOnly ? [`🌙 Recrutar só de dia`, 'Recrutar e vasculhar só de dia, entre as hordas'] : [`🌙 Recrutar a qualquer hora`, 'Recrutar e vasculhar a qualquer hora, sem limite'],
+    ...(d.recruitDay ? [[`🧍 ${d.recruitDay} recruta${d.recruitDay > 1 ? 's' : ''} por dia`, 'Recrutamentos com comida por dia (volta a cada horda vencida)']] : []),
+    [`🔍 ${sc[0]} cargas · ${num(sc[1])}s`, `Vasculhar: ${sc[0]} cargas de fôlego, 1 volta a cada ${num(sc[1])}s`],
+    ...(d.surge ? [[`⚡ <b>Começo brutal</b>`, `A 1ª noite tem +${Math.round(d.surge * 100)}% de zumbis e +${Math.round(d.surgeHp * 100)}% de vida; o peso extra diminui a cada noite`]] : []),
+    ...(d.firstDay ? [[`🌅 1º dia de ${d.firstDay}s`, 'Primeiro dia mais longo para planejar a defesa']] : []),
+    ...(d.permadeath ? [['<b class="bad-text">💀 Morte permanente</b>', 'Se o abrigo cair, o save é apagado']] : []),
   ];
 }
 
@@ -528,12 +546,36 @@ function diffCardsHtml(cur, min = 0, only = null) {
     <button class="diff-card ${cur === k ? 'current' : ''} ${d.permadeath ? 'perma' : ''}" data-diff="${k}" style="--c:${d.color}" ${locked ? 'disabled' : ''}>
       <div class="diff-name">${d.icon} ${d.nome}</div>
       <div class="diff-desc">${d.desc}</div>
-      <ul>${diffStats(k).map(s => `<li>${s}</li>`).join('')}</ul>
+      <ul>${diffStats(k).map(([s, tip]) => `<li${tip ? ` title="${tip}"` : ''}>${s}</li>`).join('')}</ul>
       ${locked ? '<div class="diff-lock">🔒 Este save já jogou numa dificuldade maior</div>' : ''}
     </button>`;
   }).join('');
 }
-const PERMA_WARN = 'Atenção: no Apocalipse a morte é permanente. Se todos morrerem, este save será APAGADO, sem volta. O save também nunca mais poderá voltar para uma dificuldade menor. Continuar?';
+// Confirmação na janela do próprio jogo (por cima do menu e do seletor de dificuldade), no lugar do confirm() do navegador.
+// Enter confirma, Esc cancela. danger: botão de confirmar em vermelho.
+function askConfirm({ title, body, ok = 'Confirmar', cancel = 'Cancelar', danger = false }, onYes) {
+  const d = openDialog({ title, body, staticBody: true, plain: true, cancel,
+    buttons: [{ label: ok, cls: danger ? 'danger-solid' : 'primary', onClick: () => setTimeout(onYes) }] });
+  $('dialog').classList.add('over-menu');
+  const key = e => {
+    if (!d.open) { document.removeEventListener('keydown', key, true); return; }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); d.close(); }
+    else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); d.close(true); setTimeout(onYes); }
+  };
+  document.addEventListener('keydown', key, true);
+  return d;
+}
+// Aviso antes de jogar no Apocalipse (novo jogo ou trocar de dificuldade)
+const PERMA_CONFIRM = {
+  title: '<span style="color:var(--bad)">🔥 Jogar no Apocalipse?</span>',
+  body: `<p class="event-text"><b style="color:var(--bad)">Se você perder, o save será excluído.</b> Tem certeza de que quer começar no Apocalipse?</p>
+    <ul class="win-list">
+      <li>💀 <b>Morte permanente:</b> se o abrigo cair e todos morrerem, o save é <b>apagado, sem volta</b> (vale também durante o progresso offline).</li>
+      <li>🔒 O save nunca mais poderá voltar para uma dificuldade menor.</li>
+      <li>📤 Saves do Apocalipse não podem ser exportados.</li>
+    </ul>`,
+  ok: '🔥 Sim, jogar no Apocalipse', cancel: 'Voltar', danger: true,
+};
 
 // only: a dificuldade fica travada nessa (evacuar e Novo Mundo mantêm a do save; o cartão só confirma)
 function chooseDifficulty({ title, sub, cancel, onPick, only = null }) {
@@ -552,13 +594,16 @@ function chooseDifficulty({ title, sub, cancel, onPick, only = null }) {
     b.onclick = () => {
       const k = b.dataset.diff;
       if (diffRank(k) < min || (only && k !== only)) return;
-      if (DIFFS[k].permadeath && !(S && D().permadeath) && !confirm(PERMA_WARN)) return;
-      close();
-      onPick(k);
-      S.meta.diffChosen = true;
-      S.meta.minDiff = Math.max(S.meta.minDiff || 0, diffRank(S.diff));
-      save();
-      render();
+      const pickIt = () => {
+        close();
+        onPick(k);
+        S.meta.diffChosen = true;
+        S.meta.minDiff = Math.max(S.meta.minDiff || 0, diffRank(S.diff));
+        save();
+        render();
+      };
+      if (DIFFS[k].permadeath && !(S && D().permadeath)) askConfirm(PERMA_CONFIRM, pickIt);
+      else pickIt();
     };
   });
   modal.classList.remove('hidden');

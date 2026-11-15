@@ -57,7 +57,7 @@ const Weapons = (() => {
       const A = SPECIAL_AMMO[w.special];
       out.push(`${A.tank ? `1 ${A.icon} ${A.nome} por carga` : `1 ${A.icon} ${A.nome} por tiro`} (você tem ${spec(w.special)}/${A.max})`);
     } else out.push(s.use ? `${fmt(s.use)} 🔫 por tiro` : 'não gasta munição');
-    return out.join(' · ');
+    return keepSegs(out.join(' · '));
   };
   // Quantos tiros (ou disparos) derrubam um zumbi comum na onda atual, com todos os bônus
   function shotsToKill(k) {

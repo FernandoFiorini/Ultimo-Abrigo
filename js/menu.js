@@ -305,7 +305,11 @@ const MenuScene = (() => {
     zs = [];
     for (let i = 0; i < Math.max(4, W / 55); i++) zs.push({ x: rnd(SX() + 60, W + 120), sp: rnd(2.5, 6), ph: Math.random() * 6, h: rnd(7, 9) | 0 });
     ash = []; for (let i = 0; i < W * H / 500; i++) ash.push({ x: rnd(0, W), y: rnd(0, H), v: rnd(4, 10), d: rnd(-3, 3) });
-    // o seu personagem, desenhado pela cena do jogo, em pé no telhado
+    makeLeader();
+    built = true;
+  }
+  // o seu personagem, desenhado pela cena do jogo, em pé no telhado
+  function makeLeader() {
     leader = null;
     try {
       if (typeof Scene !== 'undefined' && typeof Profile !== 'undefined') {
@@ -314,7 +318,6 @@ const MenuScene = (() => {
         leader = c;
       }
     } catch (e) { leader = null; }
-    built = true;
   }
 
   function draw(dt) {
@@ -397,7 +400,8 @@ const MenuScene = (() => {
     if (reduce()) draw(0); else raf = requestAnimationFrame(frame);
   }
   function stop() { cancelAnimationFrame(raf); raf = 0; }
-  const refresh = () => { if (cv) build(); };   // o personagem mudou
+  // o personagem mudou: redesenha só ele (o cenário sorteado continua o mesmo)
+  const refresh = () => { if (!cv) return; makeLeader(); if (reduce()) draw(0); };
   return { start, stop, refresh };
 })();
 
@@ -548,7 +552,7 @@ const Menu = (() => {
           
           <p><b>Agradecimentos</b><br>A todos que testaram, deram ideias e sobreviveram mais uma noite.${HALL_OF_FAME.length ? `<br>E às lendas do Hall da Fama: ${HALL_OF_FAME.map(w => escHtml(w.n)).join(', ')}.` : ''}</p>
 
-          <p class="thanks"><b>Agradecimento especial</b><br><span class="thanks-names">Erik · Roney · Valde</span><br>que ajudaram a testar e a desenvolver as funcionalidades do jogo.</p>
+          <p class="thanks"><b>Agradecimento especial</b><br><span class="thanks-names">Erik · Roney · Valde · Natalia</span><br>que ajudaram a testar e a desenvolver as funcionalidades do jogo.</p>
 
           <p><a href="${REPO_URL}" target="_blank" rel="noopener">Código-fonte no GitHub</a></p>
           <p class="hint">v${VERSION}</p>
@@ -601,7 +605,7 @@ const Menu = (() => {
     }
   }
 
-  function startNew() {
+  function startNew(ok = {}) {
     // nome obrigatório: sem ele, avisa e devolve o foco ao campo
     if (!String(pick.name || '').replace(/[\u0000-\u001f<>]/g, '').trim()) {
       const n = $('mm-name'), err = $('mm-name-err');
@@ -610,8 +614,9 @@ const Menu = (() => {
       return;
     }
     const name = cleanName(pick.name), diff = pick.diff, slot = pick.slot;
-    if (Slots.has(slot) && !confirm(`Substituir o save do espaço ${slot}? O progresso dele será perdido.`)) return;
-    if (DIFFS[diff].permadeath && !confirm('No Apocalipse a morte é permanente: se todos morrerem, o save é APAGADO, sem volta. Começar mesmo assim?')) return;
+    // confirmações em sequência: substituir o espaço ocupado e, no Apocalipse, a morte permanente
+    if (Slots.has(slot) && !ok.slot) return askConfirm({ title: `💾 Substituir o espaço ${slot}?`, body: `<p class="event-text">O save que está no espaço ${slot} será <b>perdido</b>.</p>`, ok: 'Substituir', danger: true }, () => startNew({ ...ok, slot: true }));
+    if (DIFFS[diff].permadeath && !ok.perma) return askConfirm(PERMA_CONFIRM, () => startNew({ ...ok, perma: true }));
     const st = newState(newMeta(), diff);
     Object.assign(st.meta, { player: name, runId: Slots.rid(), minDiff: diffRank(diff), diffChosen: true, look: { ...(pick.look || Profile.lastLook()) } });
     Profile.setLastLook(st.meta.look);
@@ -638,9 +643,8 @@ const Menu = (() => {
     } else if (ds.load) { hide(); startGame(+ds.load); }
     else if (ds.del) {
       const x = Slots.info(+ds.del);
-      if (!confirm(`Apagar o save do espaço ${ds.del}${x ? ` (${x.name})` : ''}? Isso não pode ser desfeito.`)) return;
-      Slots.remove(+ds.del);
-      draw();
+      askConfirm({ title: `🗑️ Apagar o espaço ${ds.del}?`, body: `<p class="event-text">O save${x ? ` de <b>${escHtml(x.name)}</b>` : ''} será apagado. <b>Isso não pode ser desfeito.</b></p>`, ok: 'Apagar', danger: true },
+        () => { Slots.remove(+ds.del); draw(); });
     } else if (ds.newin) { pick = { slot: +ds.newin, diff: 'normal', name: pick.name, look: pick.look || Profile.lastLook() }; screen = 'new'; draw(); }
     else if (ds.slot) { pick.slot = +ds.slot; draw(); }
     else if (ds.diff) { pick.diff = ds.diff; box().querySelectorAll('.diff-card').forEach(c => c.classList.toggle('current', c === t)); }

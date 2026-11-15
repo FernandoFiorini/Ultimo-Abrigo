@@ -15,7 +15,7 @@ function tick(dt, live) {
   S.res.remedio += (S.jobs.medico - treating()) * 0.04 * prodMult() * Endgame.mult('meds') * dt;
   S.clickCd = Math.max(0, S.clickCd - dt);
   // fôlego do líder: as cargas de vasculhar voltam com o tempo
-  if (S.scav == null) S.scav = scavMax();
+  if (S.scav == null || S.scav > scavMax()) S.scav = scavMax();   // save antigo ou dificuldade com menos cargas
   if (S.scav < scavMax()) {
     S.scavT = (S.scavT || 0) + dt;
     while (S.scavT >= scavRegen() && S.scav < scavMax()) { S.scavT -= scavRegen(); S.scav++; }

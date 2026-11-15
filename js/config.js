@@ -227,7 +227,7 @@ const ZBUFF = { haste: { r: 60, mult: 1.3, max: 2 }, harden: { r: 45, mult: 1.3,
 const WARN_TIME = 10;   // segundos de alarme e contagem regressiva antes de uma onda perigosa
 // Vasculhar gasta 1 carga de fôlego do líder: até SCAV_CHARGES cargas, 1 volta a cada SCAV_REGEN segundos (relógio do jogo).
 // Cada clique rende SCAV_GAIN× o normal, para quem vasculha num ritmo comum não perder com o limite.
-const SCAV_CHARGES = 5, SCAV_REGEN = 3, SCAV_GAIN = 1.5;
+const SCAV_CHARGES = 5, SCAV_REGEN = 3, SCAV_GAIN = 1.5;   // padrão (cada dificuldade tem o seu em DIFFS.scav)
 const RUSH_DELAY = 14;  // Investida: segundos depois do início da onda até a massa chegar (os últimos 5 com contagem)
 const leakOf = (t, n) => { const Z = ZTYPES[t]; return (Z.leak ?? (Z.dmg * Z.hits + (Z.spit ? Z.spit.dmg * Z.spit.count : 0))) * dmgMult(n); };
 const foeWord = t => (ZTYPES[t] && ZTYPES[t].human ? 'saqueadores' : 'zumbis');
@@ -236,27 +236,31 @@ const foeWord = t => (ZTYPES[t] && ZTYPES[t].human ? 'saqueadores' : 'zumbis');
 // interval: segundos entre hordas · food: consumo por pessoa · prod: produção · hope/bossCash: recompensas
 const DIFFS = {
   facil: {
-    nome: 'Fácil', icon: '🌱', color: '#7cc96b', count: 0.85, grow: 1.16, hp: 0.8, hpGrow: 0.06, dmg: 0.7, speed: 0.9, early: -1, interval: 120, food: 0.14, prod: 1.2, hope: 0.6, bossCash: 3, risk: 0.6, loot: 0.85,
+    nome: 'Fácil', icon: '🌱', color: '#7cc96b', count: 0.85, grow: 1.16, hp: 0.8, hpGrow: 0.06, dmg: 0.7, speed: 0.9, early: -1, interval: 120, food: 0.14, prod: 1.2, hope: 0.6, bossCash: 3, risk: 0.6, loot: 0.85, scav: [6, 2.5],
     desc: 'Para relaxar. Hordas menores e mais espaçadas, comida sobrando.'
   },
   normal: {
-    nome: 'Normal', icon: '🧟', color: '#e0a940', count: 1, grow: 1.19, hp: 1, hpGrow: 0.08, dmg: 1, speed: 1, early: 0, interval: 90, food: 0.15, prod: 1, hope: 1, bossCash: 5, risk: 1, loot: 1, dayOnly: true, recruitDay: 4,
+    nome: 'Normal', icon: '🧟', color: '#e0a940', count: 1, grow: 1.19, hp: 1, hpGrow: 0.08, dmg: 1, speed: 1, early: 0, interval: 90, food: 0.15, prod: 1, hope: 1, bossCash: 5, risk: 1, loot: 1, dayOnly: true, recruitDay: 4, scav: [5, 3],
     desc: 'A experiência pensada para o jogo. Exige planejamento.'
   },
   dificil: {
-    nome: 'Difícil', icon: '💀', color: '#e05a4f', count: 1, grow: 1.21, hp: 1.05, hpGrow: 0.09, dmg: 1.1, speed: 1.1, early: 0, interval: 80, food: 0.16, prod: 0.9, hope: 1.5, bossCash: 7, risk: 1.3, loot: 1.3, dayOnly: true, recruitDay: 3,
+    nome: 'Difícil', icon: '💀', color: '#e05a4f', count: 1, grow: 1.21, hp: 1.05, hpGrow: 0.09, dmg: 1.1, speed: 1.1, early: 0, interval: 80, food: 0.16, prod: 0.9, hope: 1.5, bossCash: 7, risk: 1.3, loot: 1.3, dayOnly: true, recruitDay: 3, scav: [4, 3.5],
     desc: 'Zumbis mais duros e rápidos, que crescem mais a cada onda. Falta recurso.'
   },
   pesadelo: {
-    nome: 'Pesadelo', icon: '☣️', color: '#b04ad0', count: 1.05, grow: 1.23, hp: 1.1, hpGrow: 0.11, dmg: 1.25, speed: 1.2, early: 1, interval: 70, food: 0.17, prod: 0.8, hope: 2.2, bossCash: 10, risk: 1.6, loot: 1.65, dayOnly: true, recruitDay: 2,
+    nome: 'Pesadelo', icon: '☣️', color: '#b04ad0', count: 1.05, grow: 1.23, hp: 1.1, hpGrow: 0.11, dmg: 1.25, speed: 1.2, early: 1, interval: 70, food: 0.17, prod: 0.8, hope: 2.2, bossCash: 10, risk: 1.6, loot: 1.65, dayOnly: true, recruitDay: 2, scav: [4, 4],
     desc: 'Só para veteranos. Cada noite pode ser a última.'
   },
   // permadeath: se o abrigo cair, o save é apagado
   // risk/loot (em todas): multiplicam a chance de morte e o saque das expedições
   // dayOnly: recrutar e vasculhar só de dia · recruitDay: recrutamentos com comida por dia (volta a cada horda vencida)
+  // scav: [cargas de vasculhar, segundos para voltar 1 carga]
   apocalipse: {
-    nome: 'Apocalipse', icon: '🔥', color: '#ff3b30', count: 1.15, grow: 1.25, hp: 1.25, hpGrow: 0.13, dmg: 1.45, speed: 1.3, early: 2, interval: 60, food: 0.18, prod: 0.7, hope: 4, bossCash: 20,
-    risk: 1.8, loot: 2.1, permadeath: true, dayOnly: true, recruitDay: 1,
+    nome: 'Apocalipse', icon: '🔥', color: '#ff3b30', count: 1.15, grow: 1.235, hp: 1.25, hpGrow: 0.115, dmg: 1.45, speed: 1.3, early: 2, interval: 60, food: 0.18, prod: 0.7, hope: 4, bossCash: 20,
+    risk: 1.8, loot: 2.1, permadeath: true, dayOnly: true, recruitDay: 1, scav: [3, 5],
+    // começo brutal que vai aliviando: as primeiras noites vêm com +surge de zumbis e +surgeHp de vida (somem pela metade a cada
+    // ~surgeTau×0,7 ondas), sem o alívio das primeiras ondas (ramp0: vida mínima no começo) e com um primeiro dia mais longo para planejar
+    surge: 0.5, surgeHp: 0.3, surgeTau: 5, ramp0: 0.9, firstDay: 120,
     desc: 'Morte permanente: se o abrigo cair, o save é apagado. Recompensas enormes para quem aguentar.'
   },
 };

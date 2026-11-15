@@ -33,7 +33,7 @@ function newState(meta = newMeta(), diff = 'normal') {
       : { forrageiro: 2, coletor: 1, armeiro: 0, guarda: 0, medico: 0, cientista: 0 },
     build: { muro: 0, horta: 0, oficina: 0, beliche: 0, torreC: 0, torre: 0, torreL: 0, alojamento: 0, radio: 0, lab: 0 },
     fatigue: 0,      // cansaço médio dos guardas (0 a 1)
-    scav: SCAV_CHARGES, scavT: 0,   // cargas de vasculhar e o tempo recuperando a próxima
+    scav: DIFFS[diff].scav ? DIFFS[diff].scav[0] : SCAV_CHARGES, scavT: 0,   // cargas de vasculhar e o tempo recuperando a próxima
     wallHp: Math.round(100 * (1 + 0.2 * P.engenharia)),
     wallDown: false,
     overflow: 0,
@@ -44,7 +44,7 @@ function newState(meta = newMeta(), diff = 'normal') {
     returning: [],   // liberados que resistiram à infecção: { n, t }
     mourn: 0,        // segundos de luto restantes
     wave: 1,
-    waveTimer: DIFFS[diff].interval,
+    waveTimer: DIFFS[diff].firstDay || DIFFS[diff].interval,   // o primeiro dia pode ser mais longo (Apocalipse)
     horde: { active: false, queue: [], zs: [] },
     exps: [],
     ops: [],
@@ -103,8 +103,8 @@ const scavGain = () => {
   };
 };
 // cargas de vasculhar (um ponto só para futuras melhorias mexerem)
-const scavMax = () => SCAV_CHARGES;
-const scavRegen = () => SCAV_REGEN;
+const scavMax = () => (D().scav ? D().scav[0] : SCAV_CHARGES);
+const scavRegen = () => (D().scav ? D().scav[1] : SCAV_REGEN);
 // Cada recrutado com comida encarece o próximo em ×1,3; quem chega de graça (rádio, eventos, expedições)
 // encarece só meio passo (FREE_JOIN_WEIGHT), para essas chegadas continuarem sendo vantagem.
 // Limitado ao tamanho do grupo, para o preço cair quando gente morre (saves antigos usam o grupo todo).
@@ -135,12 +135,18 @@ const bumpRecruit = w => { S.recruits = Math.min((S.recruits ?? Math.max(0, S.su
 const countRecruit = () => bumpRecruit(1 - FREE_JOIN_WEIGHT);
 // Ameaça da cidade: quantas cidades (e mundos) já ficaram para trás. Deixa os zumbis mais duros e numerosos.
 const cityThreat = () => Math.min(CITY_MAX, ((S.meta && S.meta.city) || 1) - 1 + CITY_PER_WORLD * (((S.meta && S.meta.worlds) || 1) - 1));
-const waveSize = n => Math.round((6 * D().count * Math.pow(D().grow, n - 1) + n) * (hasMod('horda') ? 1.25 : 1) * (1 + CITY_COUNT * cityThreat()));
+// Linhas de dados "a · b · c": cada trecho fica inteiro (espaços inseparáveis, sem mexer nas tags HTML),
+// então, se faltar espaço, a linha só quebra entre os trechos, nunca no meio de um valor ("recarga 1,5s")
+const nbsp = s => String(s).replace(/(<[^>]*>)| |–/g, (m, tag) => tag || (m === ' ' ? ' ' : '–⁠'));   // nem depois do travessão (204–408)
+const keepSegs = s => String(s).split(' · ').map(nbsp).join(' · ');
+// Pressão inicial (Apocalipse): +amt na primeira onda, diminuindo a cada onda
+const surgeMult = (n, amt) => (amt ? 1 + amt * Math.exp(-(n - 1) / (D().surgeTau || 5)) : 1);
+const waveSize = n => Math.round((6 * D().count * Math.pow(D().grow, n - 1) * surgeMult(n, D().surge) + n) * (hasMod('horda') ? 1.25 : 1) * (1 + CITY_COUNT * cityThreat()));
 const hopeGain = () => S.best >= EVAC_WAVE ? Math.floor((Math.pow(S.best - 5, 1.25) + S.kills / 200) * D().hope * (1 + modBonus())) : 0;
 // Zumbis ficam mais resistentes e mais fortes a cada onda.
 // Nas 6 primeiras ondas eles são um pouco mais fracos, para compensar os tiros errados do começo.
 const siegeMult = n => 1 + SIEGE_HP * Math.max(0, n - SIEGE_WAVE);
-const hpMult = n => D().hp * (1 + D().hpGrow * (n - 1)) * Math.min(1, 0.7 + 0.05 * (n - 1)) * (1 + CITY_HP * cityThreat()) * siegeMult(n);
+const hpMult = n => D().hp * (1 + D().hpGrow * (n - 1)) * Math.min(1, (D().ramp0 ?? 0.7) + 0.05 * (n - 1)) * surgeMult(n, D().surgeHp) * (1 + CITY_HP * cityThreat()) * siegeMult(n);
 // Chance de acerto de guardas e torres: melhora com treinamento, pesquisa, talentos e o herói Atirador
 // base: precisão própria do tipo de torre (sem ela, a da torre média)
 function accuracy(src, base = src === 'tower' ? TOWER_ACC : GUARD_ACC) {
@@ -193,7 +199,7 @@ const upkeepTotal = () => {
 const towerPay = k => S.horde.active && (S.horde.unpaid || []).includes(k) ? TOWER_UNPAID : 1;
 function towerFx(k, lv) {
   const t = towerStat(k, lv), next = (Math.floor(lv / TOWER_CREW_EVERY) + 1) * TOWER_CREW_EVERY;
-  return `${t.crew} atirador(es) com ${t.gun} · dano ${pts(t.dmg)} · ${t.cd >= 1 ? `1 tiro a cada ${fmt(t.cd)}s` : `${fmt(1 / t.cd)} tiros/s`} cada · ${Math.round(t.acc * 100)}% de acerto · +1 atirador no nv. ${next} · manutenção ${Object.entries(towerUpkeep(k)).map(([r, v]) => `${fmt(v)} ${RES[r].icon}`).join(' + ')} por horda`;
+  return keepSegs(`${t.crew} atirador(es) com ${t.gun} · dano ${pts(t.dmg)} · ${t.cd >= 1 ? `1 tiro a cada ${fmt(t.cd)}s` : `${fmt(1 / t.cd)} tiros/s`} cada · ${Math.round(t.acc * 100)}% de acerto · +1 atirador no nv. ${next} · manutenção ${Object.entries(towerUpkeep(k)).map(([r, v]) => `${fmt(v)} ${RES[r].icon}`).join(' + ')} por horda`);
 }
 const buildCost = k => { const c = scaledCost(BUILD[k].cost, BUILD[k].mult, S.build[k]), f = 1 - Endgame.ab('build'); for (const r in c) c[r] = Math.ceil(c[r] * f); return c; };
 const perkCost = k => Math.ceil(PERKS[k].cost * Math.pow(PERKS[k].mult, perk(k)));

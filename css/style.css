@@ -247,7 +247,9 @@ button.cashbtn:hover:not(:disabled) { background: #28603e; border-color: #6fe39a
 .diff-card.current { box-shadow: 0 0 0 2px var(--c) inset; }
 .diff-name { font-size: 18px; font-weight: 800; color: var(--c); margin-bottom: 4px; }
 .diff-desc { font-size: 12.5px; color: var(--text); margin-bottom: 8px; min-height: 34px; }
-.diff-card ul { margin: 0; padding-left: 16px; font-size: 11.5px; color: var(--muted); line-height: 1.6; }
+.diff-card ul { margin: 0; padding-left: 0; list-style: none; font-size: 11.5px; color: var(--muted); line-height: 1.6; }
+/* uma informação por linha, sem quebrar (o detalhe fica na dica do mouse) */
+.diff-card li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 
 /* ---------- notificação de conquista ---------- */
@@ -886,8 +888,7 @@ table.keys .hk { color: var(--text); }
 .mm-box .diff-card { padding: 9px 10px; }
 .mm-box .diff-name { font-size: 16px; margin-bottom: 2px; }
 .mm-box .diff-desc { min-height: 0; margin-bottom: 5px; font-size: 12px; line-height: 1.35; }
-.mm-box .diff-card ul { line-height: 1.35; padding-left: 14px; }
-.mm-box .diff-card li + li { margin-top: 2px; }
+.mm-box .diff-card ul { line-height: 1.38; padding-left: 0; }
 
 .hall-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .hall-list li { padding: 6px 10px; border-radius: 6px; background: var(--panel-2); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
@@ -926,7 +927,7 @@ table.keys .hk { color: var(--text); }
 
 /* ---------- prévias animadas (popup ao passar o mouse) ---------- */
 .row[data-demo] { cursor: help; }
-.row[data-demo] .title::after { content: '▶ prévia'; margin-left: 8px; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; color: var(--accent); background: rgba(143, 209, 79, 0.12); vertical-align: middle; }
+.row[data-demo] .title::after { content: '▶ prévia'; display: inline-block; white-space: nowrap; margin-left: 8px; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; color: var(--accent); background: rgba(143, 209, 79, 0.12); vertical-align: middle; }
 .demo-tip {
   position: fixed;
   z-index: 320;   /* acima das janelas (árvore de habilidades, inclusive sobre o menu) */
@@ -1624,6 +1625,16 @@ button.person.pet small { opacity: .6; font-size: 10px; }
 /* ---------- cargas de vasculhar ---------- */
 #btn-scavenge { position: relative; overflow: hidden; }
 #btn-scavenge::after { content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: var(--scav, 0%); background: rgba(255, 255, 255, 0.55); transition: width .15s linear; pointer-events: none; }
-.scav-pips { display: inline-flex; gap: 2px; vertical-align: middle; margin: 0 2px; }
-.scav-pips i { width: 6px; height: 6px; border-radius: 50%; border: 1px solid currentColor; opacity: .45; }
+/* as bolinhas ficam no pé do botão, fora do texto, para ele caber numa linha */
+#btn-scavenge { padding-bottom: 9px; }
+.scav-pips { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); display: flex; gap: 3px; pointer-events: none; }
+.scav-pips i { width: 4px; height: 4px; border-radius: 50%; border: 1px solid currentColor; opacity: .45; }
 .scav-pips i.on { background: currentColor; opacity: 1; }
+
+/* abas: a partir da 5ª, numa linha só com ícone e contador (o nome fica na dica do mouse) */
+.side > .tabs.compact { grid-template-columns: repeat(var(--tabs, 7), 1fr); }
+.side > .tabs.compact .tab-name, .side > .tabs.compact .hk { display: none; }
+.side > .tabs.compact .tab { font-size: 16px; padding: 8px 0; }
+.side > .tabs.compact .tab .badge { font-size: 11px; }
+button.danger-solid { background: #a8322a; border-color: #d0483e; color: #fff; font-weight: 700; }
+button.danger-solid:hover:not(:disabled) { background: #c23a30; border-color: #ff6a5a; color: #fff; }
