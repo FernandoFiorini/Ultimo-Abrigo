@@ -990,12 +990,7 @@ const Champions = (() => {
     paintFaces(el);
   }
 
-  // ---------- loja de skins (🏷️ Tampinhas): por enquanto só o saldo e as categorias, em construção
-  const SKIN_CATS = [
-    ['⭐', 'Heróis de campo', 'roupas e cores novas para os seus heróis no telhado'],
-    ['👥', 'Sobreviventes', 'visuais para o grupo do abrigo'],
-    ['🧍', 'Líder', 'roupas do líder, além das que você ganha vencendo dificuldades'],
-  ];
+  // ---------- loja de skins (🏷️ Tampinhas): o texto das Tampinhas; as skins (armas e roupas) vêm de WSkins/OSkins
   let ksig = '';
   function renderSkins() {
     const el = $('skins-shop');
@@ -1008,10 +1003,7 @@ const Champions = (() => {
           <b>herói repetido</b> na ★★★ vira <b>${BOX.frags * BOX.caps} 🏷️</b>. Elas nunca se perdem, nem ao evacuar.</p>
         <h3>🔫 Armas do líder</h3>
         <p class="hint">Só visual: cores, detalhes, efeito do tiro e som. Dano, alcance e recarga não mudam. Uma skin equipada por arma; clique em ✔ Equipada para voltar à padrão.</p>
-        <div class="wsk-slot"></div>
-        <h3>🚧 Em breve</h3>
-        <div class="skin-cats">${SKIN_CATS.map(([i, n, d]) => `<div class="skin-cat"><div class="skin-ico">${i}</div>
-          <div class="main"><div class="title">${n}</div><div class="desc">${d}</div></div><span class="skin-soon">🚧 Em breve</span></div>`).join('')}</div>`;
+        <div class="wsk-slot"></div>`;
     }
     if (typeof WSkins !== 'undefined') WSkins.renderShop(el);
   }
