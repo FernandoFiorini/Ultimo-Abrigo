@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '1.07.001';
+const VERSION = '1.07.002';
 const SAVE_KEY = 'ultimoAbrigo.v1';   // save único das versões até a 1.06 (migrado para o espaço 1)
 const SLOT_COUNT = 3;                 // espaços de salvamento
 const REPO_URL = 'https://github.com/FernandoFiorini/Void-Fall';

@@ -2,12 +2,15 @@
 
 // Heróis de campo: um por vez fica no telhado, ao lado do líder, e luta de verdade.
 // Ganham XP (abates, ondas, chefes) e nível; cada nível dá 1 ponto para a árvore de 4 habilidades:
-// 2 passivas, 1 ativa (tecla A, com recarga) e a suprema (tecla S), que enche com os abates do abrigo.
+// 2 passivas, 1 ativa (tecla A, com recarga) e a suprema (tecla S), com recarga longa que os abates encurtam.
 // Ficam no metajogo (não se perdem ao evacuar). Os 12 heróis antigos continuam como equipe de apoio.
 const CHAMP_MAX_LVL = 20;
 const CHAMP_SUP_LVL = [10, 15, 20];      // nível mínimo para o grau 1, 2 e 3 da suprema
 const CHAMP_RANK_COST = [1, 2, 3];       // pontos para comprar o grau 1, 2 e 3 de cada habilidade (tudo no máximo: 24 > 20 pontos)
-const CHAMP_SUP_WAVES = 7;               // ondas inteiras de abates para encher a suprema (abates do próprio herói valem 3)
+// Suprema: recarga por tempo de horda (por grau) e cada abate do abrigo desconta um pouco dela.
+// SUP_KILL: segundos descontados por uma onda inteira de abates (cada abate vale SUP_KILL / tamanho da onda;
+// abates do próprio herói valem 3x) · SUP_BOSS: segundos descontados por chefe abatido
+const CHAMP_SUP_CD = [150, 130, 110], CHAMP_SUP_KILL = 30, CHAMP_SUP_BOSS = 8;
 const CHAMP_LVL_DMG = 0.12;              // +dano do ataque básico por nível
 const CHAMP_GIFT_WAVE = 10;              // onda em que chega o primeiro herói (uma vez por save)
 const CHAMP_POS = { x: 38, y: 99 };      // no telhado, à esquerda do líder
@@ -294,6 +297,7 @@ const Champions = (() => {
       c.actT = Math.max(0, c.actT - dt);
       if (c.actT === 0 && rank('act')) emit('champActReady', { k });
     }
+    supCharge(dt);
     atkT -= dt;
     if (atkT <= 0) atkT = basicAttack() ? CHAMPS[k].atk.cd / fireMult() * (0.9 + Math.random() * 0.2) : 0.3;
     // Urso amigo (Seu Bilú): bate em quem está atacando o muro
@@ -323,10 +327,15 @@ const Champions = (() => {
     if (!k || !S.horde.active) return;
     if (src === 'hero') gainXp(Z.loot || 1);
     if (Z.boss) gainXp(30);
-    if (c.charge < 1 && rank('sup') >= 1) {
-      c.charge = Math.min(1, c.charge + (src === 'hero' ? 3 : 1) / (Math.max(1, waveSize(S.horde.n)) * CHAMP_SUP_WAVES) + (Z.boss ? 0.1 : 0));
-      if (c.charge >= 1) { addLog(`${CHAMPS[k].skills.sup.icon} Suprema pronta: ${CHAMPS[k].skills.sup.nome} (S)!`, 'good'); emit('champReady', { k }); }
-    }
+    supCharge((src === 'hero' ? 3 : 1) * CHAMP_SUP_KILL / Math.max(1, waveSize(S.horde.n)) + (Z.boss ? CHAMP_SUP_BOSS : 0));
+  }
+
+  // adianta a recarga da suprema em `sec` segundos (charge vai de 0 a 1)
+  function supCharge(sec) {
+    const k = cur(), c = C(), r = rank('sup');
+    if (!k || r < 1 || c.charge >= 1) return;
+    c.charge = Math.min(1, c.charge + sec / CHAMP_SUP_CD[r - 1]);
+    if (c.charge >= 1) { addLog(`${CHAMPS[k].skills.sup.icon} Suprema pronta: ${CHAMPS[k].skills.sup.nome} (S)!`, 'good'); emit('champReady', { k }); }
   }
 
   function onWaveEnd(H) {
@@ -841,7 +850,7 @@ const Champions = (() => {
       return [0, 1, 2].map(g => {
         const st = g < r ? 'done' : g === r ? 'next' : 'later';
         const need = s === 'sup' ? CHAMP_SUP_LVL[g] : 0;
-        return `<li class="${st}"><span class="g-n">${g < r ? '✔' : g + 1}</span><span class="g-fx">${sk.fx(sk.v[g])}${s === 'act' ? ` · recarga ${sk.cd[g]}s` : ''}.</span>
+        return `<li class="${st}"><span class="g-n">${g < r ? '✔' : g + 1}</span><span class="g-fx">${sk.fx(sk.v[g])}${s === 'act' ? ` · recarga ${sk.cd[g]}s` : s === 'sup' ? ` · recarga ${CHAMP_SUP_CD[g]}s (abates encurtam)` : ''}.</span>
           <span class="g-cost">${CHAMP_RANK_COST[g]} pt${need ? ` · nv. ${need}` : ''}</span></li>`;
       }).join('');
     };
@@ -1065,7 +1074,7 @@ const Champions = (() => {
       hsig = key; hprev = null;
       const day = horde ? '' : ' · só durante a horda';
       const tA = ra ? `${A.nome} (A) · ${A.fx(A.v[ra - 1])} · recarga ${cd}s${day}` : `Ativa: ${A.nome}, ainda não aprendida. Clique para abrir a árvore de habilidades.`;
-      const tS = rs ? `${Su.nome} (S) · ${Su.fx(Su.v[rs - 1])} · carrega abatendo zumbis${day}`
+      const tS = rs ? `${Su.nome} (S) · ${Su.fx(Su.v[rs - 1])} · recarga ${CHAMP_SUP_CD[rs - 1]}s, cada abate encurta${day}`
         : `Suprema: ${Su.nome}, ainda não aprendida (a partir do nível ${CHAMP_SUP_LVL[0]}). Clique para abrir a árvore de habilidades.`;
       el.style.setProperty('--hc', `rgb(${T.color})`);
       const q = t => t.replace(/"/g, '&quot;');
@@ -1085,7 +1094,7 @@ const Champions = (() => {
       b.classList.toggle('full', ok);
     };
     set(a, ra ? 1 - c.actT / cd : 0, !ra ? '🔒' : c.actT > 0 ? `${Math.ceil(c.actT)}` : '', actOk);
-    set(s, rs ? Math.min(1, c.charge) : 0, !rs ? '🔒' : supOk ? '' : `${Math.floor(c.charge * 100)}%`, supOk);
+    set(s, rs ? Math.min(1, c.charge) : 0, !rs ? '🔒' : supOk ? '' : `${Math.ceil((1 - c.charge) * CHAMP_SUP_CD[rs - 1])}`, supOk);
     // voltou a ficar disponível durante a horda: o botão "pula"
     if (hprev && horde) {
       if (actOk && !hprev.act) flash(a, 'back', 800);

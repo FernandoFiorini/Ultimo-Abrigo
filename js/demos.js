@@ -18,7 +18,7 @@ const Demos = (() => {
       if (slot === 'basic') return { icon: T.icon, title: `${T.nome} · ataque básico`, text: BASIC[T.atk.fx] || T.desc, meta: `a cada ${T.atk.cd}s · dano cresce com o nível` };
       const sk = T.skills[slot], r = Math.max(1, h ? h.r[slot] : 0);
       return { icon: sk.icon, title: `${T.nome} · ${sk.nome}`, text: sk.fx(sk.v[r - 1]) + '.',
-        meta: slot === 'act' ? `ativa (A) · grau ${r} · recarga ${sk.cd[r - 1]}s` : `suprema (S) · grau ${r} · enche com os abates · a partir do nível ${CHAMP_SUP_LVL[0]}` };
+        meta: slot === 'act' ? `ativa (A) · grau ${r} · recarga ${sk.cd[r - 1]}s` : `suprema (S) · grau ${r} · recarga ${CHAMP_SUP_CD[r - 1]}s, abates encurtam · a partir do nível ${CHAMP_SUP_LVL[0]}` };
     }
     if (kind === 'lw' && LWEAPONS[k]) {
       const st = Weapons.stat(k);

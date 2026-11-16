@@ -6,6 +6,13 @@ As versões seguem o formato `MAIOR.MÉDIA.PEQUENA`:
 - **Média** (`1.00.000` → `1.01.000`): novos recursos ou mudanças grandes.
 - **Maior** (`1.00.000` → `2.00.000`): as maiores atualizações, que mudam o jogo como um todo.
 
+## 1.07.002
+
+Suprema dos heróis de campo útil o jogo todo.
+
+- **Suprema com recarga:** a suprema (S) agora tem uma recarga por tempo de horda: 150s no grau 1, 130s no grau 2 e 110s no grau 3. Cada abate do abrigo encurta um pouco a recarga (uma onda inteira de abates tira cerca de 30s), os abates do próprio herói valem 3x mais e cada chefe abatido tira 8s. Antes ela enchia só com abates e, com as ondas longas do fim de jogo, demorava tanto que quase não dava para usar.
+- **Segundos no botão:** o botão S do cenário mostra os segundos que faltam, em vez de %, e o número cai na hora a cada abate. A árvore de habilidades e as prévias mostram a recarga de cada grau.
+
 ## 1.07.001
 
 Saldo sempre à vista e novidades no menu.
