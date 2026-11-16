@@ -6,6 +6,13 @@ As versões seguem o formato `MAIOR.MÉDIA.PEQUENA`:
 - **Média** (`1.00.000` → `1.01.000`): novos recursos ou mudanças grandes.
 - **Maior** (`1.00.000` → `2.00.000`): as maiores atualizações, que mudam o jogo como um todo.
 
+## 1.07.001
+
+Saldo sempre à vista.
+
+- **Tampinhas no topo:** os botões 🛒 **Loja** e 🎨 **Visual** mostram quantas 🏷️ Tampinhas você tem (a Loja também segue mostrando o 💵 cash), sem precisar abrir nenhum dos dois. Passar o mouse na Loja mostra os dois saldos.
+- **Saldo fixo na Loja:** o 💵 cash e as 🏷️ Tampinhas ficam numa linha logo abaixo das sub-abas e não somem ao rolar a lista, para você saber quanto tem antes e depois de cada compra. A moeda da sub-aba aberta fica em destaque.
+
 ## 1.07.000
 
 Apocalipse, saves e vitória.

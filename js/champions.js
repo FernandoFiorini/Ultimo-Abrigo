@@ -994,8 +994,7 @@ const Champions = (() => {
     const caps = C().caps, key = String(caps);
     if (key !== ksig || !el.querySelector('.wsk-slot')) {
       ksig = key;
-      el.innerHTML = `<div class="cash-big caps-big">🏷️ <span>${fmt(caps)}</span> <small>Tampinhas</small></div>
-        <p class="hint">As Tampinhas vêm das <b>caixas de herói</b>: toda caixa traz algumas (★ ${BOX.capsBy[1]}, ★★ ${BOX.capsBy[2]}, ★★★ ${BOX.capsBy[3]}).
+      el.innerHTML = `<p class="hint">As Tampinhas vêm das <b>caixas de herói</b>: toda caixa traz algumas (★ ${BOX.capsBy[1]}, ★★ ${BOX.capsBy[2]}, ★★★ ${BOX.capsBy[3]}).
           Cada <b>fragmento repetido</b> (de um herói que você já tem ou que já está pronto para invocar) vira <b>${BOX.caps} 🏷️</b>, e um
           <b>herói repetido</b> na ★★★ vira <b>${BOX.frags * BOX.caps} 🏷️</b>. Elas nunca se perdem, nem ao evacuar.</p>
         <h3>🔫 Armas do líder</h3>

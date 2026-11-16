@@ -14,7 +14,7 @@
   <meta property="og:image" content="assets/screenshot.png">
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☣️</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=1.07.000">
+  <link rel="stylesheet" href="css/style.css?v=1.07.001">
 </head>
 
 <body>
@@ -24,10 +24,10 @@
     <div id="resources" class="resources"></div>
     <div class="hub-btns">
       <button id="btn-codex" class="hub-btn codex" title="Bestiário e Glossário: fichas dos inimigos e fraquezas descobertas (B)">📖 <span>Bestiário</span><i class="hub-dot" hidden></i></button>
-      <button id="btn-locker" class="hub-btn locker" title="Visual: skins das armas e do personagem (K)">🎨 <span>Visual</span><i class="hub-dot" hidden></i></button>
+      <button id="btn-locker" class="hub-btn locker" title="Visual: skins das armas e do personagem (K)">🎨 <span>Visual</span><b class="badge caps" id="tb-caps-vis"></b><i class="hub-dot" hidden></i></button>
       <button id="btn-ach" class="hub-btn ach" data-hub="conquistas" title="Conquistas e desafios da semana (9)">🏆 <span>Conquistas</span><b class="badge gold" id="tb-conquistas"></b></button>
-      <button id="btn-shop" class="hub-btn shop" data-hub="loja" title="Loja: cash e skins (0)">🛒 <span>Loja</span><b class="badge cash" id="tb-loja"></b></button>
-      <!-- o selo da Loja mostra o cash que você tem (💵) -->
+      <button id="btn-shop" class="hub-btn shop" data-hub="loja" title="Loja: cash e skins (0)">🛒 <span>Loja</span><b class="badge cash" id="tb-loja"></b><b class="badge caps" id="tb-caps"></b></button>
+      <!-- os selos da Loja mostram o cash (💵) e as Tampinhas (🏷️) que você tem -->
     </div>
     <div class="audio-ctl">
       <button id="snd-music" title="Música">🎵</button>
@@ -194,9 +194,11 @@
           <nav class="subtabs" id="shop-tabs">
             <button class="subtab" data-sub="cash">💵 Cash<span class="badge" id="sb-cash"></span></button>
             <button class="subtab" data-sub="skins">🏷️ Skins<span class="badge" id="sb-skins"></span></button>
+            <!-- saldo fixo: fica à vista ao rolar a loja -->
+            <div class="shop-wallet"><span class="w-cash">💵 <b id="shop-cash"></b> <small>cash</small></span><span
+                class="w-caps">🏷️ <b id="shop-caps"></b> <small>Tampinhas</small></span></div>
           </nav>
           <div class="subpane" data-subpane="cash">
-            <div class="cash-big">💵 <span id="shop-cash"></span> <small>cash</small></div>
             <p class="hint">O cash é raro e nunca se perde, nem ao evacuar. Só há duas formas de ganhar: completando <b>🏆
                 conquistas</b> ou derrotando a <b>👹 Abominação</b> (+5), o zumbi mais forte, que aparece nas ondas de
               chefe.</p>
@@ -249,42 +251,42 @@
 
   <div id="tip" class="tip hidden" role="status"></div>
 
-  <script src="js/config.js?v=1.07.000"></script>
-<script src="js/bugreport.js?v=1.07.000"></script>
-  <script src="js/settings.js?v=1.07.000"></script>
-  <script src="js/state.js?v=1.07.000"></script>
-  <script src="js/unlocks.js?v=1.07.000"></script>
-  <script src="js/achievements.js?v=1.07.000"></script>
-  <script src="js/shop.js?v=1.07.000"></script>
-  <script src="js/combat.js?v=1.07.000"></script>
-  <script src="js/simulation.js?v=1.07.000"></script>
-  <script src="js/progression.js?v=1.07.000"></script>
-  <script src="js/actions.js?v=1.07.000"></script>
-  <script src="js/slots.js?v=1.07.000"></script>
-<script src="js/vfilter.js?v=1.07.000"></script>
-  <script src="js/save.js?v=1.07.000"></script>
-  <script src="js/ui.js?v=1.07.000"></script>
-  <script src="js/endgame.js?v=1.07.000"></script>
-  <script src="js/weapons.js?v=1.07.000"></script>
-  <script src="js/wskins.js?v=1.07.000"></script>
-  <script src="js/oskins.js?v=1.07.000"></script>
-  <script src="js/champions.js?v=1.07.000"></script>
-  <script src="js/events.js?v=1.07.000"></script>
-  <script src="js/pets.js?v=1.07.000"></script>
-  <script src="js/honored.js?v=1.07.000"></script>
-  <script src="js/airdrop.js?v=1.07.000"></script>
-  <script src="js/codex.js?v=1.07.000"></script>
-  <script src="js/story.js?v=1.07.000"></script>
-  <script src="js/invasion.js?v=1.07.000"></script>
-  <script src="js/bosses.js?v=1.07.000"></script>
-  <script src="js/debug.js?v=1.07.000"></script>
-  <script src="js/tutorial.js?v=1.07.000"></script>
-  <script src="js/guide.js?v=1.07.000"></script>
-  <script src="js/scene.js?v=1.07.000"></script>
-  <script src="js/audio.js?v=1.07.000"></script>
-  <script src="js/demos.js?v=1.07.000"></script>
-  <script src="js/menu.js?v=1.07.000"></script>
-  <script src="js/main.js?v=1.07.000"></script>
+  <script src="js/config.js?v=1.07.001"></script>
+<script src="js/bugreport.js?v=1.07.001"></script>
+  <script src="js/settings.js?v=1.07.001"></script>
+  <script src="js/state.js?v=1.07.001"></script>
+  <script src="js/unlocks.js?v=1.07.001"></script>
+  <script src="js/achievements.js?v=1.07.001"></script>
+  <script src="js/shop.js?v=1.07.001"></script>
+  <script src="js/combat.js?v=1.07.001"></script>
+  <script src="js/simulation.js?v=1.07.001"></script>
+  <script src="js/progression.js?v=1.07.001"></script>
+  <script src="js/actions.js?v=1.07.001"></script>
+  <script src="js/slots.js?v=1.07.001"></script>
+<script src="js/vfilter.js?v=1.07.001"></script>
+  <script src="js/save.js?v=1.07.001"></script>
+  <script src="js/ui.js?v=1.07.001"></script>
+  <script src="js/endgame.js?v=1.07.001"></script>
+  <script src="js/weapons.js?v=1.07.001"></script>
+  <script src="js/wskins.js?v=1.07.001"></script>
+  <script src="js/oskins.js?v=1.07.001"></script>
+  <script src="js/champions.js?v=1.07.001"></script>
+  <script src="js/events.js?v=1.07.001"></script>
+  <script src="js/pets.js?v=1.07.001"></script>
+  <script src="js/honored.js?v=1.07.001"></script>
+  <script src="js/airdrop.js?v=1.07.001"></script>
+  <script src="js/codex.js?v=1.07.001"></script>
+  <script src="js/story.js?v=1.07.001"></script>
+  <script src="js/invasion.js?v=1.07.001"></script>
+  <script src="js/bosses.js?v=1.07.001"></script>
+  <script src="js/debug.js?v=1.07.001"></script>
+  <script src="js/tutorial.js?v=1.07.001"></script>
+  <script src="js/guide.js?v=1.07.001"></script>
+  <script src="js/scene.js?v=1.07.001"></script>
+  <script src="js/audio.js?v=1.07.001"></script>
+  <script src="js/demos.js?v=1.07.001"></script>
+  <script src="js/menu.js?v=1.07.001"></script>
+  <script src="js/main.js?v=1.07.001"></script>
 </body>
 
 </html>

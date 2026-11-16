@@ -177,6 +177,7 @@ h3 { margin: 14px 0 8px; font-size: 13px; text-transform: uppercase; letter-spac
 .idle-warn { color: #f0b040; }
 .badge.gold { background: #a07c1c; }
 .badge.cash { background: #2f7d4f; }
+.badge.caps { background: #8a5a1c; }
 
 .res.cash .val { color: #6fe39a; }
 .boosts { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -191,8 +192,6 @@ h3 { margin: 14px 0 8px; font-size: 13px; text-transform: uppercase; letter-spac
 .boost.furia { background: #3a1510; border: 1px solid #d0502a; color: #ff8a5a; }
 @keyframes pulse { 50% { filter: brightness(1.35); } }
 
-.cash-big { font-size: 26px; font-weight: 800; color: #6fe39a; margin-bottom: 6px; }
-.cash-big small { font-size: 13px; color: var(--muted); font-weight: 400; }
 button.cashbtn { background: #1f4a30; border-color: #2f7d4f; color: #b9f5cf; font-weight: 700; min-width: 64px; }
 button.cashbtn:hover:not(:disabled) { background: #28603e; border-color: #6fe39a; }
 
@@ -1277,6 +1276,15 @@ table.keys .hk { color: var(--text); }
 .subtab:hover:not(:disabled) { color: var(--text); }
 .subtab.active { color: #111; background: var(--accent); border-color: var(--accent); font-weight: 700; }
 .subtab .badge { margin-left: 4px; }
+/* Loja: saldo fixo na barra das sub-abas (não some ao rolar); a moeda da sub-aba aberta fica em destaque */
+#shop-tabs .subtab { grid-row: 1; }
+.shop-wallet { grid-row: 2; grid-column: 1 / span 2; display: flex; justify-content: center; gap: 18px; padding-top: 4px; font-size: 17px; font-weight: 800; }
+.shop-wallet small { font-size: 12px; color: var(--muted); font-weight: 400; }
+.shop-wallet .w-cash { color: #6fe39a; }
+.shop-wallet .w-caps { color: #d9a066; }
+.shop-wallet > span { transition: opacity 0.2s; }
+[data-pane="loja"]:has([data-subpane="cash"].active) .w-caps,
+[data-pane="loja"]:has([data-subpane="skins"].active) .w-cash { opacity: 0.45; }
 .subpane { display: none; }
 .subpane.active { display: block; }
 .army-intro { margin: 0 0 8px; padding: 8px 10px; font-size: 12px; line-height: 1.5; color: var(--muted); border-left: 3px solid #c9a929; background: rgba(201, 169, 41, 0.07); border-radius: 0 6px 6px 0; }
@@ -1457,7 +1465,6 @@ table.keys .hk { color: var(--text); }
 @media (prefers-reduced-motion: reduce) { .sk-tile.can { animation: none; } }
 
 /* loja de skins (Tampinhas) */
-.caps-big { color: #d9a066; }
 .skin-cats { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 12px; }
 .skin-cat { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 8px; background: var(--panel-2); }
 .skin-cat .skin-ico { font-size: 24px; width: 32px; text-align: center; filter: grayscale(0.4); }

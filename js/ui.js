@@ -288,13 +288,14 @@ function render() {
   if (S.merchant) setHtml(mc, `🛒 Comerciante · ${Math.ceil(S.merchant.t)}s ${hk('O')}`);
   $('diff-chip').style.setProperty('--c', D().color);
   // o cash fica no selo do botão 🛒 Loja, no topo
-  $('btn-shop').title = `Loja: cash e skins (0) · você tem 💵 ${S.meta.cash} de cash`;
+  $('btn-shop').title = `Loja: cash e skins (0) · você tem 💵 ${S.meta.cash} de cash e 🏷️ ${(S.meta.champ && S.meta.champ.caps) || 0} Tampinhas`;
   const B = S.meta.boosts;
   $('boosts').innerHTML =
     (B.prod > 0 ? `<span class="boost prod">⚡ 2x ${fmtClock(B.prod)}</span>` : '') +
     (B.furia > 0 ? `<span class="boost furia">🔥 Fúria ${fmtClock(B.furia)}</span>` : '');
 
   $('shop-cash').textContent = S.meta.cash;
+  $('shop-caps').textContent = fmt((S.meta.champ && S.meta.champ.caps) || 0);
   for (const k in SHOP) {
     const block = shopBlock(k);
     $('sb-' + k).disabled = !!block;
@@ -473,6 +474,7 @@ function render() {
   $('tb-evacuacao').textContent = hopeGain() || perkReady ? '!' : '';
   $('tb-evacuacao').classList.add('gold');
   $('tb-loja').textContent = `💵 ${S.meta.cash}`;
+  for (const id of ['tb-caps', 'tb-caps-vis']) $(id).textContent = `🏷️ ${(S.meta.champ && S.meta.champ.caps) || 0}`;
 
   const toClaim = ACH.filter(a => S.meta.ach[a.id] === 'unlocked');
   const done = ACH.filter(a => S.meta.ach[a.id]).length;
