@@ -8,10 +8,11 @@ As versões seguem o formato `MAIOR.MÉDIA.PEQUENA`:
 
 ## 1.07.001
 
-Saldo sempre à vista.
+Saldo sempre à vista e novidades no menu.
 
 - **Tampinhas no topo:** os botões 🛒 **Loja** e 🎨 **Visual** mostram quantas 🏷️ Tampinhas você tem (a Loja também segue mostrando o 💵 cash), sem precisar abrir nenhum dos dois. Passar o mouse na Loja mostra os dois saldos.
 - **Saldo fixo na Loja:** o 💵 cash e as 🏷️ Tampinhas ficam numa linha logo abaixo das sub-abas e não somem ao rolar a lista, para você saber quanto tem antes e depois de cada compra. A moeda da sub-aba aberta fica em destaque.
+- **📰 Novidades no menu:** o menu principal ganhou a opção **Novidades**, com as notas das últimas atualizações. Quando o jogo é atualizado no site, ela aparece em destaque com a etiqueta **NOVO** até você abrir, e as versões que você ainda não tinha visto vêm abertas e marcadas. As notas são lidas deste changelog; se não der para carregar, há um link para ele no GitHub.
 
 ## 1.07.000
 

@@ -837,6 +837,24 @@ table.keys .hk { color: var(--text); }
 .mm-go:disabled { color: #6a6a62; text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: rgba(200, 60, 40, 0.6); }
 .mm-go small { font: 400 12px var(--mono); letter-spacing: 0; text-transform: none; color: var(--radio); opacity: 0.85; text-decoration: none; }
 .mm-cont span { color: #b8e85a; font-size: 26px; }
+/* Novidades: aviso de atualização no menu e tela de patch notes (lida do CHANGELOG.md) */
+.mm-news span { color: #f3d36a; }
+.nw-dot { margin-left: 8px; padding: 1px 6px; border-radius: 4px; background: #c9412f; color: #fff; font: 700 11px var(--mono); font-style: normal; letter-spacing: 1px; vertical-align: middle; animation: mmBlink 1.4s steps(1) infinite; }
+.nw-list { max-height: min(60vh, 560px); overflow-y: auto; padding-right: 4px; }
+.nw-ver { margin-bottom: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+.nw-ver.new { border-color: rgba(243, 211, 106, 0.6); }
+.nw-ver summary { cursor: pointer; font-size: 15px; }
+.nw-ver summary b { color: var(--accent); }
+.nw-cur, .nw-tag { margin-left: 6px; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.nw-cur { background: rgba(143, 209, 79, 0.18); color: var(--accent); }
+.nw-tag { background: #c9412f; color: #fff; }
+.nw-body { font-size: 13.5px; line-height: 1.5; }
+.nw-body p { margin: 8px 0; }
+.nw-body ul { margin: 6px 0; padding-left: 20px; }
+.nw-body li { margin: 4px 0; }
+.nw-body code { padding: 0 4px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); font-size: 12px; }
+.nw-body a, .nw-list .hint a { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .nw-dot { animation: none; } }
 .mm-cont:disabled span { color: #6a6a62; }
 .mm-box.home .mm-foot { text-align: left; margin-top: 22px; font-family: var(--mono); }
 .thanks-names { display: inline-block; margin: 4px 0; font: 700 18px var(--mono); letter-spacing: 2px; color: #b8e85a; }

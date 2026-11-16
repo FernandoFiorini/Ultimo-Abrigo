@@ -561,6 +561,71 @@ const RADIO_LINES = [
   '...os grandões não caem com pedra. Guardem a munição para eles.',
 ];
 
+// ---------- novidades (patch notes) ----------
+// lidas do próprio CHANGELOG.md publicado no site (uma fonte só). Quem já jogou e ainda não viu a versão
+// atual recebe o aviso no menu; quem abre o jogo pela primeira vez não (marca como vista em silêncio).
+const News = (() => {
+  const KEY = 'ultimoAbrigo.seenVersion', SHOW = 8;   // versões listadas (as mais antigas ficam no GitHub)
+  const URL = `${REPO_URL}/blob/main/CHANGELOG.md`;
+  let seen = Store.get(KEY, null), cache = null;
+  if (!seen && !Slots.list().some(Boolean)) { seen = VERSION; Store.set(KEY, seen); }
+  // quem já tinha save antes deste aviso existir: trata como vindo da versão anterior
+  if (!seen) seen = '0.0.0';
+  const vnum = v => String(v || '0').split('.').reduce((a, n) => a * 1000 + (+n || 0), 0);
+  const fresh = () => vnum(seen) < vnum(VERSION);
+  // markdown simples do changelog: ## versão, parágrafos, listas (com 1 nível de recuo), **negrito**, `código` e [links](url)
+  const inline = t => escHtml(t)
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  function block(lines) {
+    let html = '', depth = 0, para = [];
+    const flush = () => { if (para.length) { html += `<p>${inline(para.join(' '))}</p>`; para = []; } };
+    const to = d => { while (depth < d) { html += '<ul>'; depth++; } while (depth > d) { html += '</ul>'; depth--; } };
+    for (const raw of lines) {
+      const m = raw.match(/^(\s*)- (.*)$/);
+      if (m) { flush(); to(m[1].length >= 2 ? 2 : 1); html += `<li>${inline(m[2])}</li>`; }
+      else if (!raw.trim()) flush();
+      else if (depth && /^\s+/.test(raw)) html = html.replace(/<\/li>$/, ` ${inline(raw.trim())}</li>`);
+      else { to(0); para.push(raw.trim()); }
+    }
+    flush(); to(0);
+    return html;
+  }
+  function parse(md) {
+    const out = [];
+    for (const part of md.replace(/\r/g, '').split(/^## /m).slice(1)) {
+      const [head, ...rest] = part.split('\n');
+      const v = head.trim();
+      if (/^\d+\.\d+\.\d+$/.test(v)) out.push({ v, html: block(rest) });
+    }
+    return out;
+  }
+  // carrega uma vez por sessão; o ?v= evita pegar um changelog velho do cache do navegador.
+  // Aberto direto do arquivo (file://) o navegador bloqueia a leitura local: aí busca o do GitHub (ramo main)
+  const RAW = REPO_URL.replace('https://github.com/', 'https://raw.githubusercontent.com/') + '/main/CHANGELOG.md';
+  const get = url => fetch(url, { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
+  function load() {
+    if (cache) return Promise.resolve(cache);
+    return get(`CHANGELOG.md?v=${VERSION}`)
+      .catch(() => get(RAW))
+      .then(t => (cache = parse(t)));
+  }
+  function html(list, since) {
+    return list.slice(0, SHOW).map((x, i) => {
+      const isNew = since && vnum(x.v) > vnum(since);
+      return `<details class="nw-ver${isNew ? ' new' : ''}" ${isNew || i === 0 ? 'open' : ''}>
+        <summary><b>v${x.v}</b>${x.v === VERSION ? ' <small class="nw-cur">versão atual</small>' : ''}${isNew ? ' <small class="nw-tag">NOVO</small>' : ''}</summary>
+        <div class="nw-body">${x.html}</div></details>`;
+    }).join('') + `<p class="hint">Versões anteriores: <a href="${URL}" target="_blank" rel="noopener">changelog completo no GitHub</a>.</p>`;
+  }
+  return {
+    fresh, load, html, url: URL,
+    lastSeen: () => seen,
+    markSeen() { seen = VERSION; Store.set(KEY, seen); },
+  };
+})();
+
 // ---------- menu principal ----------
 const Menu = (() => {
   let screen = 'home', pick = { slot: 1, diff: 'normal', name: '', look: null }, hallTab = null;
@@ -597,6 +662,7 @@ const Menu = (() => {
           <button class="mm-go" data-go="load"><span>Carregar</span>${any ? '' : '<small>Nenhum jogo salvo · importe um progresso</small>'}</button>
           <button class="mm-go" data-go="hall"><span>Hall da Fama</span></button>
           <button class="mm-go" data-go="skins"><span>Skins</span></button>
+          <button class="mm-go${News.fresh() ? ' mm-news' : ''}" data-go="news"><span>Novidades${News.fresh() ? ' <i class="nw-dot">NOVO</i>' : ''}</span>${News.fresh() ? `<small>Atualizamos para a v${VERSION} · veja o que mudou</small>` : ''}</button>
           <button class="mm-go" data-go="settings"><span>Configurações</span></button>
           <button class="mm-go" data-go="credits"><span>Créditos</span></button>
         </nav>
@@ -697,6 +763,13 @@ const Menu = (() => {
       return `<h2>🎨 Skins do líder</h2><div id="skin-root">${skinPickerHtml()}</div>
         <div class="mm-back"><button data-go="home">← Voltar</button></div>`;
     },
+    // novidades: o conteúdo chega depois (fetch do CHANGELOG.md), ver loadNews()
+    news() {
+      return `<h2>📰 Novidades</h2>
+        <p class="hint">O que mudou nas últimas atualizações do jogo. Você está na <b>v${VERSION}</b>.</p>
+        <div id="nw-list" class="nw-list"><p class="hint">Carregando…</p></div>
+        <div class="mm-back"><button data-go="home">← Voltar</button></div>`;
+    },
     // créditos rolando como no fim de um filme (CREDITS em config.js); a roda do mouse e o arrasto também rolam
     credits() {
       const sec = (titulo, body) => `<section class="cr-sec"><h4>${escHtml(titulo)}</h4>${body}</section>`;
@@ -768,9 +841,22 @@ const Menu = (() => {
     crRaf = requestAnimationFrame(step);
   }
 
+  // marca como vista ao abrir; as versões mais novas que a última vista ficam abertas e com a etiqueta NOVO
+  function loadNews() {
+    const since = News.fresh() ? News.lastSeen() : null;
+    News.markSeen();
+    News.load().then(list => {
+      const el = $('nw-list');
+      if (el && screen === 'news') el.innerHTML = list.length ? News.html(list, since) : '<p class="hint">Nenhuma nota encontrada.</p>';
+    }).catch(() => {
+      const el = $('nw-list');
+      if (el && screen === 'news') el.innerHTML = `<p class="hint">Não deu para carregar as novidades agora. Veja o <a href="${News.url}" target="_blank" rel="noopener">changelog no GitHub</a>.</p>`;
+    });
+  }
+
   function draw() {
     box().innerHTML = SCREENS[screen]();
-    box().classList.toggle('narrow', ['death', 'credits'].includes(screen));
+    box().classList.toggle('narrow', ['death', 'credits', 'news'].includes(screen));
     box().classList.toggle('home', screen === 'home');
     box().classList.toggle('hall', screen === 'hall');   // Hall da Fama: só a tabela rola, a janela não
     $('main-menu').classList.toggle('at-home', screen === 'home');
@@ -779,6 +865,7 @@ const Menu = (() => {
     if (screen === 'home') radio(); else clearTimeout(txT);
     if (screen === 'skins') bindSkinPicker($('skin-root'));
     if (screen === 'credits') rollCredits();
+    if (screen === 'news') loadNews();
     if (screen === 'new') {
       const n = $('mm-name');
       n.oninput = () => {
