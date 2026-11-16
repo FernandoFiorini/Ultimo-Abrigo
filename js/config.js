@@ -630,6 +630,7 @@ const LEADER_SKINS = {
 // { n: nome, d: dificuldade, t: data (AAAA-MM-DD) } e, nos certificados novos: ts (quando venceu, ms), h (horas jogadas),
 // k (abates), c (cidade), w (mundo), lost (sobreviventes perdidos). O ranking ordena por menos tempo jogado (h); no empate, quem venceu primeiro (ts, ou t).
 const HALL_OF_FAME = [
+  { "n": "RONYY", "d": "pesadelo", "t": "2026-11-16", "ts": 1794848640584, "w": 1, "c": 5, "k": 115051077510, "h": 3.2, "lost": 8, "r": "140ixqy" },
 ];
 
 // Créditos (menu principal › Créditos): rolam na tela como no fim de um filme. Edite à vontade.
