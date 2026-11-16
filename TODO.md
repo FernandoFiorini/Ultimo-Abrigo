@@ -17,7 +17,6 @@ Sem servidor, a data vem do relógio do aparelho (dá para adiantar): as recompe
 - [ ] **Login diário:** recompensa por dia jogado, em sequência (ex.: 7 dias, com uma skin no último). Pensar no que acontece ao perder um dia.
 
 ## Hall da Fama
-- [ ] **Confirmar e incluir no Hall:** fluxo de aprovação do certificado recebido: validar no menu de debug (🏆 Ranking › 🔍 Validar certificado), conferir os avisos e colar a linha no `HALL_OF_FAME` (config.js). Antes, tirar o certificado de teste se ele tiver entrado.
 - [ ] **Ranking automático (depois):** Firebase para o vencedor entrar no ranking sem aprovação manual, com alguma verificação contra certificado forjado.
 
 ## Heróis de campo

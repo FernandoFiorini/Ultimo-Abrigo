@@ -263,7 +263,14 @@ const Victory = (() => {
     downloadFile(text, `voidfall-certificado-${slug}-${entry.d}.txt`);
   }
   // acha o certificado dentro de um texto qualquer (arquivo baixado, e-mail colado...)
-  const extract = text => { const m = String(text || '').match(/UAV1:[A-Za-z0-9+/=]+/); return m ? m[0] : String(text || '').trim(); };
+  // O e-mail pode quebrar o código em várias linhas: junta os pedaços depois do UAV1: e fica com o maior trecho cuja assinatura confere
+  const extract = text => {
+    const m = String(text || '').match(/UAV1:\s*([A-Za-z0-9+/=]+(?:\s+[A-Za-z0-9+/=]+)*)/);
+    if (!m) return String(text || '').trim();
+    const parts = m[1].split(/\s+/);
+    for (let n = parts.length; n >= 1; n--) { const c = 'UAV1:' + parts.slice(0, n).join(''); if (verify(c).ok) return c; }
+    return 'UAV1:' + parts[0];
+  };
 
   // Para o desenvolvedor: confere um certificado e aponta o que parece estranho (menu de debug › 🏆 Ranking)
   function check(code) {
@@ -296,6 +303,8 @@ const Victory = (() => {
       'Linha para o HALL_OF_FAME (js/config.js):', c.ok ? c.line.trim() : '(nenhuma: certificado inválido)', '',
       'Certificado (para validar no menu de debug › 🏆 Ranking › 🔍 Validar certificado):', code,
     ];
+    // o save do jogador vai junto, como backup (o validador guarda tudo num arquivo ao inserir no Hall)
+    try { if (typeof S !== 'undefined' && S && typeof exportCode === 'function') L.push('', 'Save do jogador (backup; para abrir: Importar e colar este código):', exportCode()); } catch (e) { /* sem save */ }
     const r = await fetch('https://api.web3forms.com/submit', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ access_key: BUG_REPORT.web3formsKey, subject: `${test ? '[TESTE] ' : ''}👑 Voidfall: ${entry.n} venceu no ${D.nome} (${entry.h != null ? String(entry.h).replace('.', ',') + 'h' : 'sem tempo'})`,

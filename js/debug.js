@@ -33,7 +33,7 @@ const Debug = (() => {
     });
   }
   function certCheckDialog(code = '') {
-    let res = null, dref = null;
+    let res = null, dref = null, rawIn = '';
     const row = (k, v) => `<tr><td>${k}</td><td><b>${v}</b></td></tr>`;
     const report = () => {
       if (!res) return '';
@@ -52,7 +52,7 @@ const Debug = (() => {
     openDialog({
       title: '🔍 Validar certificado',
       staticBody: true, plain: true,
-      body: `<label class="drop-zone" id="cert-drop" tabindex="0"><input type="file" id="cert-file">
+      body: `<label class="drop-zone drop-sm" id="cert-drop" tabindex="0"><input type="file" id="cert-file">
           <span class="dz-ico">📜</span><b>Arraste o arquivo do certificado aqui</b><small>ou clique para escolher (o .txt baixado na vitória, ou um e-mail salvo com o código)</small></label>
         <p class="hint">Ou cole o código (UAV1:...):</p>
         <textarea id="cert-in" class="save-code" spellcheck="false" placeholder="UAV1:...">${esc(code)}</textarea><div id="cert-out"></div>`,
@@ -67,7 +67,8 @@ const Debug = (() => {
         if (code) validate();
       },
       buttons: [
-        { label: '🔍 Validar', cls: 'primary', keep: true, onClick: () => validate() },
+        { label: '🔍 Validar', keep: true, onClick: () => validate() },
+        { label: '➕ Inserir no Hall da Fama', cls: 'primary', keep: true, hidden: () => !(res && res.ok), onClick: () => insertHall(res, rawIn) },
         { label: '📋 Copiar linha', keep: true, hidden: () => !(res && res.ok), onClick: () => copyCode(res.line.trim()) },
         { label: '👀 Ver no Hall (só nesta sessão)', hidden: () => !(res && res.ok), onClick: () => {
           const { id, ...pub } = res.entry;
@@ -79,6 +80,7 @@ const Debug = (() => {
     });
     function validate() {
       const txt = $('cert-in').value;
+      rawIn = txt;   // o texto como veio (o e-mail traz também o save do jogador, para o backup)
       let pre = '';
       try {
         // sem certificado no texto: pode ser um save exportado (.voidfall); aí gera o certificado da vitória registrada nele
@@ -100,6 +102,76 @@ const Debug = (() => {
         $('cert-out').innerHTML = `<p class="bad-text"><b>Erro ao validar:</b> ${esc(err && err.message || err)}</p>`;
       }
       if (dref) dref.refresh(false);
+      // o resultado aparece embaixo do campo: rola até ele e dá um destaque, para não parecer que nada aconteceu
+      const out = $('cert-out');
+      if (out && out.firstElementChild) {
+        out.firstElementChild.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        out.classList.remove('flash'); void out.offsetWidth; out.classList.add('flash');
+      }
+    }
+  }
+
+  // grava a linha do certificado no HALL_OF_FAME do js/config.js (Chrome/Edge: o navegador pede para escolher o arquivo
+  // na primeira vez e a permissão para editar). Sem esse recurso, copia a linha para colar à mão.
+  let cfgHandle = null, bakDir = null;
+  // save do jogador dentro de um texto (o e-mail de vitória traz o código UA1:..., que pode vir quebrado em linhas)
+  function findSave(text) {
+    const m = String(text || '').match(/UA1:\s*([A-Za-z0-9+/=]+(?:\s+[A-Za-z0-9+/=]+)*)/);
+    if (!m) return null;
+    const parts = m[1].split(/\s+/);
+    for (let n = parts.length; n >= Math.max(1, parts.length - 12); n--) {
+      const c = 'UA1:' + parts.slice(0, n).join('');
+      try { decodeSave(c); return c; } catch (e) { /* tenta sem o último pedaço */ }
+    }
+    return null;
+  }
+  // backup de cada vitória aprovada: um .txt com a linha, o certificado e o save, na pasta hall-backup/ (fora do git).
+  // Na primeira vez o navegador pede para escolher a pasta (crie hall-backup dentro do projeto e escolha ela).
+  async function backupHall(pub, code, saveCode) {
+    const slug = String(pub.n).normalize('NFD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'sobrevivente';
+    const name = `${pub.t}-${slug}-${pub.d}.txt`;
+    const text = [`Hall da Fama do Voidfall: backup da vitória aprovada em ${new Date().toLocaleString('pt-BR')}`, '',
+      `Nome: ${pub.n}`, `Dificuldade: ${DIFFS[pub.d].nome}`, `Venceu em: ${String(pub.t).split('-').reverse().join('/')}`, `Tempo jogado: ${pub.h ?? '—'}h`, '',
+      'Linha do HALL_OF_FAME (js/config.js):', '  ' + JSON.stringify(pub) + ',', '', 'Certificado:', code, '',
+      saveCode ? 'Save do jogador (Importar e colar este código):' : 'Save do jogador: não veio junto (certificado sem e-mail).', saveCode || ''].join('\n');
+    if (!window.showDirectoryPicker) { downloadFile(text, name); return 'baixado como arquivo'; }
+    if (!bakDir) bakDir = await showDirectoryPicker({ id: 'voidfall-hall-backup', mode: 'readwrite' });
+    if ((await bakDir.requestPermission({ mode: 'readwrite' })) !== 'granted') throw new Error('sem permissão na pasta de backup');
+    const fh = await bakDir.getFileHandle(name, { create: true }), w = await fh.createWritable();
+    await w.write(text); await w.close();
+    return `${bakDir.name}/${name}`;
+  }
+  async function insertHall(res, raw = '') {
+    const out = $('cert-out'), say = h => { const p = document.createElement('p'); p.innerHTML = h; out.appendChild(p); p.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
+    const { id, ...pub } = res.entry, line = '  ' + JSON.stringify(pub) + ',';
+    if (!window.showOpenFilePicker) { copyCode(line.trim()); say('<span class="warn-text">Este navegador não deixa editar arquivos. A linha foi copiada: cole no <code>HALL_OF_FAME</code> do js/config.js.</span>'); return; }
+    try {
+      if (!cfgHandle) [cfgHandle] = await showOpenFilePicker({ id: 'voidfall-config', types: [{ description: 'config.js do Voidfall', accept: { 'text/javascript': ['.js'] } }] });
+      if ((await cfgHandle.requestPermission({ mode: 'readwrite' })) !== 'granted') { say('<span class="bad-text">Sem permissão para editar o arquivo.</span>'); return; }
+      const text = await (await cfgHandle.getFile()).text();
+      const start = text.indexOf('const HALL_OF_FAME = [');
+      const eol = text.includes('\r\n') ? '\r\n' : '\n';   // mantém o fim de linha do arquivo (Windows ou não)
+      const end = start < 0 ? -1 : text.indexOf(eol + '];', start);
+      if (start < 0 || end < 0) { cfgHandle = null; say('<span class="bad-text">Esse arquivo não é o js/config.js do jogo (não achei o HALL_OF_FAME). Clique de novo e escolha o certo.</span>'); return; }
+      const block = text.slice(start, end);
+      if ((pub.r && block.includes(`"r":"${pub.r}"`) && block.includes(`"d":"${pub.d}"`)) || block.includes(JSON.stringify(pub).slice(0, -1))) { say('<span class="warn-text">Essa vitória já está no HALL_OF_FAME do config.js.</span>'); return; }
+      const w = await cfgHandle.createWritable();
+      await w.write(text.slice(0, end) + eol + line + text.slice(end));
+      await w.close();
+      if (!HALL_OF_FAME.some(x => x.n === pub.n && x.d === pub.d && x.t === pub.t)) HALL_OF_FAME.push(pub);
+      Podium.sync();
+      say(`<span class="good-text"><b>✅ ${esc(pub.n)} entrou no Hall da Fama</b> (${DIFFS[pub.d].icon} ${DIFFS[pub.d].nome}) no js/config.js.</span> Faça o commit e publique para aparecer no site.`);
+      // backup: certificado + linha + save do jogador (se veio no e-mail)
+      try {
+        const saveCode = findSave(raw), where = await backupHall(pub, Victory.extract(raw) || res.line, saveCode);
+        say(`<span class="good-text">💾 Backup salvo (${esc(where)})${saveCode ? ', com o save do jogador' : ', sem save (não veio junto)'}.</span>`);
+      } catch (e) {
+        if (e && e.name === 'AbortError') say('<span class="warn-text">Backup não feito (nenhuma pasta escolhida).</span>');
+        else say(`<span class="bad-text">Backup não feito: ${esc(e && e.message || e)}</span>`);
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;   // fechou a janela de escolher arquivo
+      say(`<span class="bad-text">Não deu para gravar: ${esc(e && e.message || e)}</span>`);
     }
   }
 
