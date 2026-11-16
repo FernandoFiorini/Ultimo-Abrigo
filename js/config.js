@@ -5,7 +5,7 @@ const SAVE_KEY = 'ultimoAbrigo.v1';   // save único das versões até a 1.06 (m
 const SLOT_COUNT = 3;                 // espaços de salvamento
 const REPO_URL = 'https://github.com/FernandoFiorini/Void-Fall';
 // Desenvolvimento: true libera o menu de debug (F9), mas só rodando localmente. Deixe false ao publicar.
-const DEV_MODE = true;
+const DEV_MODE = false;
 // Reportar bug (js/bugreport.js): com uma chave do Web3Forms (grátis em web3forms.com, ligada ao seu e-mail),
 // os relatórios chegam no seu e-mail direto do jogo. Vazio: o jogador baixa o relatório e abre uma issue no GitHub.
 // A chave pode ficar no código público: ela só permite enviar mensagens para o seu e-mail.
