@@ -1544,6 +1544,8 @@ table.keys .hk { color: var(--text); }
 
 /* janela Visual: skins das armas que você tem, uma linha por arma */
 .lk-tabs { margin-bottom: 10px; }
+.lk-wallet { margin: -4px 0 8px; text-align: right; font-size: 17px; font-weight: 800; color: #d9a066; }
+.lk-wallet small { font-size: 12px; font-weight: 400; color: var(--muted); }
 .lk-tabs small { font-weight: 400; opacity: 0.8; }
 #lk-weapons { display: flex; flex-direction: column; gap: 12px; max-height: min(60vh, 560px); overflow-y: auto; padding-right: 4px; }
 .lk-w { padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }

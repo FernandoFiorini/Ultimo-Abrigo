@@ -151,7 +151,9 @@ function showLocker(tab = 'armas', focus = null) {
   openDialog({
     title: '🎨 Visual',
     staticBody: true, plain: true, wide: true,
-    body: `<div class="tabs set-tabs lk-tabs" role="tablist">
+    // saldo de Tampinhas: as skins 🔒 custam Tampinhas na loja
+    body: `${inGame ? `<div class="lk-wallet" title="As skins bloqueadas se compram com Tampinhas na 🛒 Loja">🏷️ <b>${fmt((S.meta.champ && S.meta.champ.caps) || 0)}</b> <small>Tampinhas</small></div>` : ''}
+      <div class="tabs set-tabs lk-tabs" role="tablist">
         ${inGame ? `<button class="tab${tab === 'armas' ? ' active' : ''}" data-ltab="armas">🔫 Armas <small>(${owned} skin${owned === 1 ? '' : 's'})</small></button>` : ''}
         <button class="tab${tab === 'lider' ? ' active' : ''}" data-ltab="lider">🧍 Personagem e roupa</button>
         ${inGame && O ? `<button class="tab${tab === 'sobrev' ? ' active' : ''}" data-ltab="sobrev">👥 Grupo</button><button class="tab${tab === 'herois' ? ' active' : ''}" data-ltab="herois">⭐ Heróis</button>` : ''}

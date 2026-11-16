@@ -474,7 +474,7 @@ function render() {
   $('tb-evacuacao').textContent = hopeGain() || perkReady ? '!' : '';
   $('tb-evacuacao').classList.add('gold');
   $('tb-loja').textContent = `💵 ${S.meta.cash}`;
-  for (const id of ['tb-caps', 'tb-caps-vis']) $(id).textContent = `🏷️ ${(S.meta.champ && S.meta.champ.caps) || 0}`;
+  $('tb-caps').textContent = `🏷️ ${(S.meta.champ && S.meta.champ.caps) || 0}`;
 
   const toClaim = ACH.filter(a => S.meta.ach[a.id] === 'unlocked');
   const done = ACH.filter(a => S.meta.ach[a.id]).length;
