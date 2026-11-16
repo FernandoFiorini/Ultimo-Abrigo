@@ -6,6 +6,21 @@ As versões seguem o formato `MAIOR.MÉDIA.PEQUENA`:
 - **Média** (`1.00.000` → `1.01.000`): novos recursos ou mudanças grandes.
 - **Maior** (`1.00.000` → `2.00.000`): as maiores atualizações, que mudam o jogo como um todo.
 
+## 1.09.000
+
+Nova Esperança: a evacuação agora vale pelo quão longe você chegou e por quem você salvou.
+
+- **Nova conta da Esperança:** ao evacuar, a ✨ Esperança vem da melhor onda da cidade, e não mais dos zumbis abatidos. Cada onda a mais rende bem mais que antes (onda 20: 58 · onda 30: 125 · onda 40: 207 · onda 50: 302, antes da dificuldade e dos desafios). Antes, depois de umas 35 ondas quase tudo vinha dos abates, que crescem sem limite com o tamanho das hordas; agora a Esperança sobe de forma estável a cada onda.
+- **Bônus de extração:** cada sobrevivente vivo que embarca no helicóptero dá +2% de Esperança (até +50%), e cada chefe derrotado no abrigo dá +5% (até +50%). Evacuar com o grupo inteiro e enfrentando os chefes pode dobrar o ganho.
+- **Aba Evacuar detalhada:** mostra a melhor onda, quantos sobreviventes vão embarcar e quantos chefes você derrotou, com o bônus de cada um.
+- **O que muda para você:** até a onda 30, mais ou menos, a Esperança fica parecida ou um pouco maior. Quem evacuava muito além da onda 40 vai ganhar menos por cidade: as melhorias permanentes passam a ser conquistadas ao longo de várias cidades.
+
+## 1.08.000
+
+Jogo em segundo plano no ritmo certo.
+
+- **Ondas em segundo plano corrigidas:** com o jogo aberto em outra aba ou minimizado, as hordas continuam, mas agora cada uma leva o mesmo tempo que levaria com você assistindo. Antes elas eram resolvidas uma atrás da outra, sem esperar: em poucas horas o abrigo chegava a ondas de bilhões de zumbis e ganhava uma quantidade absurda de Esperança. Deixar o jogo aberto em segundo plano continua valendo a pena, só que no mesmo ritmo de quem joga.
+
 ## 1.07.002
 
 Suprema dos heróis de campo útil o jogo todo.

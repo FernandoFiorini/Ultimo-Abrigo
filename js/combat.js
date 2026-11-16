@@ -474,6 +474,9 @@ function resolveGroups(groups) {
     if (Z.ai === 'brood') { const cr = groups.cria || (groups.cria = { n: 0, hp: 0 }); cr.n += 8 * e.n; cr.hp += 8 * e.n * ZTYPES.cria.hp * hpMult(H.n); }
   }
   const total = Object.values(groups).reduce((a, e) => a + e.n, 0);
+  // a onda resolvida de uma vez ocupa o tempo que levaria ao vivo (mesma conta de defenseEstimate):
+  // sem isso, a aba em segundo plano emendava ondas gigantes, uma por tick, e os abates (e a Esperança) explodiam
+  const busy = total * spawnGap(H.n) + 15 / D().speed;
   let pool = offlineDefense(total) * Endgame.mult('dmg') * Endgame.offlineMult(), leak = 0;
   let cur = groups;
   for (let pass = 0; pass < 4 && Object.keys(cur).length; pass++) {
@@ -497,6 +500,7 @@ function resolveGroups(groups) {
   H.queue = []; H.zs = [];
   H.dmg += wallDamage(leak);
   if (S === st) endWave();
+  if (S === st) S.waveTimer += busy;
 }
 
 // k zumbis do mesmo tipo abatidos de uma vez: saque, recompensas, amostras e conquistas

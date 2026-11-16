@@ -142,7 +142,16 @@ const keepSegs = s => String(s).split(' · ').map(nbsp).join(' · ');
 // Pressão inicial (Apocalipse): +amt na primeira onda, diminuindo a cada onda
 const surgeMult = (n, amt) => (amt ? 1 + amt * Math.exp(-(n - 1) / (D().surgeTau || 5)) : 1);
 const waveSize = n => Math.round((6 * D().count * Math.pow(D().grow, n - 1) * surgeMult(n, D().surge) + n) * (hasMod('horda') ? 1.25 : 1) * (1 + CITY_COUNT * cityThreat()));
-const hopeGain = () => S.best >= EVAC_WAVE ? Math.floor((Math.pow(S.best - 5, 1.25) + S.kills / 200) * D().hope * (1 + modBonus())) : 0;
+// Esperança ao evacuar: mede a extração, não os abates (que crescem sem limite com o tamanho das ondas).
+// base: (melhor onda − 5)^HOPE_EXP · bônus de extração (com teto): quem embarca vivo e chefes derrotados neste abrigo
+function hopeParts() {
+  const base = Math.pow(Math.max(0, S.best - 5), HOPE_EXP);
+  const surv = Math.min(HOPE_SURV_MAX, HOPE_SURV * Math.max(0, S.survivors));
+  const boss = Math.min(HOPE_BOSS_MAX, HOPE_BOSS * (S.bossKills || 0));
+  const total = S.best >= EVAC_WAVE ? Math.floor(base * D().hope * (1 + modBonus()) * (1 + surv + boss)) : 0;
+  return { base, surv, boss, total };
+}
+const hopeGain = () => hopeParts().total;
 // Zumbis ficam mais resistentes e mais fortes a cada onda.
 // Nas 6 primeiras ondas eles são um pouco mais fracos, para compensar os tiros errados do começo.
 const siegeMult = n => 1 + SIEGE_HP * Math.max(0, n - SIEGE_WAVE);

@@ -13,7 +13,7 @@ function countKill(type, k = 1) {
   st.kills += k;
   const before = typeof Codex !== 'undefined' ? Codex.kills(type) : 0;
   (st.zk || (st.zk = {}))[type] = (st.zk[type] || 0) + k;   // abates por tipo: bestiário
-  if (ZTYPES[type].boss) { st.bosses += k; if (!st.bk) st.bk = {}; st.bk[type] = (st.bk[type] || 0) + k; }
+  if (ZTYPES[type].boss) { st.bosses += k; S.bossKills = (S.bossKills || 0) + k;if (!st.bk) st.bk = {}; st.bk[type] = (st.bk[type] || 0) + k; }
   if (type === 'explosivo') st.bloaters += k;
   if (typeof Codex !== 'undefined') Codex.onKills(type, before);
 }

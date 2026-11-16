@@ -234,7 +234,7 @@ function heliPrompt() {
     body: `<p class="event-text">Um helicóptero respondeu ao rádio e pode levar o grupo para a <b>cidade ${S.meta.city + 1}</b>.</p>
       <div class="stat"><span>✨ Esperança ao evacuar agora</span><span><b>+${g}</b></span></div>
       <div class="stat"><span>Bônus de produção permanente</span><span>+${now}% → <b>+${after}%</b></span></div>
-      <p class="hint">A Esperança também compra melhorias permanentes na aba Evacuar. Quanto mais longe você for nesta cidade, mais Esperança leva.</p>
+      <p class="hint">A Esperança também compra melhorias permanentes na aba Evacuar. Quanto mais longe você for nesta cidade, mais Esperança leva, e ela aumenta com cada sobrevivente vivo que embarca e cada chefe derrotado aqui.</p>
       <p class="hint warn-text">☣️ A partir de agora a cidade vai sendo tomada: cada onda deixa os zumbis ${Math.round(SIEGE_HP * 100)}% mais resistentes.</p>
       ${!S.meta.cured ? `<p class="hint">🧬 A Cura só avança em cidades novas: a próxima etapa (${cureNext.nome}) exige a cidade ${cureNext.city}.</p>` : ''}
       <p class="hint">Evacuar recomeça do zero (grupo, recursos e construções). Ficam: Esperança, pesquisa, amostras, armas do líder, heróis e cash.</p>`,
@@ -448,10 +448,13 @@ function render() {
         <div class="bar"><div style="width:${(1 - e.t / e.dur) * 100}%"></div></div>`).join('')
     : '<div class="desc">Nenhuma expedição em andamento.</div>';
 
-  const g = hopeGain();
+  const hp = hopeParts(), g = hp.total, pc = v => Math.round(v * 100);
   $('prestige').innerHTML = `
     <div class="stat"><span>Cidade atual</span><span>${S.meta.city}</span></div>
     <div class="stat"><span>Esperança disponível</span><span>✨ ${S.meta.hope}</span></div>
+    ${g ? `<div class="stat" title="Quanto mais longe você chegar nesta cidade, mais Esperança leva"><span>Melhor onda nesta cidade</span><span>${S.best}</span></div>
+    <div class="stat" title="+${pc(HOPE_SURV)}% de Esperança por sobrevivente vivo no helicóptero (até +${pc(HOPE_SURV_MAX)}%)"><span>👥 Sobreviventes embarcando (${S.survivors})</span><span>+${pc(hp.surv)}% ✨${hp.surv >= HOPE_SURV_MAX ? ' (máx.)' : ''}</span></div>
+    <div class="stat" title="+${pc(HOPE_BOSS)}% de Esperança por chefe derrotado neste abrigo (até +${pc(HOPE_BOSS_MAX)}%)"><span>👹 Chefes derrotados aqui (${S.bossKills || 0})</span><span>+${pc(hp.boss)}% ✨${hp.boss >= HOPE_BOSS_MAX ? ' (máx.)' : ''}</span></div>` : ''}
     <div class="stat"><span>Bônus de produção permanente</span><span>+${hopePct()}%</span></div>
     <div class="stat"><span>Desafios desta cidade</span><span>${S.mods.length ? S.mods.map(k => `<span title="${MODS[k].nome}: ${MODS[k].desc}">${MODS[k].icon}</span>`).join(' ') + ` (+${Math.round(modBonus() * 100)}% ✨)` : 'nenhum'}</span></div>`;
   $('btn-evac').textContent = g ? `🚁 Evacuar (+${g} ✨ Esperança)` : `🔒 Sobreviva até a onda ${EVAC_WAVE} para evacuar`;

@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '1.07.002';
+const VERSION = '1.09.000';
 const SAVE_KEY = 'ultimoAbrigo.v1';   // save único das versões até a 1.06 (migrado para o espaço 1)
 const SLOT_COUNT = 3;                 // espaços de salvamento
 const REPO_URL = 'https://github.com/FernandoFiorini/Void-Fall';
@@ -21,7 +21,10 @@ const STARVE_TIME = 20;             // segundos sem comida até alguém morrer
 const REPAIR_COST = 10;             // sucata
 const REPAIR_AMOUNT = 25;           // resistência recuperada
 const DMG_PER_DEATH = 10;           // dano que passa do muro necessário para matar 1 sobrevivente
-const EVAC_WAVE = 10;               // onda mínima sobrevivida para poder evacuar
+// Esperança ao evacuar: (melhor onda − 5)^HOPE_EXP × dificuldade × desafios × (1 + bônus de extração)
+// bônus: HOPE_SURV por sobrevivente que embarca (até HOPE_SURV_MAX) e HOPE_BOSS por chefe derrotado neste abrigo (até HOPE_BOSS_MAX)
+const HOPE_EXP = 1.5, HOPE_SURV = 0.02, HOPE_SURV_MAX = 0.5, HOPE_BOSS = 0.05, HOPE_BOSS_MAX = 0.5;
+const EVAC_WAVE = 10;              // onda mínima sobrevivida para poder evacuar
 const EVENT_FIRST = 150;            // segundos até o primeiro dilema da cidade
 const EVENT_GAP = [200, 340];       // intervalo entre dilemas (mín., máx.)
 const MERCHANT_FIRST = 240;         // segundos até o primeiro comerciante
