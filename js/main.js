@@ -4,6 +4,7 @@
 function boot() {
   counter();
   Slots.migrate();
+  Podium.sync();   // posição no ranking do Hall da Fama (skins de pódio e título)
   Menu.init();
   Sound.setup();   // a música do menu começa no primeiro clique ou tecla
   const auto = Slots.takeAutoload();

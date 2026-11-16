@@ -2003,8 +2003,67 @@ const Scene = (() => {
   }
 
   // Boneco com skin (líder, vencedores do Hall da Fama e miniaturas): capa atrás, coroa por cima
+  // ---- skins de pódio (regal: 1 ouro, 2 prata, 3 bronze): manto real, capa longa, coroa/tiara/louros, aura e brilhos
+  const REGAL = {
+    1: { m: [255, 206, 60], md: [170, 112, 16], hi: [255, 248, 200], robe: [128, 20, 36], trim: [255, 206, 60], gem: [230, 30, 70], glow: '255,205,80', sparks: 6, aura: 20 },
+    2: { m: [214, 222, 238], md: [118, 128, 150], hi: [255, 255, 255], robe: [36, 52, 120], trim: [214, 222, 238], gem: [70, 160, 255], glow: '190,215,255', sparks: 3, aura: 14 },
+    3: { m: [226, 146, 84], md: [128, 70, 32], hi: [255, 210, 160], robe: [28, 74, 52], trim: [226, 146, 84], gem: [60, 200, 120], glow: '235,150,90', sparks: 2, aura: 11 },
+  };
+  function drawRegal(x, y, look, o) {
+    const T = REGAL[look.regal] || REGAL[3], n = look.regal, face = o.face || 1;
+    // aura pulsando atrás (o ouro brilha mais e tem um halo no chão)
+    const pulse = 0.5 + 0.5 * Math.sin(time * 2.4);
+    light(x, y - 9, T.aura + pulse * 3, T.glow, 0.22 + 0.12 * pulse);
+    if (n === 1) { ctx.fillStyle = `rgba(${T.glow},${0.18 + 0.1 * pulse})`; ctx.beginPath(); ctx.ellipse(x, y, 8, 2, 0, 0, Math.PI * 2); ctx.fill(); }
+    // capa longa até o chão, balançando, com barra de metal na ponta
+    const sway = Math.round(Math.sin(time * 1.8) * 1);
+    const cx = x - 4 * face - (face < 0 ? 2 : 0);
+    rect(T.robe, cx, y - 12, 3, 6);
+    rect(T.robe, cx - face * (sway > 0 ? 1 : 0), y - 6, 3, 5);
+    rect(shade(T.robe, 0.7), cx + (face > 0 ? 0 : 2), y - 12, 1, 11);
+    rect(T.trim, cx - face * (sway > 0 ? 1 : 0), y - 2, 3, 1);
+    // manto com detalhes em metal
+    const body = (R, dy) => {
+      R(T.m, -4, -11 + dy, 2, 2); R(T.m, 2, -11 + dy, 2, 2);            // ombreiras
+      R(T.hi, -4, -11 + dy, 1, 1); R(T.hi, 2, -11 + dy, 1, 1);
+      R(T.md, -3, -6 + dy, 6, 1); R(T.gem, 0, -6 + dy, 1, 1);            // cinto com fivela de pedra
+      R(T.trim, -1, -10 + dy, 1, 4);                                    // faixa no peito
+      if (n === 1) {                                                    // ouro: faixa diagonal e um sol no peito
+        for (let i = 0; i < 5; i++) R(T.m, -3 + i, -11 + i + dy, 1, 1);
+        R(T.hi, 1, -9 + dy, 1, 1); R(T.m, 0, -9 + dy, 1, 1); R(T.m, 2, -9 + dy, 1, 1); R(T.m, 1, -10 + dy, 1, 1); R(T.m, 1, -8 + dy, 1, 1);
+      } else if (n === 2) R(T.hi, 1, -9 + dy, 1, 1);
+    };
+    const head = (R, dy, oo, hx) => {
+      if (n === 1) {                                                    // coroa alta com 3 pontas e joias
+        R(T.md, hx - 1, -18 + dy, 7, 1); R(T.m, hx - 1, -19 + dy, 7, 1);
+        R(T.m, hx - 1, -21 + dy, 1, 2); R(T.m, hx + 2, -22 + dy, 1, 3); R(T.m, hx + 5, -21 + dy, 1, 2);
+        R(T.m, hx + 1, -20 + dy, 1, 1); R(T.m, hx + 3, -20 + dy, 1, 1);
+        R(T.hi, hx - 1, -22 + dy, 1, 1); R(T.hi, hx + 2, -23 + dy, 1, 1); R(T.hi, hx + 5, -22 + dy, 1, 1);
+        R(T.gem, hx + 2, -19 + dy, 1, 1); R([70, 160, 255], hx, -19 + dy, 1, 1); R([70, 200, 120], hx + 4, -19 + dy, 1, 1);
+      } else if (n === 2) {                                             // tiara de prata com uma pedra azul
+        R(T.m, hx - 1, -18 + dy, 7, 1); R(T.m, hx + 1, -19 + dy, 3, 1); R(T.m, hx + 2, -20 + dy, 1, 1);
+        R(T.gem, hx + 2, -19 + dy, 1, 1); R(T.hi, hx + 2, -21 + dy, 1, 1);
+      } else {                                                          // coroa de louros de bronze
+        for (let i = -1; i <= 5; i++) R(i % 2 ? T.m : T.md, hx + i, -18 + dy - (i === 2 ? 1 : 0), 1, 1);
+        R(T.m, hx - 1, -16 + dy, 1, 1); R(T.md, hx - 1, -15 + dy, 1, 1); R(T.hi, hx + 2, -19 + dy, 1, 1);
+      }
+      if (oo.prevHead) oo.prevHead(R, dy, oo, hx);
+    };
+    drawHuman(x, y, { skin: [220, 180, 150], ...look, ...o, body, head, prevHead: look.head });
+    // brilhos subindo em volta (o ouro também tem estrelas em cruz)
+    for (let i = 0; i < T.sparks; i++) {
+      const ph = (time * 0.45 + i / T.sparks) % 1, a = Math.sin(ph * Math.PI);
+      const sx = Math.round(x + Math.sin(i * 2.3 + time * 0.9) * 7), sy = Math.round(y - 3 - ph * 22);
+      ctx.globalAlpha = a;
+      rect(T.hi, sx, sy, 1, 1);
+      if (n === 1 && a > 0.6) { rect(T.m, sx - 1, sy, 1, 1); rect(T.m, sx + 1, sy, 1, 1); rect(T.m, sx, sy - 1, 1, 1); rect(T.m, sx, sy + 1, 1, 1); }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   function drawLook(x, y, look, o) {
     const face = o.face || 1;
+    if (look.regal) return drawRegal(x, y, look, o);
     if (look.cape) rect(look.cape, x - 4 * face - (face < 0 ? 2 : 0), y - 11, 2, 7);
     drawHuman(x, y, { skin: [220, 180, 150], ...look, ...o });
     if (look.crown) {
@@ -2026,11 +2085,15 @@ const Scene = (() => {
       const w = all[(start + i) % all.length], x = HALL_X[i], y = 165 + (i % 2) * 6;
       ents.push([y, () => {
         const face = Math.sin(time * 0.35 + i * 2.1) > 0 ? 1 : -1;
-        drawLook(x, y, skinOfDiff(w.d), { pose: 'stand', face, phase: 0 });
+        // quem está no pódio AGORA aparece com a roupa de ouro, prata ou bronze (a coroa muda com o ranking)
+        const pos = Podium.list(w.d).findIndex(e => e === w || (e.n === w.n && (!e.r || !w.r || e.r === w.r))) + 1;
+        const regal = pos >= 1 && pos <= 3;
+        drawLook(x, y, regal ? LEADER_SKINS['podio' + pos] : skinOfDiff(w.d), { pose: 'stand', face, phase: 0 });
         const gold = w.d === 'apocalipse';
+        const ny = regal ? y - 25 : y - 21;
         ctx.font = '5px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(w.n, x + 0.5, y - 20.5, 26);
-        ctx.fillStyle = gold ? '#ffd040' : '#efe6c0'; ctx.fillText(w.n, x, y - 21, 26);
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(w.n, x + 0.5, ny + 0.5, 26);
+        ctx.fillStyle = regal ? ['#ffd040', '#dfe6f2', '#e8a070'][pos - 1] : gold ? '#ffd040' : '#efe6c0'; ctx.fillText(w.n, x, ny, 26);
       }]);
     }
   }

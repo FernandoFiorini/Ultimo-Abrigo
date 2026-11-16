@@ -3,7 +3,7 @@
 const VERSION = '1.07.000';
 const SAVE_KEY = 'ultimoAbrigo.v1';   // save único das versões até a 1.06 (migrado para o espaço 1)
 const SLOT_COUNT = 3;                 // espaços de salvamento
-const REPO_URL = 'https://github.com/fernandofiorini/Ultimo-Abrigo';
+const REPO_URL = 'https://github.com/FernandoFiorini/Void-Fall';
 // Desenvolvimento: true libera o menu de debug (F9), mas só rodando localmente. Deixe false ao publicar.
 const DEV_MODE = false;
 // Reportar bug (js/bugreport.js): com uma chave do Web3Forms (grátis em web3forms.com, ligada ao seu e-mail),
@@ -615,10 +615,28 @@ const LEADER_SKINS = {
   pesadelo: { nome: 'Pesadelo', icon: '☣️', diff: 'pesadelo', shirt: [90, 44, 120], pants: [36, 30, 50], hair: [200, 200, 210], dye: true, cape: [140, 60, 180] },
   lenda: { nome: 'Lenda do Apocalipse', icon: '👑', diff: 'apocalipse', shirt: [200, 160, 50], pants: [70, 40, 30], hair: [30, 25, 20], cape: [170, 30, 30], crown: true },
   custom: { nome: 'Personalizada', icon: '🎨', diff: '*' },
+  // skins de pódio (Podium, em slots.js): liberadas pela melhor posição já alcançada no ranking do Hall da Fama.
+  // regal: 1 ouro, 2 prata, 3 bronze (manto, capa longa, coroa/tiara/louros, aura e brilhos; desenho em scene.js)
+  podio1: { nome: 'Lenda de Ouro', icon: '👑', podium: 1, hair: [30, 25, 20], shirt: [128, 20, 36], pants: [46, 26, 30], regal: 1 },
+  podio2: { nome: 'Lenda de Prata', icon: '🥈', podium: 2, hair: [30, 25, 20], shirt: [36, 52, 120], pants: [28, 30, 52], regal: 2 },
+  podio3: { nome: 'Lenda de Bronze', icon: '🥉', podium: 3, hair: [30, 25, 20], shirt: [28, 74, 52], pants: [26, 40, 32], regal: 3 },
 };
 
 // Hall da Fama do site: quem venceu e enviou o certificado de vitória.
 // Para adicionar alguém, confira o código com Victory.verify('UAV1:...') no console e copie a linha que ele devolve.
-// { n: nome, d: dificuldade, t: data (AAAA-MM-DD) }
+// { n: nome, d: dificuldade, t: data (AAAA-MM-DD) } e, nos certificados novos: ts (quando venceu, ms), h (horas jogadas),
+// k (abates), c (cidade), w (mundo), lost (sobreviventes perdidos). O ranking ordena por menos tempo jogado (h); no empate, quem venceu primeiro (ts, ou t).
 const HALL_OF_FAME = [
+];
+
+// Créditos (menu principal › Créditos): rolam na tela como no fim de um filme. Edite à vontade.
+// Cada seção: titulo + nomes (em destaque) e/ou linhas (texto comum) e nota (frase pequena embaixo).
+// Os sobreviventes homenageados (HONORED) e as lendas do Hall da Fama entram sozinhos no fim.
+const CREDITS = [
+  { titulo: 'Criação, design e programação', nomes: ['Fernando Fiorini'] },
+  { titulo: 'Testadores', nomes: ['Erik', 'Roney', 'Valde', 'Natalia', 'Pig'], nota: 'que ajudaram a testar e a desenvolver as funcionalidades do jogo' },
+  { titulo: 'Arte', linhas: ['Pixel art desenhada em código no Canvas 2D', 'Sem nenhum arquivo de imagem'] },
+  { titulo: 'Música e efeitos sonoros', linhas: ['Sintetizados em tempo real com a Web Audio API', 'Sem nenhum arquivo de áudio'] },
+  { titulo: 'Tecnologia', linhas: ['JavaScript puro, sem frameworks nem bibliotecas'] },
+  { titulo: 'Agradecimentos', linhas: ['A todos que testaram, deram ideias e sobreviveram mais uma noite.'] },
 ];

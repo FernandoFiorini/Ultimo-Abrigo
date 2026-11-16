@@ -16,6 +16,10 @@ Sem servidor, a data vem do relógio do aparelho (dá para adiantar): as recompe
 - [ ] **Calendário de eventos:** organiza quando cada evento acontece (Natal, Ano Novo, Carnaval, Halloween...), mostra o próximo no menu e as recompensas de cada um.
 - [ ] **Login diário:** recompensa por dia jogado, em sequência (ex.: 7 dias, com uma skin no último). Pensar no que acontece ao perder um dia.
 
+## Hall da Fama
+- [ ] **Confirmar e incluir no Hall:** fluxo de aprovação do certificado recebido: validar no menu de debug (🏆 Ranking › 🔍 Validar certificado), conferir os avisos e colar a linha no `HALL_OF_FAME` (config.js). Antes, tirar o certificado de teste se ele tiver entrado.
+- [ ] **Ranking automático (depois):** Firebase para o vencedor entrar no ranking sem aprovação manual, com alguma verificação contra certificado forjado.
+
 ## Heróis de campo
 - [ ] **Animações dos heróis de campo:** refinar o visual do ataque básico, da ativa e da suprema de cada herói (hoje são efeitos simples: raios em zigue-zague, laser, feixe do disco, notas musicais, banners e flashes) e dar animações próprias a eles no telhado (cast, comemoração ao subir de nível).
 - [ ] **Sons dos heróis de campo:** sons especiais para cada herói (ataque básico, ativa e suprema). Hoje usam o som de tiro comum.

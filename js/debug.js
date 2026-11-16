@@ -15,6 +15,94 @@ const Debug = (() => {
   const note = t => addLog(`🐞 ${t}`, 'warn');
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+  // ---- certificados do Hall da Fama (Victory, em menu.js)
+  function certGenDialog() {
+    const code = Victory.certificate(Victory.entryNow());
+    openDialog({
+      title: '🧪 Certificado de teste',
+      staticBody: true, plain: true,
+      body: `<p class="hint">Gerado a partir deste save, como se a Cura tivesse sido encontrada agora (nenhuma recompensa foi dada). Use em 🔍 Validar certificado.</p>
+        <textarea id="save-code" class="save-code" readonly spellcheck="false">${esc(code)}</textarea>`,
+      onMount: () => { $('save-code').onfocus = e => e.target.select(); },
+      buttons: [
+        { label: '⬇️ Baixar arquivo', keep: true, onClick: () => Victory.download(Victory.entryNow(), code) },
+        { label: '📋 Copiar', keep: true, onClick: () => copyCode(code) },
+        { label: '🔍 Validar este', cls: 'primary', onClick: () => setTimeout(() => certCheckDialog(code)) },
+      ],
+      cancel: 'Fechar',
+    });
+  }
+  function certCheckDialog(code = '') {
+    let res = null, dref = null;
+    const row = (k, v) => `<tr><td>${k}</td><td><b>${v}</b></td></tr>`;
+    const report = () => {
+      if (!res) return '';
+      if (!res.ok) return /UAV1:/.test($('cert-in').value)
+        ? '<p class="bad-text"><b>❌ Certificado inválido.</b> A assinatura não confere (código alterado, cortado ou de outro jogo).</p>'
+        : '<p class="bad-text"><b>❌ Não achei um certificado aqui.</b> Use o arquivo baixado na tela de vitória (ou o e-mail com o código UAV1:...). Um save exportado (.voidfall) também serve, se tiver uma vitória.</p>';
+      const e = res.entry, D = DIFFS[e.d];
+      return `<p class="good-text"><b>✅ Certificado válido.</b></p>
+        <table class="cert-table">${row('Nome', esc(e.n))}${row('Dificuldade', `${D.icon} ${D.nome}`)}${row('Venceu em', esc(String(e.t || '').split('-').reverse().join('/')))}
+          ${row('Tempo jogado', e.h != null ? `${fmt(e.h)}h` : '—')}${row('Abates', e.k != null ? fmt(e.k) : '—')}${row('Perdidos', e.lost != null ? fmt(e.lost) : '—')}
+          ${row('Cidade / mundo', `${e.c || '?'} / ${e.w || 1}`)}${row('Marca do save', esc(e.r || '—'))}</table>
+        ${res.warn.length ? `<p class="warn-text"><b>⚠️ Confira:</b></p><ul>${res.warn.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '<p class="hint">Nada estranho.</p>'}
+        <p class="hint">Linha para o <code>HALL_OF_FAME</code> (config.js):</p>
+        <textarea class="save-code" readonly spellcheck="false" style="min-height:60px">${esc(res.line.trim())}</textarea>`;
+    };
+    openDialog({
+      title: '🔍 Validar certificado',
+      staticBody: true, plain: true,
+      body: `<label class="drop-zone" id="cert-drop" tabindex="0"><input type="file" id="cert-file">
+          <span class="dz-ico">📜</span><b>Arraste o arquivo do certificado aqui</b><small>ou clique para escolher (o .txt baixado na vitória, ou um e-mail salvo com o código)</small></label>
+        <p class="hint">Ou cole o código (UAV1:...):</p>
+        <textarea id="cert-in" class="save-code" spellcheck="false" placeholder="UAV1:...">${esc(code)}</textarea><div id="cert-out"></div>`,
+      onMount: dd => {
+        dref = dd;
+        const dz = $('cert-drop');
+        const file = f => { if (f) f.text().then(t => { $('cert-in').value = Victory.extract(t); validate(); }, () => { $('cert-out').innerHTML = '<p class="bad-text">Não deu para ler o arquivo.</p>'; }); };
+        $('cert-file').onchange = e => file(e.target.files[0]);
+        dz.ondragover = e => { e.preventDefault(); dz.classList.add('over'); };
+        dz.ondragleave = () => dz.classList.remove('over');
+        dz.ondrop = e => { e.preventDefault(); dz.classList.remove('over'); file(e.dataTransfer.files[0]); };
+        if (code) validate();
+      },
+      buttons: [
+        { label: '🔍 Validar', cls: 'primary', keep: true, onClick: () => validate() },
+        { label: '📋 Copiar linha', keep: true, hidden: () => !(res && res.ok), onClick: () => copyCode(res.line.trim()) },
+        { label: '👀 Ver no Hall (só nesta sessão)', hidden: () => !(res && res.ok), onClick: () => {
+          const { id, ...pub } = res.entry;
+          if (!HALL_OF_FAME.some(w => w.n === pub.n && w.d === pub.d && w.t === pub.t)) HALL_OF_FAME.push(pub);
+          setTimeout(() => Menu.show('hall'));
+        } },
+      ],
+      cancel: 'Fechar',
+    });
+    function validate() {
+      const txt = $('cert-in').value;
+      let pre = '';
+      try {
+        // sem certificado no texto: pode ser um save exportado (.voidfall); aí gera o certificado da vitória registrada nele
+        if (!/UAV1:/.test(txt) && txt.trim()) {
+          let st = null;
+          try { st = decodeSave(txt); } catch (e) { /* não é save */ }
+          if (st) {
+            const e = Victory.fromSave(st);
+            if (!e) { res = null; $('cert-out').innerHTML = `<p class="warn-text"><b>📁 Isso é um arquivo de save</b> (${esc((st.meta && st.meta.player) || 'sem nome')}), não um certificado, e ele não tem nenhuma vitória registrada.</p>`; if (dref) dref.refresh(false); return; }
+            const code = Victory.certificate(e);
+            $('cert-in').value = code;
+            pre = `<p class="hint">📁 Era um <b>arquivo de save</b>: gerei o certificado da vitória registrada nele (${DIFFS[e.d].icon} ${DIFFS[e.d].nome}). Save não tem assinatura, então use só para teste.</p>`;
+          }
+        }
+        res = Victory.check($('cert-in').value);
+        $('cert-out').innerHTML = pre + report();
+      } catch (err) {
+        res = null;
+        $('cert-out').innerHTML = `<p class="bad-text"><b>Erro ao validar:</b> ${esc(err && err.message || err)}</p>`;
+      }
+      if (dref) dref.refresh(false);
+    }
+  }
+
   function room(n) { while (maxSurv() < S.survivors + n) S.build.beliche++; }
   function addPeople(n) { room(n); for (let i = 0; i < n; i++) addSurvivor(); emit('expReturn', { n }); }
   function ensurePeople(n) { if (S.survivors < n) addPeople(n - S.survivors); }
@@ -385,6 +473,44 @@ const Debug = (() => {
       ['Desbloqueio', {
         vfAll: ['🔓 Liberar todos (nesta sessão)', () => { VFilter.debugAll = true; note('todos os filtros liberados até recarregar a página.'); }, 'para escolher nas Configurações › Visual sem vencer'],
         vfLock: ['🔒 Voltar ao desbloqueio normal', () => { VFilter.debugAll = false; note('filtros só pelas vitórias de novo (um filtro bloqueado escolhido volta a Nenhum).'); }, 'segue as vitórias do perfil'],
+      }],
+    ]],
+    // ranking do Hall da Fama (Podium, em slots.js): simula a posição do jogador para ver skins de pódio e título
+    ['ranking', '🏆 Ranking', [
+      ['Simular posição no pódio (até recarregar a página)', Object.fromEntries([
+        ['pod1', '👑 1º lugar agora', { pos: 1, best: 1 }, 'libera as 3 skins; título "O Melhor do ..."'],
+        ['pod2', '🥈 2º lugar agora', { pos: 2, best: 2 }, 'libera prata e bronze'],
+        ['pod3', '🥉 3º lugar agora', { pos: 3, best: 3 }, 'libera só a de bronze'],
+        ['pod13', 'Já foi 1º, hoje 3º', { pos: 3, best: 1 }, 'continua com as 3 skins; título com "já foi o melhor"'],
+        ['podEx1', 'Já foi 1º, caiu do pódio', { pos: null, best: 1 }, 'mantém as skins; título "Já foi o melhor do ..."'],
+        ['podEx2', 'Já foi 2º, caiu do pódio', { pos: null, best: 2 }, 'mantém prata e bronze'],
+      ].map(([id, label, v, desc]) => [id, [label, () => {
+        Podium.debug = { d: Podium.debugDiff || 'apocalipse', ...v };
+        note(`simulando: ${label}. Título: ${Podium.title()}. Veja em 🎨 Visual (Roupas de vitória) ou no Hall da Fama do menu.`);
+      }, desc]]))],
+      ['Dificuldade da simulação', Object.fromEntries(Object.keys(DIFFS).map(d => ['podD_' + d, [`${DIFFS[d].icon} ${DIFFS[d].nome}`, () => {
+        Podium.debugDiff = d;
+        if (Podium.debug) Podium.debug = { ...Podium.debug, d };
+        note(`ranking simulado no ${DIFFS[d].nome}.`);
+      }, 'em qual dificuldade fica o pódio simulado']]))],
+      // certificados de vitória: gerar um de teste (sem vencer) e conferir os que os jogadores mandarem
+      ['Certificados do Hall da Fama', {
+        certGen: ['🧪 Gerar certificado deste save', () => { setTimeout(certGenDialog); return true; }, 'como se tivesse vencido agora, sem dar as recompensas da vitória'],
+        certWin: ['👑 Ver tela de vitória', () => { setTimeout(() => Victory.preview()); return true; }, 'prévia com os dados deste save, sem vencer e sem dar recompensas (o envio vai como [TESTE])'],
+        certSend: ['📨 Enviar certificado de teste', () => {
+          if (!Victory.hasMailKey()) { note('sem chave do Web3Forms (BUG_REPORT em config.js).'); return; }
+          note('enviando certificado de teste para o seu e-mail...');
+          Victory.send(Victory.entryNow(), undefined, true).then(() => note('✅ certificado de teste enviado: confira o e-mail (assunto começa com [TESTE]).'), e => note(`❌ não deu para enviar: ${e.message}`));
+        }, 'manda para o seu e-mail um certificado deste save, como o jogador faria ao vencer'],
+        certCheck: ['🔍 Validar certificado', () => { setTimeout(() => certCheckDialog()); return true; }, 'cole o código UAV1:... que o jogador mandou'],
+      }],
+      ['Ver e voltar', {
+        podSkin: ['👑 Vestir a skin de ouro', () => {
+          if (!Podium.debug) Podium.debug = { d: Podium.debugDiff || 'apocalipse', pos: 1, best: 1 };
+          Profile.setSkin('podio1'); note('líder com a Lenda de Ouro (feche o menu para ver no telhado).');
+          return true;
+        }, 'simula o 1º lugar se precisar e coloca a skin no líder'],
+        podOff: ['Voltar ao ranking real', () => { Podium.debug = null; note('simulação desligada: vale o HALL_OF_FAME de verdade.'); }, 'skins e título voltam a seguir o Hall da Fama'],
       }],
     ]],
     ['equilibrio', '📊 Equilíbrio', [

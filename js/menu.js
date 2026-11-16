@@ -9,13 +9,18 @@ const diffTag = k => { const d = DIFFS[k] || DIFFS.normal; return `<span class="
 // ---------- skins do líder ----------
 function skinPickerHtml() {
   const P = Profile.get();
+  Podium.sync();
+  const title = Podium.title();
   const cards = Object.entries(LEADER_SKINS).map(([k, s]) => {
     const open = Profile.unlocked(k);
-    const how = s.diff === '*' ? 'Vença em qualquer dificuldade' : s.diff ? `Vença no ${DIFFS[s.diff].icon} ${DIFFS[s.diff].nome}` : 'Padrão';
-    return `<button class="skin-card ${P.skin === k ? 'on' : ''}" data-skin="${k}" ${open ? '' : 'disabled'} title="${how}">
+    const how = s.podium ? `Fique em ${s.podium === 1 ? '1º lugar' : `${s.podium}º lugar ou melhor`} no ranking do Hall da Fama`
+      : s.diff === '*' ? 'Vença em qualquer dificuldade' : s.diff ? `Vença no ${DIFFS[s.diff].icon} ${DIFFS[s.diff].nome}` : 'Padrão';
+    // skins de pódio mostram o título único de quem as conquistou
+    const lbl = s.podium && open && title ? title : 'Liberada';
+    return `<button class="skin-card ${P.skin === k ? 'on' : ''} ${s.podium ? `podium-skin p${s.podium}` : ''}" data-skin="${k}" data-lbl="${escHtml(lbl)}" ${open ? '' : 'disabled'} title="${escHtml(how)}">
       <canvas width="72" height="72" data-prev="${k}"></canvas>
       <span class="skin-name">${s.icon} ${s.nome}</span>
-      <span class="skin-how">${open ? (P.skin === k ? 'Em uso' : 'Liberada') : '🔒 ' + how}</span>
+      <span class="skin-how">${open ? (P.skin === k ? (s.podium ? `Em uso · ${escHtml(lbl)}` : 'Em uso') : escHtml(lbl)) : '🔒 ' + how}</span>
     </button>`;
   }).join('');
   const C = P.custom;
@@ -47,7 +52,8 @@ function bindSkinPicker(root) {
     root.querySelectorAll('[data-skin]').forEach(x => {
       const on = x === b;
       x.classList.toggle('on', on);
-      if (!x.disabled) x.querySelector('.skin-how').textContent = on ? 'Em uso' : 'Liberada';
+      const lbl = x.dataset.lbl || 'Liberada', pod = x.classList.contains('podium-skin');
+      if (!x.disabled) x.querySelector('.skin-how').textContent = on ? (pod ? `Em uso · ${lbl}` : 'Em uso') : lbl;
     });
     const cu = root.querySelector('.skin-custom');
     if (cu) cu.hidden = b.dataset.skin !== 'custom';
@@ -236,51 +242,151 @@ const Victory = (() => {
       const d = JSON.parse(unb64(String(code).trim().replace(/^UAV1:/, '')));
       const { s, ...entry } = d;
       const ok = s === hash(JSON.stringify(entry) + SALT) && !!DIFFS[entry.d];
-      return { ok, entry, line: ok ? `  { n: ${JSON.stringify(entry.n)}, d: '${entry.d}', t: '${entry.t}' },` : null };
+      const { id, ...pub } = entry;   // o id do save não vai para o Hall da Fama
+      return { ok, entry, line: ok ? `  ${JSON.stringify(pub)},` : null };
     } catch (e) { return { ok: false }; }
+  }
+
+  // dados do certificado a partir do save aberto (também usado pelo menu de debug para gerar um certificado de teste)
+  function entryNow() {
+    const m = S.meta, now = Date.now();
+    return { n: m.player || 'Sobrevivente', d: S.diff, t: new Date(now).toISOString().slice(0, 10), ts: now, w: m.worlds || 1, c: m.city, k: m.stats.kills,
+      h: Math.round((m.stats.time || 0) / 360) / 10, lost: m.fallen || 0, id: m.runId,
+      r: m.runId ? hash(m.runId + ':hall') : undefined };   // marca pública do save: o jogo se reconhece no Hall da Fama (pódio e skins)
+  }
+
+  // arquivo do certificado (o jogador baixa e manda; o validador lê o código de dentro de qualquer texto)
+  function download(entry, code = certificate(entry)) {
+    const D = DIFFS[entry.d], slug = String(entry.n).normalize('NFD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'sobrevivente';
+    const text = `Certificado de vitória do Voidfall\n\nNome: ${entry.n}\nDificuldade: ${D.nome}\nData: ${String(entry.t).split('-').reverse().join('/')}\n` +
+      (entry.h != null ? `Tempo jogado: ${String(entry.h).replace('.', ',')}h\n` : '') + `\n${code}\n`;
+    downloadFile(text, `voidfall-certificado-${slug}-${entry.d}.txt`);
+  }
+  // acha o certificado dentro de um texto qualquer (arquivo baixado, e-mail colado...)
+  const extract = text => { const m = String(text || '').match(/UAV1:[A-Za-z0-9+/=]+/); return m ? m[0] : String(text || '').trim(); };
+
+  // Para o desenvolvedor: confere um certificado e aponta o que parece estranho (menu de debug › 🏆 Ranking)
+  function check(code) {
+    code = extract(code);
+    const v = verify(code), warn = [];
+    if (!v.ok) return { ...v, warn };
+    const e = v.entry, D = DIFFS[e.d];
+    if (e.h == null) warn.push('certificado antigo: sem tempo jogado (vai para o fim do ranking)');
+    else if (e.h < 1) warn.push(`só ${fmt(e.h)}h de jogo até a Cura: muito rápido, confira`);
+    if (e.ts && e.ts > Date.now() + 86400000) warn.push('data no futuro');
+    if (!e.r) warn.push('sem a marca do save: o jogador não vai se reconhecer no ranking (pódio e skins)');
+    if (e.k != null && e.k < 500) warn.push(`só ${fmt(e.k)} abates: pouco para quem chegou à Cura`);
+    if (Slots.buried(e.id)) warn.push('esse save morreu no Apocalipse');
+    if (HALL_OF_FAME.some(w => (w.r && e.r && w.r === e.r && w.d === e.d) || (w.n === e.n && w.d === e.d && w.t === e.t))) warn.push(`já está no Hall da Fama (${D.nome})`);
+    return { ...v, warn };
+  }
+
+  // envio do certificado por e-mail (Web3Forms, a mesma chave do Reportar bug): chega com os dados, os avisos e a linha pronta
+  const hasMailKey = () => typeof BUG_REPORT !== 'undefined' && !!BUG_REPORT.web3formsKey;
+  async function send(entry, code = certificate(entry), test = false) {
+    if (!hasMailKey()) throw new Error('sem chave');
+    const D = DIFFS[entry.d], c = check(code);
+    const L = [
+      `${test ? '[TESTE] ' : ''}Nova vitória para o Hall da Fama do Voidfall`, '',
+      `Nome: ${entry.n}`, `Dificuldade: ${D.nome}`, `Venceu em: ${String(entry.t).split('-').reverse().join('/')}`,
+      `Tempo jogado: ${entry.h != null ? String(entry.h).replace('.', ',') + 'h' : '—'}`, `Abates: ${entry.k ?? '—'}`, `Perdidos: ${entry.lost ?? '—'}`,
+      `Cidade ${entry.c || '?'}, mundo ${entry.w || 1}`, `Versão do jogo: v${VERSION}`, '',
+      c.ok ? '✅ Assinatura conferida.' : '❌ A assinatura NÃO confere.',
+      ...(c.warn.length ? ['', 'Confira:', ...c.warn.map(w => '- ' + w)] : []), '',
+      'Linha para o HALL_OF_FAME (js/config.js):', c.ok ? c.line.trim() : '(nenhuma: certificado inválido)', '',
+      'Certificado (para validar no menu de debug › 🏆 Ranking › 🔍 Validar certificado):', code,
+    ];
+    const r = await fetch('https://api.web3forms.com/submit', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ access_key: BUG_REPORT.web3formsKey, subject: `${test ? '[TESTE] ' : ''}👑 Voidfall: ${entry.n} venceu no ${D.nome} (${entry.h != null ? String(entry.h).replace('.', ',') + 'h' : 'sem tempo'})`,
+        from_name: entry.n || 'Jogador do Voidfall', message: L.join('\n') }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.success === false) throw new Error(j.message || `HTTP ${r.status}`);
   }
 
   function win() {
     const m = S.meta, d = S.diff, D0 = DIFFS[d];
     if (!m.wins || typeof m.wins !== 'object') m.wins = {};
     const first = !m.wins[d];
-    const entry = { n: m.player || 'Sobrevivente', d, t: new Date().toISOString().slice(0, 10), w: m.worlds || 1, c: m.city, k: m.stats.kills, id: m.runId };
+    const entry = entryNow();
     if (!first) { addLog(`👑 Mais uma vitória no ${D0.icon} ${D0.nome}. As recompensas dessa dificuldade já foram recebidas neste save.`, 'good'); return; }
     m.wins[d] = Date.now();
     const vfBefore = VFilter.list().filter(VFilter.unlocked);
-    const fresh = Profile.win({ n: entry.n, d, t: entry.t });
+    const fresh = Profile.win({ n: entry.n, d, t: entry.t, r: entry.r });
     const vfNew = VFilter.list().filter(k => VFilter.unlocked(k) && !vfBefore.includes(k));
     const cash = VICTORY_CASH[d] || 0;
     m.cash += cash;
     addLog(`👑 VITÓRIA no ${D0.icon} ${D0.nome}! +💵 ${cash}. ${escHtml(entry.n)} agora aparece no abrigo como sobrevivente lendário.`, 'good');
     save();
-    const code = certificate(entry);
-    const issue = `${REPO_URL}/issues/new?title=${encodeURIComponent(`Hall da Fama: ${entry.n} (${D0.nome})`)}&body=${encodeURIComponent('Certificado de vitória:\n\n' + code)}`;
+    showWin({ entry, cash, vfNew, fresh });
+  }
+
+  // Tela de vitória: um certificado bonito (o código fica escondido; vai pelo e-mail ou no arquivo baixado).
+  // test: prévia do menu de debug (nada é dado, o envio vai como [TESTE])
+  function showWin({ entry, cash, vfNew = [], fresh = [], test = false }) {
+    const D0 = DIFFS[entry.d], code = certificate(entry);
+    const canSend = hasMailKey();
+    let sending = false, sent = false;
+    const msg = h => { const el = $('hall-msg'); if (el) el.innerHTML = h; };
+    const stat = (v, l) => `<div class="cert-stat"><b>${v}</b><small>${l}</small></div>`;
+    const rewards = [
+      `💵 <b>+${cash} de cash</b> neste save`,
+      `🧍 Seu nome num <b>sobrevivente lendário</b> na frente do abrigo, em todos os seus saves`,
+      vfNew.length ? `📺 Filtros visuais: <b>${vfNew.map(k => `${VFILTERS[k].icon} ${VFILTERS[k].nome}`).join(', ')}</b>` : '',
+      fresh.length ? `🎨 Skins: <b>${fresh.map(k => `${LEADER_SKINS[k].icon} ${LEADER_SKINS[k].nome}`).join(', ')}</b>` : '',
+      `🚩 Bandeira de troféu no telhado do abrigo`,
+    ].filter(Boolean);
     openDialog({
-      title: '👑 Vitória!',
+      title: test ? '👑 Vitória! <small class="hint">(prévia do debug)</small>' : '👑 Vitória!',
       staticBody: true, plain: true,
-      body: `<p class="event-text">A Cura foi encontrada no <b style="color:${D0.color}">${D0.icon} ${D0.nome}</b>. <b>${escHtml(entry.n)}</b> entra para a história de Voidfall.</p>
-        <ul class="win-list">
-          <li>💵 <b>+${cash} de cash</b> neste save</li>
-          <li>🧍 Seu nome aparece num <b>sobrevivente lendário</b> na frente do abrigo, em todos os seus saves</li>
-          ${vfNew.length ? `<li>📺 Filtros visuais liberados: <b>${vfNew.map(k => `${VFILTERS[k].icon} ${VFILTERS[k].nome}`).join(', ')}</b> (Configurações › Visual)</li>` : ''}
-          ${fresh.length ? `<li>🎨 Skins liberadas: <b>${fresh.map(k => `${LEADER_SKINS[k].icon} ${LEADER_SKINS[k].nome}`).join(', ')}</b></li>` : ''}
-          <li>🚩 Bandeira de troféu no telhado do abrigo</li>
-          <li>🏆 Seu nome no <b>Hall da Fama</b> do menu principal</li>
-        </ul>
-        <p class="hint">Para aparecer no <b>Hall da Fama do site</b> (como NPC no abrigo de todos os jogadores), envie este certificado:</p>
-        <textarea id="save-code" class="save-code" readonly spellcheck="false">${code}</textarea>
-        <p class="hint"><a href="${issue}" target="_blank" rel="noopener">📨 Enviar certificado pelo GitHub</a> <span id="save-msg"></span></p>`,
-      onMount: () => { $('save-code').onfocus = e => e.target.select(); },
+      body: `<div class="cert-card" style="--dc:${D0.color}">
+          <div class="cert-seal">🏅</div>
+          <div class="cert-kicker">Certificado de vitória · Voidfall</div>
+          <canvas class="cert-hero" id="cert-hero" width="120" height="120"></canvas>
+          <div class="cert-name">${escHtml(entry.n)}</div>
+          <div class="cert-line">encontrou a <b>Cura</b> no <b class="cert-diff">${D0.icon} ${D0.nome}</b></div>
+          <div class="cert-stats">${stat(String(entry.t).split('-').reverse().join('/'), 'data')}${stat(entry.h != null ? `${fmt(entry.h)}h` : '—', 'tempo de jogo')}
+            ${stat(fmt(entry.k || 0), 'abates')}${stat(fmt(entry.lost || 0), 'perdidos')}${stat(`${entry.c || 1}`, 'cidades')}</div>
+        </div>
+        <ul class="win-list cert-rewards">${rewards.map(r => `<li>${r}</li>`).join('')}</ul>
+        <p class="hint cert-hall">🏆 <b>Hall da Fama do site:</b> envie o certificado para entrar no ranking (quem chega à Cura em menos tempo de jogo) e aparecer no abrigo de todos os jogadores. Os 3 primeiros de cada dificuldade ganham <b>skins de pódio</b> e um título único.
+</p>
+        <p class="hint" id="hall-msg"></p>`,
+      onMount: () => { const c = $('cert-hero'); if (c && typeof Scene !== 'undefined') Scene.portrait(c, Profile.look()); },
       buttons: [
-        { label: '📋 Copiar certificado', keep: true, onClick: () => copyCode(code) },
-        { label: '🎨 Escolher skin', cls: 'primary', onClick: () => setTimeout(showSkins) },
+        { label: () => (sent ? '✅ Enviado' : sending ? '📨 Enviando...' : '📨 Enviar para o Hall da Fama'), cls: 'primary', keep: true,
+          hidden: () => !canSend, disabled: () => sending || sent,
+          onClick: d => {
+            sending = true; msg('Enviando...');
+            send(entry, code, test).then(() => { sent = true; msg(`<span class="good-text">✅ Enviado${test ? ' (teste)' : ''}! Seu nome aparece no Hall da Fama quando for aprovado.</span>`); },
+              () => msg('<span class="bad-text">Não deu para enviar agora (sem internet?). Tente de novo daqui a pouco: esta janela fica aberta.</span>'))
+              .finally(() => { sending = false; if (d.open) d.refresh(false); });
+          } },
+        { label: '🎨 Escolher skin', onClick: () => setTimeout(showSkins) },
       ],
       cancel: 'Fechar',
     });
   }
+  // prévia da tela de vitória (menu de debug): com os dados do save aberto e as recompensas da dificuldade, sem dar nada
+  function preview() {
+    const entry = entryNow(), d = entry.d;
+    const fresh = Object.keys(LEADER_SKINS).filter(k => LEADER_SKINS[k].diff === d);
+    const vfNew = VFilter.list().filter(k => VFILTERS[k].diff === d);
+    showWin({ entry, cash: VICTORY_CASH[d] || 0, vfNew, fresh, test: true });
+  }
 
-  return { win, verify, certificate };
+  // certificado a partir de um save exportado (validador do debug): usa a vitória mais difícil registrada nele.
+  // Saves não têm assinatura (dá para editar), então isso é para teste, não prova de vitória.
+  function fromSave(st) {
+    const m = st.meta || {}, wins = Object.keys(m.wins || {}).filter(k => DIFFS[k]);
+    if (!wins.length) return null;
+    const d = wins.sort((a, b) => diffRank(b) - diffRank(a))[0], ts = typeof m.wins[d] === 'number' ? m.wins[d] : Date.now();
+    return { n: m.player || 'Sobrevivente', d, t: new Date(ts).toISOString().slice(0, 10), ts, w: m.worlds || 1, c: m.city, k: (m.stats && m.stats.kills) || 0,
+      h: Math.round(((m.stats && m.stats.time) || 0) / 360) / 10, lost: m.fallen || 0, id: m.runId, r: m.runId ? hash(m.runId + ':hall') : undefined };
+  }
+
+  return { win, verify, certificate, entryNow, check, download, extract, send, hasMailKey, showWin, preview, fromSave };
 })();
 
 // ---------- cena do menu: o abrigo à noite, ao vivo (pixel art desenhada em código, como o resto do jogo) ----------
@@ -448,7 +554,7 @@ const RADIO_LINES = [
 
 // ---------- menu principal ----------
 const Menu = (() => {
-  let screen = 'home', pick = { slot: 1, diff: 'normal', name: '', look: null };
+  let screen = 'home', pick = { slot: 1, diff: 'normal', name: '', look: null }, hallTab = null;
   const box = () => $('mm-box');
 
   function show(s = 'home') {
@@ -483,7 +589,7 @@ const Menu = (() => {
           <button class="mm-go" data-go="hall"><span>Hall da Fama</span></button>
           <button class="mm-go" data-go="skins"><span>Skins</span></button>
           <button class="mm-go" data-go="settings"><span>Configurações</span></button>
-          <button class="mm-go" data-go="credits"><span>Sobre</span></button>
+          <button class="mm-go" data-go="credits"><span>Créditos</span></button>
         </nav>
         <div class="mm-foot">v${VERSION}</div>`;
     },
@@ -534,36 +640,72 @@ const Menu = (() => {
         </div>`;
     },
     hall() {
-      const local = Profile.get().winners;
-      const row = w => `<li>${diffTag(w.d)} <b>${escHtml(w.n)}</b> <small>${escHtml(w.t || '')}</small></li>`;
+      // ranking do site: uma aba por dificuldade (da mais difícil para a mais fácil), por ordem de quem venceu em menos tempo
+      const all = HALL_OF_FAME;
+      Podium.sync();
+      const dia = w => escHtml(String(w.t || '').split('-').reverse().join('/'));   // AAAA-MM-DD → DD/MM/AAAA
+      const order = Object.keys(DIFFS).reverse();
+      const count = d => all.filter(w => w.d === d).length;
+      if (!DIFFS[hallTab] || (!count(hallTab) && all.length)) hallTab = order.find(count) || order[0];
+      // menos tempo jogado até a Cura na frente; empate (ou sem tempo registrado): quem venceu primeiro (Podium.list)
+      const list = Podium.list(hallTab);
+      const you = w => (Podium.mine(w) ? ' <small class="hall-you">você</small>' : '');
+      const myTitle = Podium.title();
+      const medal = i => ['🥇', '🥈', '🥉'][i] || `${i + 1}º`;
+      const num = v => (v == null ? '—' : fmt(v));
+      const D = DIFFS[hallTab];
+      // pódio animado para os 3 primeiros (2º à esquerda, 1º no meio, 3º à direita); do 4º em diante, a tabela
+      const step = (w, i) => w ? `<div class="podium-step p${i + 1}" style="--d:${[0.25, 0, 0.5][i]}s">
+          <div class="podium-medal">${medal(i)}</div>
+          <div class="podium-name">${escHtml(w.n)}</div>${Podium.mine(w) ? '<div class="hall-you">você</div>' : ''}
+          <div class="podium-info">
+            <span>Venceu</span><b>${dia(w)}</b>
+            <span>Tempo jogado</span><b>${w.h != null ? `${fmt(w.h)}h` : '—'}</b>
+            <span>Abates</span><b>${num(w.k)}</b>
+            <span>Perdidos</span><b>${num(w.lost)}</b>
+          </div>
+          <div class="podium-base"><span>${i + 1}</span></div>
+          ${i === 0 ? '<i class="spark s1"></i><i class="spark s2"></i><i class="spark s3"></i><i class="spark s4"></i>' : ''}
+        </div>` : '<div class="podium-step empty"></div>';
+      const podium = list.length ? `<div class="podium">${step(list[1], 1)}${step(list[0], 0)}${step(list[2], 2)}</div>` : '';
+      const rest = list.slice(3);
+      const table = rest.length ? `<div class="hall-rank-wrap"><table class="hall-rank">
+          <thead><tr><th>#</th><th>Sobrevivente</th><th>Venceu em</th><th>Tempo jogado</th><th>Abates</th><th>Perdidos</th></tr></thead>
+          <tbody>${rest.map((w, j) => `<tr><td class="pos">${medal(j + 3)}</td><td><b>${escHtml(w.n)}</b>${you(w)}</td>
+            <td>${dia(w)}</td><td>${w.h != null ? `${fmt(w.h)}h` : '—'}</td><td>${num(w.k)}</td><td>${num(w.lost)}</td></tr>`).join('')}</tbody>
+        </table></div>` : '';
+      const body = list.length ? podium + table
+        : `<p class="hint">Ninguém venceu no ${D.icon} ${D.nome} ainda. Seja o primeiro: vença e envie o seu certificado de vitória.</p>`;
       return `<h2>🏆 Hall da Fama</h2>
-        <p class="hint">Quem encontra a Cura entra para a história: o nome aparece aqui e num sobrevivente lendário na frente do abrigo.</p>
-        <h3>🌍 Do site</h3>
-        ${HALL_OF_FAME.length ? `<ul class="hall-list">${HALL_OF_FAME.map(row).join('')}</ul>` : '<p class="hint">Ninguém ainda. Seja o primeiro: vença e envie o seu certificado de vitória.</p>'}
-        <h3>🏠 Deste navegador</h3>
-        ${local.length ? `<ul class="hall-list">${local.map(row).join('')}</ul>` : '<p class="hint">Nenhuma vitória ainda.</p>'}
+        <p class="hint">Quem encontra a Cura entra para a história. O ranking mostra quem chegou lá em menos tempo de jogo, em cada dificuldade.</p>
+        ${myTitle ? `<div class="hall-title p${Podium.current() ? Podium.current().pos : 0}">Seu título: <b>${escHtml(myTitle)}</b></div>` : ''}
+        <h3>🌍 Ranking do site</h3>
+        <div class="hall-tabs">${order.map(d => `<button data-hall="${d}" class="${d === hallTab ? 'on' : ''}" style="--c:${DIFFS[d].color}">${DIFFS[d].icon} ${DIFFS[d].nome} <small>${count(d)}</small></button>`).join('')}</div>
+        ${body}
         <div class="mm-back"><button data-go="home">← Voltar</button></div>`;
     },
     skins() {
       return `<h2>🎨 Skins do líder</h2><div id="skin-root">${skinPickerHtml()}</div>
         <div class="mm-back"><button data-go="home">← Voltar</button></div>`;
     },
+    // créditos rolando como no fim de um filme (CREDITS em config.js); a roda do mouse e o arrasto também rolam
     credits() {
-      return `<h2>📜 Sobre</h2>
-        <div class="credits">
-          <canvas id="mm-logo" class="mm-logo-sm" aria-label="Voidfall"></canvas>
-          <p><b>Criação, design e programação</b><br>Fernando Fiorini</p>
-          <p><b>Arte e trilha sonora</b><br>Pixel art desenhada em código no Canvas 2D<br>Música e efeitos sintetizados em tempo real com a Web Audio API</p>
-          <p><b>Tecnologia</b><br>JavaScript puro, sem frameworks, bibliotecas ou arquivos de imagem e áudio</p>
-          
-          <p><b>Agradecimentos</b><br>A todos que testaram, deram ideias e sobreviveram mais uma noite.${HALL_OF_FAME.length ? `<br>E às lendas do Hall da Fama: ${HALL_OF_FAME.map(w => escHtml(w.n)).join(', ')}.` : ''}</p>
-
-          <p class="thanks"><b>Agradecimento especial</b><br><span class="thanks-names">Erik · Roney · Valde · Natalia · Pig</span><br>que ajudaram a testar e a desenvolver as funcionalidades do jogo.</p>
-
-          <p><a href="${REPO_URL}" target="_blank" rel="noopener">Código-fonte no GitHub</a></p>
-          <p class="hint">v${VERSION}</p>
+      const sec = (titulo, body) => `<section class="cr-sec"><h4>${escHtml(titulo)}</h4>${body}</section>`;
+      const names = a => (a || []).map(n => `<div class="cr-name">${escHtml(n)}</div>`).join('');
+      const lines = a => (a || []).map(l => `<div class="cr-line">${escHtml(l)}</div>`).join('');
+      const honored = typeof HONORED !== 'undefined' ? HONORED.map(h => h.nome) : [];
+      const legends = [...new Set(HALL_OF_FAME.map(w => w.n))];
+      return `<div class="cr-roll" id="cr-roll" tabindex="0" aria-label="Créditos">
+          <div class="cr-inner">
+            <canvas id="mm-logo" class="mm-logo-sm" aria-label="Voidfall"></canvas>
+            ${(typeof CREDITS !== 'undefined' ? CREDITS : []).map(s => sec(s.titulo, names(s.nomes) + lines(s.linhas) + (s.nota ? `<div class="cr-note">${escHtml(s.nota)}</div>` : ''))).join('')}
+            ${honored.length ? sec('Sobreviventes homenageados', names(honored) + '<div class="cr-note">pessoas de verdade que vivem no abrigo</div>') : ''}
+            ${legends.length ? sec('Lendas do Hall da Fama', names(legends) + '<div class="cr-note">encontraram a Cura</div>') : ''}
+            <section class="cr-sec cr-end"><div class="cr-name">Obrigado por jogar.</div>
+              <div class="cr-line"><a href="${REPO_URL}" target="_blank" rel="noopener">Código-fonte no GitHub</a></div><div class="cr-note">v${VERSION}</div></section>
+          </div>
         </div>
-        <div class="mm-back"><button data-go="home">← Voltar</button></div>`;
+        <div class="mm-back"><button data-go="home">← Voltar</button> <button data-cr="toggle" id="cr-toggle">⏸ Pausar</button></div>`;
     },
     death() {
       const d = Slots.death || {};
@@ -591,15 +733,43 @@ const Menu = (() => {
     type();
   }
 
+  // créditos: sobem sozinhos (~28 px/s); mexer na roda do mouse, arrastar ou usar as setas pausa a rolagem por 3s; no fim, voltam ao começo
+  let crPaused = false, crRaf = 0;
+  function rollCredits() {
+    const el = $('cr-roll');
+    if (!el) return;
+    cancelAnimationFrame(crRaf);
+    crPaused = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const tg = $('cr-toggle'); if (tg) tg.textContent = crPaused ? '▶ Continuar' : '⏸ Pausar';
+    let last = performance.now(), hold = 0, pos = 0, endT = 0;
+    const touch = () => { hold = 3; pos = el.scrollTop; };
+    el.onwheel = el.onpointerdown = el.onkeydown = touch;
+    const step = now => {
+      if (!el.isConnected || screen !== 'credits') return;
+      const dt = Math.min(0.1, (now - last) / 1000); last = now;
+      if (hold > 0) { hold -= dt; pos = el.scrollTop; }
+      else if (!crPaused) {
+        const max = el.scrollHeight - el.clientHeight;
+        if (pos >= max - 1) { endT += dt; if (endT > 2.5) { pos = 0; endT = 0; } }
+        else pos += 28 * dt;
+        el.scrollTop = pos;
+      }
+      crRaf = requestAnimationFrame(step);
+    };
+    crRaf = requestAnimationFrame(step);
+  }
+
   function draw() {
     box().innerHTML = SCREENS[screen]();
     box().classList.toggle('narrow', ['death', 'credits'].includes(screen));
     box().classList.toggle('home', screen === 'home');
+    box().classList.toggle('hall', screen === 'hall');   // Hall da Fama: só a tabela rola, a janela não
     $('main-menu').classList.toggle('at-home', screen === 'home');
     box().scrollTop = 0;
     const lg = $('mm-logo'); if (lg) drawLogo(lg);
     if (screen === 'home') radio(); else clearTimeout(txT);
     if (screen === 'skins') bindSkinPicker($('skin-root'));
+    if (screen === 'credits') rollCredits();
     if (screen === 'new') {
       const n = $('mm-name');
       n.oninput = () => {
@@ -654,6 +824,8 @@ const Menu = (() => {
     } else if (ds.imp) { showImport(+ds.imp); $('dialog').classList.add('over-menu'); }   // a janela abre por cima do menu
     else if (ds.newin) { pick = { slot: +ds.newin, diff: 'normal', name: pick.name, look: pick.look || Profile.lastLook() }; screen = 'new'; draw(); }
     else if (ds.slot) { pick.slot = +ds.slot; draw(); }
+    else if (ds.hall) { hallTab = ds.hall; draw(); }
+    else if (ds.cr) { crPaused = !crPaused; t.textContent = crPaused ? '▶ Continuar' : '⏸ Pausar'; }
     else if (ds.diff) { pick.diff = ds.diff; box().querySelectorAll('.diff-card').forEach(c => c.classList.toggle('current', c === t)); }
   }
 

@@ -109,8 +109,10 @@ const Profile = (() => {
 
   return {
     get: () => p,
-    unlocked: k => p.skins.includes(k),
-    setSkin(k) { if (LEADER_SKINS[k] && p.skins.includes(k)) { p.skin = k; persist(); } },
+    save: () => persist(),
+    // skins de pódio (podium: 1, 2 ou 3) dependem da melhor posição já alcançada no ranking (Podium)
+    unlocked: k => (LEADER_SKINS[k] && LEADER_SKINS[k].podium ? Podium.has(LEADER_SKINS[k].podium) : p.skins.includes(k)),
+    setSkin(k) { if (LEADER_SKINS[k] && this.unlocked(k)) { p.skin = k; persist(); } },
     setCustom(k, v) { p.custom[k] = v; persist(); },
     // último personagem criado (vira o padrão do próximo "Novo jogo")
     setLastLook(a) { p.lastLook = { ...a }; persist(); },
@@ -122,7 +124,7 @@ const Profile = (() => {
         return { shirt: rgb(c.shirt), pants: rgb(c.pants), hair: rgb(c.hair), cape: rgb(c.cape), crown: !!c.crown };
       }
       const s = LEADER_SKINS[k] || LEADER_SKINS.padrao, o = {};
-      for (const f of ['shirt', 'pants', 'cap', 'helmet', 'cape', 'crown']) if (s[f] !== undefined) o[f] = s[f];
+      for (const f of ['shirt', 'pants', 'cap', 'helmet', 'cape', 'crown', 'regal']) if (s[f] !== undefined) o[f] = s[f];
       if (s.dye) o.hair = s.hair;
       return o;
     },
@@ -143,7 +145,7 @@ const Profile = (() => {
     // a: aparência do personagem (padrão: a do save aberto) · k: skin (padrão: a escolhida)
     look(a, k) {
       if (!a) a = (typeof S !== 'undefined' && S && S.meta && S.meta.look) || defaultLook(p.body);
-      const skin = k || (p.skins.includes(p.skin) ? p.skin : 'padrao');
+      const skin = k || (this.unlocked(p.skin) ? p.skin : 'padrao');
       // roupa comprada na loja (skins de personagem) vale no lugar da skin do perfil
       if (!k && typeof OSkins !== 'undefined') { const o = OSkins.leaderLook(lookBase(a)); if (o) return o; }
       return { ...lookBase(a), ...this.outfit(skin) };
@@ -159,5 +161,63 @@ const Profile = (() => {
       }
       return out;
     },
+  };
+})();
+
+// ---------- pódio do Hall da Fama: posição no ranking, melhor posição já alcançada, título e skins de pódio ----------
+// O ranking de cada dificuldade ordena por menos tempo jogado até a Cura (no empate, quem venceu primeiro).
+// O jogador se reconhece no HALL_OF_FAME pela marca r do certificado (tirada do id do save), ou, nos antigos, por nome + dificuldade + data.
+// A skin de pódio fica para sempre com a MELHOR posição já alcançada; a coroa no abrigo é só de quem está no pódio agora.
+// Sair do Hall da Fama (removido por fraude) tira a skin.
+const Podium = (() => {
+  let debug = null;   // simulação do menu de debug: { d, pos (posição atual, null = fora do pódio), best }
+  const when = w => w.ts || Date.parse(w.t) || 0;
+  const time = w => (w.h != null ? w.h : Infinity);
+  const list = d => HALL_OF_FAME.filter(w => w.d === d).sort((a, b) => time(a) - time(b) || when(a) - when(b));
+  const mine = w => Profile.get().winners.some(m => (m.r && w.r ? m.r === w.r : m.n === w.n && m.d === w.d && m.t === w.t));
+  // posição de uma entrada do Hall no ranking da dificuldade dela (1, 2, 3...)
+  const rankOf = w => list(w.d).indexOf(w) + 1;
+
+  // melhor posição atual no pódio (da dificuldade mais difícil para a mais fácil): { pos, d } ou null
+  function current() {
+    if (debug) return debug.pos ? { pos: debug.pos, d: debug.d } : null;
+    let best = null;
+    for (const d of DIFF_ORDER.slice().reverse()) {
+      const i = list(d).slice(0, 3).findIndex(mine);
+      if (i >= 0 && (!best || i + 1 < best.pos)) best = { pos: i + 1, d };
+    }
+    return best;
+  }
+  // guarda a melhor posição já alcançada (e tira se o jogador saiu do Hall da Fama)
+  function sync() {
+    if (debug) return;
+    const P = Profile.get(), cur = current();
+    if (!HALL_OF_FAME.some(mine)) { if (P.podium) { delete P.podium; Profile.save(); } return; }
+    if (cur && (!P.podium || cur.pos < P.podium.pos)) { P.podium = { pos: cur.pos, d: cur.d, t: new Date().toISOString().slice(0, 10) }; Profile.save(); }
+  }
+  const best = () => (debug ? (debug.best ? { pos: debug.best, d: debug.d } : null) : Profile.get().podium || null);
+  const has = n => { const b = best(); return !!b && b.pos <= n; };
+
+  // título único: quem está no pódio agora, ou quem já esteve
+  function title() {
+    const b = best();
+    if (!b) return null;
+    const look = (typeof S !== 'undefined' && S && S.meta && S.meta.look) || Profile.lastLook();
+    const o = look && look.sex === 'f' ? 'a' : 'o', O = o.toUpperCase();
+    const nth = n => (n === 1 ? 'melhor' : `${n}º melhor`);
+    const dname = d => `${DIFFS[d].icon} ${DIFFS[d].nome}`;
+    const cur = current();
+    if (cur) {
+      const icon = ['👑', '🥈', '🥉'][cur.pos - 1];
+      const now = `${icon} ${O} ${cur.pos === 1 ? 'Melhor' : `${cur.pos}º Melhor`} do ${dname(cur.d)}`;
+      return b.pos < cur.pos ? `${now} · já foi ${o} ${nth(b.pos)}` : now;
+    }
+    return `Já foi ${o} ${nth(b.pos)} do ${dname(b.d)}`;
+  }
+
+  return {
+    list, rankOf, mine, current, sync, best, has, title,
+    get debug() { return debug; },
+    set debug(v) { debug = v; },
   };
 })();

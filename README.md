@@ -193,3 +193,7 @@ A versão atual aparece no rodapé do jogo e o histórico está no [CHANGELOG](C
 ## Tecnologias
 
 HTML5 · CSS3 · JavaScript (ES2020) · Canvas 2D · Web Audio API · localStorage
+
+## Licença
+
+© 2026 Fernando Fiorini. **Todos os direitos reservados.** O código está aberto para leitura e estudo: você pode baixar, rodar o jogo no seu computador e testar. **Não é permitido** usar o código para fins comerciais, publicar cópias do jogo (modificadas ou não) em outros sites ou lojas, nem usar o nome, a arte, os personagens ou as músicas em outros projetos sem autorização. Veja o arquivo [LICENSE](LICENSE).
