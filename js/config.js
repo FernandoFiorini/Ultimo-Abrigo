@@ -504,7 +504,7 @@ const HONORED = [
   {
     nome: 'Café', sexo: 'm',
     frases: ['Então pessoal, esses erros não podem acontecer.', 'Vamos ter que dar uma atenção a isso, pessoal.', 'Vou fazer uma call hoje com a equipe.'],
-    horda: ['Não, vocês estão atirando errado.', 'Sei como é ser guarda, no passado também fui, por isso entendo vocês.', 'Vamos ter que fazer uma reunião de alinhamento no acampamento.'],
+    horda: ['Não, vocês estão atirando errado.', 'Quem vai ser o ponto focal?', 'Sei como é ser guarda, no passado também fui, por isso entendo vocês.', 'Vamos ter que fazer uma reunião de alinhamento no acampamento.'],
     historia: 'Era chefe de setor de uma empresa. Falar muito era o seu dom, mas também a sua desgraça.',
     // easter egg (honored.js): fala tanto que os guardas cansam 2% mais a cada tiro
     cansaco: 0.02,
