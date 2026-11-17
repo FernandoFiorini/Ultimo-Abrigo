@@ -430,6 +430,7 @@ const FEMALE_NAMES = new Set(['Ana', 'Marta', 'Cláudia', 'Fernanda', 'Camila', 
 //   historia: (opcional) história fixa da ficha (ao passar o mouse), no lugar da gerada
 //   bug, codigo: (opcional) easter eggs falados de vez em quando (ver honored.js)
 //   prod:   (opcional) muda a produção do abrigo enquanto a pessoa está no grupo, ex.: -0.02 = −2%
+//   cansaco: (opcional) muda o cansaço dos guardas a cada tiro enquanto a pessoa está no grupo, ex.: 0.02 = 2% mais
 const HONORED = [
   {
     nome: 'Valdecir', sexo: 'm', roupa: 'policial',
@@ -499,6 +500,14 @@ const HONORED = [
     historia: 'Era chefe do setor antes do apocalipse. Trabalhava 1x por semana e, nesse dia, ainda folgava das 7 às 8h. Era líder... dos Legendários.',
     // easter egg (honored.js): enquanto está no grupo, a produção do abrigo cai 2%, porque produtividade não é o forte dele
     prod: -0.02,
+  },
+  {
+    nome: 'Café', sexo: 'm',
+    frases: ['Então pessoal, esses erros não podem acontecer.', 'Vamos ter que dar uma atenção a isso, pessoal.', 'Vou fazer uma call hoje com a equipe.'],
+    horda: ['Não, vocês estão atirando errado.', 'Sei como é ser guarda, no passado também fui, por isso entendo vocês.', 'Vamos ter que fazer uma reunião de alinhamento no acampamento.'],
+    historia: 'Era chefe de setor de uma empresa. Falar muito era o seu dom, mas também a sua desgraça.',
+    // easter egg (honored.js): fala tanto que os guardas cansam 2% mais a cada tiro
+    cansaco: 0.02,
   }
   // { nome: 'Fulana', sexo: 'f', frases: ['Primeira frase.', 'Segunda frase.'], horda: ['Lá vêm eles!'], adeus: ['Cuidem do abrigo por mim.'], visual: { hair: [200, 60, 130], longHair: true } },
 ];

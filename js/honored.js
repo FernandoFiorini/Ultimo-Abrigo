@@ -77,6 +77,9 @@ const Honored = (() => {
   // campo "prod": quem está no grupo muda a produção do abrigo (multiplicador e quem causa, para o aviso)
   const prodWho = () => present().map(byName).filter(h => h.prod);
   const prodMult = () => prodWho().reduce((a, h) => a * (1 + h.prod), 1);
+  // campo "cansaco": quem está no grupo faz os guardas cansarem mais (ou menos) a cada tiro
+  const tireWho = () => present().map(byName).filter(h => h.cansaco);
+  const tireMult = () => tireWho().reduce((a, h) => a * (1 + h.cansaco), 1);
 
   // a horda chegou: às vezes um deles grita a frase de horda
   function onWaveStart() {
@@ -123,5 +126,5 @@ const Honored = (() => {
     } finally { Math.random = real; }
   }
 
-  return { say, tick, setup, lastWords, is: n => !!byName(n), byName, bio, prodMult, prodWho };
+  return { say, tick, setup, lastWords, is: n => !!byName(n), byName, bio, prodMult, prodWho, tireMult, tireWho };
 })();

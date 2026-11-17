@@ -166,7 +166,7 @@ function accuracy(src, base = src === 'tower' ? TOWER_ACC : GUARD_ACC) {
 }
 // Cansaço dos guardas: multiplicador de cadência, quanto cada tiro cansa e a velocidade de recuperação
 const guardFire = () => 1 - FAT_FIRE * (S.fatigue || 0);
-const fatigueShot = () => FAT_SHOT * (1 - 0.15 * Endgame.tl('turnos'));
+const fatigueShot = () => FAT_SHOT * (1 - 0.15 * Endgame.tl('turnos')) * (typeof Honored !== 'undefined' ? Honored.tireMult() : 1);
 const restRate = () => (1 + 0.3 * (S.build.alojamento || 0)) * (1 + Champions.val('rest')) * Pets.restMult() / FAT_TAU;
 const tire = shots => { if (S.jobs.guarda > 0) S.fatigue = Math.min(1, (S.fatigue || 0) + shots * fatigueShot() / S.jobs.guarda); };
 const dmgMult = n => D().dmg * (1 + 0.04 * (n - 1));
