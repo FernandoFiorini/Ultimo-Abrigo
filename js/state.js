@@ -70,7 +70,8 @@ const hopeMult = (h = S.meta.hopeTotal) => h <= HOPE_LINEAR ? 1 + 0.03 * h
 // bônus de produção da Esperança em % (para os textos)
 const hopePct = (h = S.meta.hopeTotal) => Math.round((hopeMult(h) - 1) * 100);
 const boostMult = () => S.meta.boosts.prod > 0 ? 2 : 1;
-const prodMult = () => boostMult() * D().prod * Endgame.mult('prod') * (S.mourn > 0 ? 1 - MOURN_PENALTY : 1);
+const prodMult = () => boostMult() * D().prod * Endgame.mult('prod') * (S.mourn > 0 ? 1 - MOURN_PENALTY : 1) *
+  (typeof Honored !== 'undefined' ? Honored.prodMult() : 1);
 const furia = () => S.meta.boosts.furia > 0;
 const foodMult = () => (1 + 0.25 * S.build.horta) * (1 + 0.15 * perk('agricultura')) * hopeMult() * prodMult() * Endgame.mult('food') * traitMult('verde');
 const scrapMult = () => (1 + 0.25 * S.build.oficina) * (1 + 0.15 * perk('sucateiros')) * hopeMult() * prodMult() * Endgame.mult('scrap') * traitMult('jeito');

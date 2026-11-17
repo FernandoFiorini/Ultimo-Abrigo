@@ -42,10 +42,27 @@ const Honored = (() => {
     speak(h, h.bug.depois);
   }
 
+  // easter egg (campo "codigo" em HONORED): a pessoa "programa" o abrigo (o código aparece no balão)
+  // e, uns segundos depois, comenta. Sobra 1 🔬 de pesquisa.
+  let codeT = 0, codeWho = null;
+  function startCode(h) {
+    speak(h, pickOf(h.codigo.linhas));
+    addLog(`🖥️ ${h.codigo.log}`);
+    codeWho = h; codeT = 6;
+  }
+  function endCode() {
+    const h = codeWho; codeWho = null;
+    if (!h || !present().includes(h.nome)) return;
+    S.meta.rp = (S.meta.rp || 0) + 1;
+    addLog(`🔬 O código de ${h.nome} até rodou: +1 de pesquisa.`);
+    speak(h, h.codigo.depois);
+  }
+
   // de tempos em tempos, de dia ou de noite, alguém da lista que está no grupo fala
   function tick(dt) {
     if (!list().length || (typeof paused !== 'undefined' && paused)) return;
     if (bugWho && (bugT -= dt) <= 0) endBug();
+    if (codeWho && (codeT -= dt) <= 0) endCode();
     wait -= dt;
     if (wait > 0) return;
     wait = rand(HONORED_GAP[0], HONORED_GAP[1]);
@@ -53,8 +70,13 @@ const Honored = (() => {
     if (!ps.length) return;
     const name = pickOf(ps), h = byName(name);
     if (h.bug && !bugWho && Math.random() < h.bug.chance) startBug(h);
+    else if (h.codigo && !codeWho && Math.random() < h.codigo.chance) startCode(h);
     else say(name);
   }
+
+  // campo "prod": quem está no grupo muda a produção do abrigo (multiplicador e quem causa, para o aviso)
+  const prodWho = () => present().map(byName).filter(h => h.prod);
+  const prodMult = () => prodWho().reduce((a, h) => a * (1 + h.prod), 1);
 
   // a horda chegou: às vezes um deles grita a frase de horda
   function onWaveStart() {
@@ -101,5 +123,5 @@ const Honored = (() => {
     } finally { Math.random = real; }
   }
 
-  return { say, tick, setup, lastWords, is: n => !!byName(n), byName, bio };
+  return { say, tick, setup, lastWords, is: n => !!byName(n), byName, bio, prodMult, prodWho };
 })();

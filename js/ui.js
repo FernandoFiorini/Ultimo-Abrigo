@@ -682,6 +682,8 @@ function alertsHtml(r, left) {
     ? `⚠ ${hurt() - treating()} ferido(s) esperando um médico livre: sem tratamento, alguém piora em ${Math.ceil(WOUND_TIME - S.injT)}s`
     : `⚠ ${hurt()} ferido(s) sem médico: alguém piora em ${Math.ceil(WOUND_TIME - S.injT)}s (gasta remédio ou morre)`]);
   if (S.mourn > 0) out.push(['warn', `🕯️ Luto: −${Math.round(MOURN_PENALTY * 100)}% de produção por mais ${fmtTime(S.mourn)}`]);
+  if (typeof Honored !== 'undefined') for (const h of Honored.prodWho())
+    out.push(['warn', `🐢 ${h.nome} está no grupo: ${h.prod > 0 ? '+' : '−'}${Math.round(Math.abs(h.prod) * 100)}% de produção${h.prod < 0 ? ` (produtividade não é o forte ${h.sexo === 'f' ? 'dela' : 'dele'})` : ''}`]);
   if (S.wallDown && !S.horde.active) out.push(['bad', '⚠ O muro está caído: na próxima horda os zumbis entram direto no abrigo. Repare!']);
   if (!S.horde.active && S.waveTimer < 30 && S.wallHp < maxWall() * 0.4) out.push(['bad', `⚠ Muro fraco e a horda chega em ${Math.ceil(S.waveTimer)}s: repare agora`]);
   return out.map(([c, t]) => `<br><span class="${c}-text">${t}</span>`).join('');

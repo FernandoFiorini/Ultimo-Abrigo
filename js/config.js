@@ -428,6 +428,8 @@ const FEMALE_NAMES = new Set(['Ana', 'Marta', 'Cláudia', 'Fernanda', 'Camila', 
 //   roupa:  (opcional) roupa fixa, que não troca nem com o uniforme do grupo: o id de uma roupa do líder
 //           (cangaceiro, bombeiro, astronauta, samurai, ninja, peste, cavaleiro, escafandro, hazmat, policial; ver oskins.js)
 //   historia: (opcional) história fixa da ficha (ao passar o mouse), no lugar da gerada
+//   bug, codigo: (opcional) easter eggs falados de vez em quando (ver honored.js)
+//   prod:   (opcional) muda a produção do abrigo enquanto a pessoa está no grupo, ex.: -0.02 = −2%
 const HONORED = [
   {
     nome: 'Valdecir', sexo: 'm', roupa: 'policial',
@@ -472,6 +474,31 @@ const HONORED = [
     frases: ['Jogador assiduo de aram, aqui joga não adianta!', 'O que eu jogo esse joguinho aqui, não tá escrito.'],
     horda: ['Será que dá pra ultar de *mordekaiser* esses zumbis?'],
     historia: 'Era jogador de aram antes do apocalipse. Depois também, mordekaiser e Dr.mundo sua paixão.'
+  },
+  {
+    nome: 'Sid', sexo: 'm',
+    frases: ['Viu, dai vou mergear a tarefa.', 'Eoq marcelo, show de bola.'],
+    horda: ['Gráfico parece que foi feito em Ext rsrsrs.', 'Zumbi graxa bola veia.'],
+    historia: 'Era programador antes do apocalipse, forneceu gatos ao acampamento. Continuou programando em Ext (único na face da terra que continua).',
+    // easter egg (honored.js): de vez em quando "programa" o abrigo em Ext JS; sobra 1 🔬 de pesquisa
+    codigo: {
+      chance: 0.15,
+      linhas: [
+        "Ext.onReady(function () { Ext.Msg.alert('Abrigo', 'Zumbi graxa bola veia'); });",
+        "Ext.create('Ext.Window', { title: 'Muro', html: 'Segura!' }).show();",
+        "Ext.define('Zumbi', { extend: 'Ext.data.Model', fields: ['graxa'] });",
+      ],
+      log: 'Sid refez o painel do abrigo em Ext JS. Ninguém mais entende os gráficos, mas ele jura que está lindo.',
+      depois: 'Viu, dai vou mergear a tarefa.',
+    },
+  },
+  {
+    nome: 'Bruno', sexo: 'm',
+    frases: ['Os guriii são fodaaaa.', 'Vamos dar um gássss.', 'Vou lhe passar a tarefa bruta (125 dias atrás).'],
+    horda: ['A probabilidade é igual a sorte que é diferente.', 'O zumbi pode usar isso, mesmo sendo zumbi?', 'oooooooooooooooo'],
+    historia: 'Era chefe do setor antes do apocalipse. Trabalhava 1x por semana e, nesse dia, ainda folgava das 7 às 8h. Era líder... dos Legendários.',
+    // easter egg (honored.js): enquanto está no grupo, a produção do abrigo cai 2%, porque produtividade não é o forte dele
+    prod: -0.02,
   }
   // { nome: 'Fulana', sexo: 'f', frases: ['Primeira frase.', 'Segunda frase.'], horda: ['Lá vêm eles!'], adeus: ['Cuidem do abrigo por mim.'], visual: { hair: [200, 60, 130], longHair: true } },
 ];
